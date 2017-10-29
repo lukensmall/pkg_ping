@@ -1,21 +1,4 @@
 /*
- * Copyright (c) 2017 Luke N. Small
- *
- * Permission to use, copy, modify, and distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- */
-
-
-/*
  * Special thanks to Dan Mclaughlin for the ftp to sed idea
  *
  * ftp -o - http://www.openbsd.org/ftp.html | \
@@ -25,10 +8,7 @@
  * 	-e 's:^\(	[hfr].*\):\1:p'
  */
 
-/*
- * indent pkg_ping3.c -bap -br -ce -ci4 -cli0 -d0 -di0 -i8 -ip -l79 -nbc -ncdb \
- * -ndj -ei -nfc1 -nlp -npcs -psl -sc -sob
- */
+/* clang pkg_ping.c -o pkg_ping */
 
 #include <err.h>
 #include <errno.h>
