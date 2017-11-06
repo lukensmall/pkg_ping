@@ -569,6 +569,9 @@ main(int argc, char *argv[])
 
 		int block_pipe[2];
 		struct timeval tv_start, tv_end;
+		
+		if (pipe(block_pipe) == -1)
+			err(1, "pipe!");
 
 		ftp_pid = fork();
 		if (ftp_pid == (pid_t) 0) {
