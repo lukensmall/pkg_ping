@@ -1,9 +1,9 @@
 /*
  * BSD 2-Clause License
- * 
+ *
  * Copyright (c) 2017, Luke N Small, lukensmall@gmail.com
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
 
@@ -58,7 +58,6 @@
 struct mirror_st {
 	char *label;
 	char *ftp_file;
-	char *mirror;
 	double diff;
 };
 
@@ -105,15 +104,15 @@ get_time_diff(struct timeval a, struct timeval b)
 	int64_t sec;
 	int64_t usec;
 	double temp;
-	sec = (int64_t)b.tv_sec - (int64_t)a.tv_sec;
-	usec = (int64_t)b.tv_usec - (int64_t)a.tv_usec;
+	sec = (int64_t) b.tv_sec - (int64_t) a.tv_sec;
+	usec = (int64_t) b.tv_usec - (int64_t) a.tv_usec;
 	if (usec < 0) {
 		--sec;
 		usec += 1000000;
 	}
-	temp = (double)usec;
-	temp /= 1000000.0;
-	temp += (double)sec;
+	temp = (double) usec;
+	temp /= (double)1000000.0;
+	temp += (double) sec;
 	return temp;
 }
 
@@ -121,12 +120,12 @@ static void
 manpage(char *a)
 {
 	printf("%s [-v (recognizes up to 3 levels of verbosity)]\n", a);
-	
+
 	printf("[-u (no USA mirrors...to comply ");
 	printf("with USA encryption export laws)]\n");
-	
+
 	printf("[-s timeout (floating-point)]\n");
-	
+
 	printf("[-h (print this message and exit)]\n");
 }
 
@@ -141,10 +140,12 @@ main(int argc, char *argv[])
 	int parent_to_write[2];
 	double s;
 	int kq, i, pos, num, c, n, array_max, array_length, u, verbose;
+	int tag_len;
 	FILE *input;
 	struct utsname name;
 	struct mirror_st **array;
 	struct kevent ke;
+	char *tag;
 
 	array_max = 300;
 
@@ -160,6 +161,17 @@ main(int argc, char *argv[])
 
 	if (uname(&name) == -1)
 		err(EXIT_FAILURE, "uname");
+		
+	tag_len = strlen("/") + strlen(name.release) + strlen("/") +
+				strlen(name.machine) + strlen("/SHA256");
+				
+	tag = (char*)malloc(tag_len - 1 + 1);
+	if (tag == NULL) err(1, "malloc");
+	
+	strlcpy(tag, name.release, tag_len);
+	strlcat(tag,          "/", tag_len);
+	strlcat(tag, name.machine, tag_len);
+	strlcat(tag,    "/SHA256", tag_len);
 
 	while ((c = getopt(argc, argv, "s:vuh")) != -1) {
 		switch (c) {
@@ -175,8 +187,8 @@ main(int argc, char *argv[])
 
 					if (optarg[c] == '-')
 						errx(EXIT_FAILURE, "No negative numbers.");
-					fprintf(stderr, "Incorrect floating ");
-					fprintf(stderr, "point format.");
+					printf("Incorrect floating ");
+					printf("point format.");
 					return 1;
 				}
 			}
@@ -187,7 +199,7 @@ main(int argc, char *argv[])
 			if ((s = strtod(optarg, NULL)) > 1000.0)
 				errx(EXIT_FAILURE, "-s should <= 1000");
 			if (s <= 0.01)
-				errx(1, "-s should be > 0.01");
+				errx(EXIT_FAILURE, "-s should be > 0.01");
 			break;
 		case 'v':
 			if (++verbose > 3)
@@ -218,23 +230,23 @@ main(int argc, char *argv[])
 	if (write_pid == (pid_t) 0) {
 		if (getuid() == 0) {
 			if (pledge("stdio wpath cpath", NULL) == -1) {
-				fprintf(stderr, "pledge\n");
+				printf("pledge\n");
 				_exit(EXIT_FAILURE);
 			}
-		} else {
-			if (pledge("stdio", NULL) == -1) {
-				fprintf(stderr, "pledge\n");
-				_exit(EXIT_FAILURE);
-			}
+		} else if (pledge("stdio", NULL) == -1) {
+			printf("pledge\n");
+			_exit(EXIT_FAILURE);
 		}
 		close(parent_to_write[STDOUT_FILENO]);
-		if (dup2(parent_to_write[STDIN_FILENO], STDIN_FILENO) == -1)
-			err(EXIT_FAILURE, NULL);
-
+		if (dup2(parent_to_write[STDIN_FILENO], STDIN_FILENO) == -1) {
+			printf("dup2\n");
+			_exit(EXIT_FAILURE);
+		}
 		kq = kqueue();
-		if (kq == -1)
-			err(EXIT_FAILURE, "kq!");
-
+		if (kq == -1) {
+			printf("kq!\n");
+			_exit(EXIT_FAILURE);
+		}
 		EV_SET(&ke, parent_to_write[STDIN_FILENO], EVFILT_READ,
 		    EV_ADD | EV_ONESHOT, 0, 0, NULL);
 
@@ -306,7 +318,7 @@ main(int argc, char *argv[])
 	struct timespec timeout;
 
 	timeout.tv_sec = (int) s;
-	timeout.tv_nsec = (int) ((s - (double)timeout.tv_sec) * 1000000000);
+	timeout.tv_nsec = (int) ((s - (double) timeout.tv_sec) * 1000000000);
 
 	kq = kqueue();
 	if (kq == -1)
@@ -347,6 +359,7 @@ main(int argc, char *argv[])
 	if (sed_pid == (pid_t) 0) {
 
 		close(sed_to_parent[STDIN_FILENO]);
+		
 		if (dup2(ftp_to_sed[STDIN_FILENO], STDIN_FILENO) == -1) {
 			kill(ftp_pid, SIGKILL);
 			errx(EXIT_FAILURE, "dup2");
@@ -398,7 +411,7 @@ main(int argc, char *argv[])
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
 		errx(EXIT_FAILURE,
-			"input = fdopen (sed_to_parent[0], \"r\") failed.");
+		    "input = fdopen (sed_to_parent[0], \"r\") failed.");
 	}
 	char line[300];
 	num = 0;
@@ -464,9 +477,7 @@ main(int argc, char *argv[])
 			else {
 				line[pos++] = '\0';
 
-				pos += num = strlen(name.release) + 1
-				    + strlen(name.machine) + strlen("/SHA256");
-
+				pos += tag_len - 1;
 
 
 				array[array_length]->ftp_file = malloc(pos);
@@ -479,26 +490,7 @@ main(int argc, char *argv[])
 				    line, pos);
 
 				strlcat(array[array_length]->ftp_file,
-				    name.release, pos);
-
-				strlcat(array[array_length]->ftp_file,
-				    "/", pos);
-
-				strlcat(array[array_length]->ftp_file,
-				    name.machine, pos);
-
-				strlcat(array[array_length]->ftp_file,
-				    "/SHA256", pos);
-
-				/* intentionally strip off the trailing '/' */
-				pos -= num + 1;
-				array[array_length]->mirror = malloc(pos);
-				if (array[array_length]->mirror == NULL) {
-					kill(ftp_pid, SIGKILL);
-					kill(sed_pid, SIGKILL);
-					errx(EXIT_FAILURE, "malloc");
-				}
-				strlcpy(array[array_length]->mirror, line, pos);
+				    tag, pos);
 
 				if (++array_length > array_max) {
 					array_max += 100;
@@ -558,7 +550,7 @@ main(int argc, char *argv[])
 				if ((i == 9) || (i == 99))
 					printf("\b \b");
 				n = i;
-				while(n > 0) {
+				while (n > 0) {
 					printf("\b");
 					n /= 10;
 				}
@@ -569,20 +561,20 @@ main(int argc, char *argv[])
 
 		int block_pipe[2];
 		struct timeval tv_start, tv_end;
-		
+
 		if (pipe(block_pipe) == -1)
-			err(1, "pipe!");
+			err(EXIT_FAILURE, "pipe!");
 
 		ftp_pid = fork();
 		if (ftp_pid == (pid_t) 0) {
-			
+
 			if (pledge("stdio exec", NULL) == -1)
 				err(EXIT_FAILURE, "pledge");
 
 			close(block_pipe[STDOUT_FILENO]);
 			read(block_pipe[STDIN_FILENO], &n, sizeof(int));
 			close(block_pipe[STDIN_FILENO]);
-			
+
 			if (verbose >= 2) {
 				execl("/usr/bin/ftp", "ftp", "-Vmo",
 				    "/dev/null", array[c]->ftp_file, NULL);
@@ -611,9 +603,8 @@ main(int argc, char *argv[])
 			kill(ftp_pid, SIGKILL);
 			err(EXIT_FAILURE, "kevent register fail.");
 		}
-
 		gettimeofday(&tv_start, NULL);
-		
+
 		close(block_pipe[STDOUT_FILENO]);
 
 		array[c]->diff = 0;
@@ -656,25 +647,26 @@ main(int argc, char *argv[])
 			if (verbose >= 2)
 				printf("Download Error\n");
 		}
-
 		waitpid(ftp_pid, NULL, 0);
 	}
 
-	if (pledge("stdio proc", NULL) == -1)
+	if (pledge("stdio", NULL) == -1)
 		err(EXIT_FAILURE, "pledge");
 
 	if (verbose < 2) {
 		printf("\b \b");
 		fflush(stdout);
 	}
+
 	qsort(array, array_length, sizeof(struct mirror_st *), ftp_cmp);
 
 
 	if (verbose == 3) {
 		printf("\n\n");
 		for (c = array_length - 1; c >= 0; --c) {
+			array[c]->ftp_file[strlen(array[c]->ftp_file) - tag_len] = '\0';
 			printf("%d : %s:\n\t%s : ", c + 1, array[c]->label,
-			    array[c]->mirror);
+			    array[c]->ftp_file);
 
 			if (array[c]->diff < s)
 				printf("%f\n\n", array[c]->diff);
@@ -684,19 +676,20 @@ main(int argc, char *argv[])
 				printf("Download Error\n\n");
 		}
 	}
+	else
+		array[0]->ftp_file[strlen(array[0]->ftp_file) - tag_len] = '\0';
+		
 	if (array[0]->diff >= s)
 		errx(EXIT_FAILURE, "No mirrors found within timeout period.");
 
 	if (dup2(parent_to_write[STDOUT_FILENO], STDOUT_FILENO) == -1) {
-		kill(write_pid, SIGKILL);
-		printf("%s\n", array[0]->mirror);
+		printf("%s\n", array[0]->ftp_file);
+		close(parent_to_write[STDOUT_FILENO]);
+		wait(NULL);
 		return 1;
 	}
 
-	if (pledge("stdio", NULL) == -1)
-		err(EXIT_FAILURE, "pledge");
-		
-	printf("%s\n", array[0]->mirror);
+	printf("%s\n", array[0]->ftp_file);
 	fflush(stdout);
 	close(parent_to_write[STDOUT_FILENO]);
 	close(STDOUT_FILENO);
