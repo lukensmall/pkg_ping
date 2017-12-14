@@ -352,8 +352,10 @@ main(int argc, char *argv[])
 
 	close(ftp_to_sed[STDOUT_FILENO]);
 
-	if (pipe(sed_to_parent) == -1)
-		err(EXIT_FAILURE, NULL);
+	if (pipe(sed_to_parent) == -1) {
+		kill(ftp_pid, SIGKILL);
+		err(EXIT_FAILURE, "pipe");
+	}
 
 	sed_pid = fork();
 	if (sed_pid == (pid_t) 0) {
@@ -373,11 +375,13 @@ main(int argc, char *argv[])
 		    "-e", "s:\t<strong>\\([^<]*\\)<.*:\\1:p",
 		    "-e", "s:^\\(\t[hfr].*\\):\\1:p", NULL);
 
-		if (pledge("stdio proc", NULL) == -1)
+		if (pledge("stdio proc", NULL) == -1) {
+			kill(ftp_pid, SIGKILL);
 			err(EXIT_FAILURE, "pledge");
+		}
 
 		kill(ftp_pid, SIGKILL);
-		errx(EXIT_FAILURE, "sed execl() failed.");
+		err(EXIT_FAILURE, "sed execl() failed.");
 	}
 	if (sed_pid == -1) {
 		kill(ftp_pid, SIGKILL);
@@ -391,7 +395,7 @@ main(int argc, char *argv[])
 	if (kevent(kq, &ke, 1, NULL, 0, NULL) == -1) {
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
-		errx(EXIT_FAILURE, "sed_to_parent kevent register fail.");
+		err(EXIT_FAILURE, "sed_to_parent kevent register fail.");
 	}
 	i = kevent(kq, NULL, 0, &ke, 1, &timeout0);
 	if (i == -1) {
@@ -410,7 +414,7 @@ main(int argc, char *argv[])
 	if (input == NULL) {
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
-		errx(EXIT_FAILURE,
+		err(EXIT_FAILURE,
 		    "input = fdopen (sed_to_parent[0], \"r\") failed.");
 	}
 	char line[300];
@@ -421,7 +425,7 @@ main(int argc, char *argv[])
 	if (array[0] == NULL) {
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
-		errx(EXIT_FAILURE, "malloc");
+		err(EXIT_FAILURE, "malloc");
 	}
 	while ((c = getc(input)) != EOF) {
 		if (pos >= 300) {
@@ -454,7 +458,7 @@ main(int argc, char *argv[])
 				if (array[array_length]->label == NULL) {
 					kill(ftp_pid, SIGKILL);
 					kill(sed_pid, SIGKILL);
-					errx(EXIT_FAILURE, "malloc");
+					err(EXIT_FAILURE, "malloc");
 				}
 				strlcpy(array[array_length]->label, line, pos);
 
@@ -484,7 +488,7 @@ main(int argc, char *argv[])
 				if (array[array_length]->ftp_file == NULL) {
 					kill(ftp_pid, SIGKILL);
 					kill(sed_pid, SIGKILL);
-					errx(1, "malloc");
+					err(1, "malloc");
 				}
 				strlcpy(array[array_length]->ftp_file,
 				    line, pos);
@@ -523,7 +527,7 @@ main(int argc, char *argv[])
 	waitpid(sed_pid, NULL, 0);
 
 	if (array_length == 0)
-		errx(1, "No mirrors found.");
+		errx(EXIT_FAILURE, "No mirrors found.");
 
 	free(array[array_length]->label);
 	free(array[array_length]);
@@ -589,7 +593,8 @@ main(int argc, char *argv[])
 			if (pledge("stdio", NULL) == -1)
 				err(EXIT_FAILURE, "pledge");
 
-			err(EXIT_FAILURE, "ftp execl() failed.");
+			printf("ftp execl() failed.");
+			_exit(EXIT_FAILURE);
 		}
 		if (ftp_pid == -1)
 			err(EXIT_FAILURE, "fork");
@@ -686,7 +691,7 @@ main(int argc, char *argv[])
 		printf("%s\n", array[0]->ftp_file);
 		close(parent_to_write[STDOUT_FILENO]);
 		wait(NULL);
-		return 1;
+		err(EXIT_FAILURE, "dup2");
 	}
 
 	printf("%s\n", array[0]->ftp_file);
