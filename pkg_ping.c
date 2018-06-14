@@ -7,11 +7,14 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions 
  * are met:
+
  * Redistributions of source code must retain the above copyright 
  * notice, this list of conditions and the following disclaimer.
+
  * Redistributions in binary form must reproduce the above copyright
  * notice, this list of conditions and the following disclaimer in the 
  * documentation and/or other materials provided with the distribution.
+
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
  * LIMITED TO, THE  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS 
@@ -245,7 +248,8 @@ main(int argc, char *argv[])
 	struct timespec timeout;
 
 	timeout.tv_sec = (time_t) s;
-	timeout.tv_nsec = (long) ((s - (double) timeout.tv_sec)
+	timeout.tv_nsec = 
+	    (long) ((s - (double) timeout.tv_sec)
 	    * 1000000000);
 
 	kq = kqueue();
@@ -260,22 +264,27 @@ main(int argc, char *argv[])
 	ftp_pid = fork();
 	if (ftp_pid == (pid_t) 0) {
 
-		if (pledge("stdio exec", NULL) == -1)
-			err(EXIT_FAILURE, "pledge");
+		if (pledge("stdio exec", NULL) == -1) {
+			printf("ftp pledge 1\n");
+			_exit(1);
+		}
 
 		close(ftp_to_sed[STDIN_FILENO]);
-		if (dup2(ftp_to_sed[STDOUT_FILENO], STDOUT_FILENO) == -1)
-			err(EXIT_FAILURE, "dup2");
+		if (dup2(ftp_to_sed[STDOUT_FILENO], STDOUT_FILENO) == -1) {
+			printf("ftp STDOUT dup2\n");
+			_exit(1);
+		}
 
 		execl("/usr/bin/ftp", "ftp", "-Vo", "-",
 		    "https://www.openbsd.org/ftp.html", NULL);
 
-		n = errno;
-		if (pledge("stdio", NULL) == -1)
-			err(EXIT_FAILURE, "pledge");
-		errno = n;
+		if (pledge("stdio", NULL) == -1) {
+			fprintf(stderr, "ftp pledge 2\n");
+			_exit(1);
+		}
 
-		err(EXIT_FAILURE, "ftp execl() failed.");
+		fprintf(stderr, "ftp execl() failed\n");
+		_exit(1);
 	}
 	if (ftp_pid == -1)
 		err(EXIT_FAILURE, "fork");
@@ -293,32 +302,31 @@ main(int argc, char *argv[])
 
 		close(sed_to_parent[STDIN_FILENO]);
 
+		if (pledge("stdio exec", NULL) == -1) {
+			printf("sed pledge 1");
+			_exit(1);
+		}
+
 		if (dup2(ftp_to_sed[STDIN_FILENO], STDIN_FILENO) == -1) {
-			n = errno;
-			kill(ftp_pid, SIGKILL);
-			errno = n;
-			err(EXIT_FAILURE, "dup2");
+			printf("sed STDIN dup2\n");
+			_exit(1);
 		}
 		if (dup2(sed_to_parent[STDOUT_FILENO], STDOUT_FILENO) == -1) {
-			n = errno;
-			kill(ftp_pid, SIGKILL);
-			errno = n;
-			err(EXIT_FAILURE, "dup2");
+			printf("sed STDOUT dup2\n");
+			_exit(1);
 		}
-		if (pledge("stdio exec", NULL) == -1)
-			err(EXIT_FAILURE, "pledge");
 
 		execl("/usr/bin/sed", "sed", "-n",
 		    "-e", "s:</a>$::",
 		    "-e", "s:\t<strong>\\([^<]*\\)<.*:\\1:p",
 		    "-e", "s:^\\(\t[hfr].*\\):\\1:p", NULL);
 
-		n = errno;
-		if (pledge("stdio", NULL) == -1)
-			err(EXIT_FAILURE, "pledge");
-		errno = n;
-
-		err(EXIT_FAILURE, "sed execl() failed.");
+		if (pledge("stdio", NULL) == -1) {
+			fprintf(stderr, "sed pledge 2\n");
+			_exit(1);
+		}
+		fprintf(stderr, "sed execl() failed\n");
+		_exit(1);
 	}
 	if (sed_pid == -1) {
 		n = errno;
@@ -485,6 +493,8 @@ main(int argc, char *argv[])
 
 	close(sed_to_parent[STDIN_FILENO]);
 
+	kill(ftp_pid, SIGKILL);
+	kill(sed_pid, SIGKILL);
 	waitpid(ftp_pid, NULL, 0);
 	waitpid(sed_pid, NULL, 0);
 
@@ -549,8 +559,10 @@ main(int argc, char *argv[])
 		ftp_pid = fork();
 		if (ftp_pid == (pid_t) 0) {
 
-			if (pledge("stdio exec", NULL) == -1)
-				err(EXIT_FAILURE, "pledge");
+			if (pledge("stdio", NULL) == -1) {
+				fprintf(stderr, "ftp pledge 3");
+				_exit(1);
+			}
 
 			close(block_pipe[STDOUT_FILENO]);
 			read(block_pipe[STDIN_FILENO], &n, sizeof(int));
@@ -567,12 +579,12 @@ main(int argc, char *argv[])
 				    "/dev/null", array[c]->ftp_file, NULL);
 			}
 
-			n = errno;
-			if (pledge("stdio", NULL) == -1)
-				err(EXIT_FAILURE, "pledge");
-			errno = n;
-
-			err(EXIT_FAILURE, "ftp execl() failed.");
+			if (pledge("stdio", NULL) == -1) {
+				fprintf(stderr, "ftp pledge 4");
+				_exit(1);
+			}
+			fprintf(stderr, "ftp execl() failed.");
+			_exit(1);
 		}
 		if (ftp_pid == -1)
 			err(EXIT_FAILURE, "fork");
@@ -588,11 +600,12 @@ main(int argc, char *argv[])
 			errno = n;
 			err(EXIT_FAILURE, "kevent register fail.");
 		}
+		
+		array[c]->diff = 0;
 		gettimeofday(&tv_start, NULL);
 
 		close(block_pipe[STDOUT_FILENO]);
 
-		array[c]->diff = 0;
 
 
 
