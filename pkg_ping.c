@@ -559,7 +559,7 @@ main(int argc, char *argv[])
 		ftp_pid = fork();
 		if (ftp_pid == (pid_t) 0) {
 
-			if (pledge("stdio", NULL) == -1) {
+			if (pledge("stdio exec", NULL) == -1) {
 				fprintf(stderr, "ftp pledge 3");
 				_exit(1);
 			}
