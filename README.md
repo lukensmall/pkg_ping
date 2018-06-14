@@ -1,7 +1,8 @@
 It immediately does pledge("stdio proc exec", NULL)
 
 It determines and prints the fastest OpenBSD mirror for your version and architecture for the /etc/installurl file. compiler 
-optimization for speed is not necessary as the calls using ftp will take up the vast majority of the run-time. pledge() is used. 
+optimization for speed is not necessary as the calls using ftp will take up the vast majority of the run-time.
+pledge() is updated throughout. 
 This program works on OpenBSD versions 6.1 - 6.3 as of this writing.
 
 It uses several commandline options:
