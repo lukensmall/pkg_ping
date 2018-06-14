@@ -16,7 +16,7 @@ reverse order by time.
 -h will print the options with -h. these options can be mixed and matched as well.
 
 -i (insecure) option will also choose http and ftp mirrors, where the ftp mirrors are turned into http mirror listings and
-depuplicated. http/ftp mirrors are faster than the https mirror selections, however they pass over the internet insecurely.
+deduplicated. http/ftp mirrors are faster than the https mirror selections, however they pass over the internet insecurely.
 
 It will shorten the timeout period to the download time of the fastest mirror throughout execution if no -v are used.
 
