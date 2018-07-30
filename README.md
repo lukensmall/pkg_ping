@@ -12,7 +12,7 @@ reverse order by time.
 
 -u will make it search for only non-USA mirrors for export encryption compliance if you are searching from outside of the USA.
 
--s will accept floating-point timeout like 1.5 seconds using strtod(), eg. "-s 1.5".
+-s will accept floating-point timeout like 1.5 seconds using strtod(), eg. "-s 1.5", default 5.
 
 -h will print the options with -h. these options can be mixed and matched as well.
 
