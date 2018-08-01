@@ -525,10 +525,10 @@ main(int argc, char *argv[])
 
 	for (c = 0; c < array_length; ++c) {
 		if (verbose >= 1) {
-			if (array_length >= 1000) {
+			if (array_length > 1000) {
 				printf("\n%4d : %s  :  %s\n", array_length - c,
 				    array[c]->label, array[c]->ftp_file);
-			} else if (array_length >= 100) {
+			} else if (array_length > 100) {
 				printf("\n%3d : %s  :  %s\n", array_length - c,
 				    array[c]->label, array[c]->ftp_file);
 			} else {
