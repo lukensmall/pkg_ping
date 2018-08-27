@@ -43,8 +43,8 @@
  */
 
 /*
- * indent pkg_ping.c -bap -br -ce -ci4 -cli0 -d0 -di0 -i8 \
- * -ip -l79 -nbc -ncdb -ndj -ei -nfc1 -nlp -npcs -psl -sc -sob
+   indent pkg_ping.c -bap -br -ce -ci4 -cli0 -d0 -di0 -i8 \
+   -ip -l79 -nbc -ncdb -ndj -ei -nfc1 -nlp -npcs -psl -sc -sob
  */
 
 #include <err.h>
@@ -141,7 +141,10 @@ manpage(char *a)
 	printf("with USA encryption export laws)]\n");
 
 	printf("[-s timeout (input floating-point number)]\n");
+
 	printf("[-i (insecure mirrors too)]\n");
+
+	printf("[-c (find current snapshot packages)]\n");
 
 	printf("[-h (print this message and exit)]\n");
 }
@@ -149,16 +152,14 @@ manpage(char *a)
 int
 main(int argc, char *argv[])
 {
-	//if (getuid() == 0)
-		//errx(EXIT_FAILURE, "Don't run as root!");
-
-	if (pledge("stdio proc exec", NULL) == -1)
+	if (pledge("stdio rpath wpath cpath proc exec id unveil", NULL) == -1)
 		err(EXIT_FAILURE, "pledge");
-	pid_t ftp_pid, sed_pid;
+	pid_t ftp_pid, sed_pid, write_pid;
 	int ftp_to_sed[2];
 	int sed_to_parent[2];
+	int parent_to_write[2];
 	double s;
-	int kq, i, pos, num, c, n;
+	int kq, i, pos, num, c, n, current;
 	int array_max, array_length, u, verbose, insecure, tag_len;
 	FILE *input;
 	struct utsname name;
@@ -177,23 +178,12 @@ main(int argc, char *argv[])
 	u = 0;
 	verbose = 0;
 	insecure = 0;
+	current = 0;
 
 	if (uname(&name) == -1)
 		err(EXIT_FAILURE, "uname");
 
-	tag_len = strlen("/") + strlen(name.release) + strlen("/") +
-	    strlen(name.machine) + strlen("/SHA256");
-
-	tag = (char *) malloc(tag_len - 1 + 1);
-	if (tag == NULL)
-		err(1, "malloc");
-
-	strlcpy(tag, name.release, tag_len);
-	strlcat(tag, "/", tag_len);
-	strlcat(tag, name.machine, tag_len);
-	strlcat(tag, "/SHA256", tag_len);
-
-	while ((c = getopt(argc, argv, "s:ivuh")) != -1) {
+	while ((c = getopt(argc, argv, "s:ivuhc")) != -1) {
 		switch (c) {
 		case 's':
 			c = -1;
@@ -234,6 +224,9 @@ main(int argc, char *argv[])
 		case 'h':
 			manpage(argv[0]);
 			return 0;
+		case 'c':
+			current = 1;
+			break;
 		default:
 			manpage(argv[0]);
 			return 1;
@@ -243,6 +236,128 @@ main(int argc, char *argv[])
 	//~argc -= optind;
 	//~argv += optind;
 
+
+	if (current == 0) {
+		tag_len = strlen("/") + strlen(name.release) + strlen("/") +
+			strlen(name.machine) + strlen("/SHA256");
+	} else {
+		tag_len = strlen("/") + strlen("snapshots") + strlen("/") +
+			strlen(name.machine) + strlen("/SHA256");
+	}
+
+	tag = (char *) malloc(tag_len - 1 + 1);
+	if (tag == NULL)
+		err(1, "malloc");
+
+	if (current == 0)
+		strlcpy(tag, name.release, tag_len);
+	else
+		strlcpy(tag, "snapshots", tag_len);
+	strlcat(tag, "/", tag_len);
+	strlcat(tag, name.machine, tag_len);
+	strlcat(tag, "/SHA256", tag_len);
+
+
+
+	if (pipe(parent_to_write) == -1)
+		err(1, NULL);
+
+	write_pid = fork();
+	if (write_pid == (pid_t) 0) {
+		if (getuid() == 0) {
+			if (pledge("stdio wpath cpath unveil", NULL) == -1) {
+				printf("pledge line: %d\n", __LINE__);
+				_exit(EXIT_FAILURE);
+			}
+			if (unveil("/etc/installurl", "cw") == -1) {
+				printf("unveil line: %d\n", __LINE__);
+				_exit(EXIT_FAILURE);
+			}
+			if (pledge("stdio wpath cpath", NULL) == -1) {
+				printf("pledge line: %d\n", __LINE__);
+				_exit(EXIT_FAILURE);
+			}
+		} else {
+			if (pledge("stdio", NULL) == -1) {
+				printf("pledge line: %d\n", __LINE__);
+				_exit(EXIT_FAILURE);
+			}
+		}
+		close(parent_to_write[1]);
+		if (dup2(parent_to_write[0], STDIN_FILENO) == -1)
+			err(1, NULL);
+
+		kq = kqueue();
+		if (kq == -1)
+			err(1, "kq!");
+
+		EV_SET(&ke, parent_to_write[0], EVFILT_READ,
+		    EV_ADD | EV_ONESHOT, 0, 0, NULL);
+
+		if (kevent(kq, &ke, 1, NULL, 0, NULL) == -1) {
+			printf("parent_to_write kevent register fail.\n");
+			_exit(1);
+		}
+		i = kevent(kq, NULL, 0, &ke, 1, NULL);
+		if (i == -1) {
+			printf("parent_to_write pipe failed.\n");
+			_exit(1);
+		}
+		if (i == 0) {
+			printf("parent_to_write pipe signal received.\n");
+			_exit(1);
+		}
+		FILE *pkg_write;
+		if (getuid() == 0) {
+			pkg_write = fopen("/etc/installurl", "w");
+
+			if (pledge("stdio", NULL) == -1) {
+				fprintf(stderr, "pledge line: %d\n", __LINE__);
+				_exit(1);
+			}
+		} else
+			pkg_write = NULL;
+
+		input = fdopen(parent_to_write[0], "r");
+		if (input == NULL) {
+			printf("input = fdopen (parent_to_write[0], \"r\") ");
+			printf("failed.\n");
+			_exit(1);
+		}
+		if (pkg_write != NULL) {
+			if (verbose == 2)
+				printf("\n\n");
+			printf("/etc/installurl: ");
+			while ((c = getc(input)) != EOF) {
+				printf("%c", c);
+				putc(c, pkg_write);
+			}
+			fclose(pkg_write);
+		} else /* if (verbose > 0) */ {
+			if (verbose == 2)
+				printf("\n");
+			printf("\nRun as root to write to /etc/installurl\nor type ");
+			printf("the following line as root:\necho \"");
+			while ((c = getc(input)) != EOF)
+			{
+				if (c != '\n')
+					printf("%c", c);
+			}
+			printf("\" > /etc/installurl\n");
+		}
+		fclose(input);
+		close(parent_to_write[0]);
+
+		_exit(0);
+	}
+	if (write_pid == -1)
+		err(1, "fork");
+
+	close(parent_to_write[0]);
+	setuid(1000);
+
+	if (pledge("stdio proc exec unveil", NULL) == -1)
+		err(EXIT_FAILURE, "pledge");
 
 	struct timespec timeout0 = {20, 0};
 	struct timespec timeout;
@@ -261,9 +376,12 @@ main(int argc, char *argv[])
 		err(EXIT_FAILURE, "pipe");
 
 
+	if (unveil("/usr/bin/ftp", "x") == -1) {
+		printf("unveil line: %d\n", __LINE__);
+		_exit(EXIT_FAILURE);
+	}
 	ftp_pid = fork();
 	if (ftp_pid == (pid_t) 0) {
-
 		if (pledge("stdio exec", NULL) == -1) {
 			printf("ftp pledge 1\n");
 			_exit(1);
@@ -300,12 +418,22 @@ main(int argc, char *argv[])
 	sed_pid = fork();
 	if (sed_pid == (pid_t) 0) {
 
-		close(sed_to_parent[STDIN_FILENO]);
+		if (unveil("/usr/bin/sed", "x") == -1) {
+			printf("unveil line: %d\n", __LINE__);
+			_exit(EXIT_FAILURE);
+		}
+
+		if (unveil("/usr/bin/ftp", "") == -1) {
+			printf("unveil line: %d\n", __LINE__);
+			_exit(EXIT_FAILURE);
+		}
 
 		if (pledge("stdio exec", NULL) == -1) {
 			printf("sed pledge 1");
 			_exit(1);
 		}
+
+		close(sed_to_parent[STDIN_FILENO]);
 
 		if (dup2(ftp_to_sed[STDIN_FILENO], STDIN_FILENO) == -1) {
 			printf("sed STDIN dup2\n");
@@ -334,6 +462,10 @@ main(int argc, char *argv[])
 		errno = n;
 		err(EXIT_FAILURE, "fork");
 	}
+
+	if (pledge("stdio proc exec", NULL) == -1)
+		err(EXIT_FAILURE, "pledge");
+
 	close(ftp_to_sed[STDIN_FILENO]);
 	close(sed_to_parent[STDOUT_FILENO]);
 
@@ -466,7 +598,7 @@ main(int argc, char *argv[])
 				    tag, pos);
 
 				if (++array_length > array_max) {
-					array_max += 300;
+					array_max += 100;
 					array = reallocarray(array, array_max,
 					    sizeof(struct mirror_st));
 
@@ -677,11 +809,24 @@ main(int argc, char *argv[])
 	} else
 		array[0]->ftp_file[strlen(array[0]->ftp_file) - tag_len] = '\0';
 
-	if (array[0]->diff >= s)
-		errx(EXIT_FAILURE, "No mirrors found within timeout period.");
+	if (array[0]->diff >= s) {
+		if ( current == 0 )
+			errx(EXIT_FAILURE, "\n\nNo mirrors. IF THIS IS -CURRENT, use -c\n");
+		else
+			errx(EXIT_FAILURE, "No mirrors found.");	
+	}
 
-	printf("as root, type: echo ");
-	printf("\"%s\" > /etc/installurl\n", array[0]->ftp_file);
+	if (dup2(parent_to_write[STDOUT_FILENO], STDOUT_FILENO) == -1) {
+		kill(write_pid, SIGKILL);
+		printf("%s\n", array[0]->ftp_file);
+		return 1;
+	}
+	printf("%s\n", array[0]->ftp_file);
+	fflush(stdout);
+	close(parent_to_write[STDOUT_FILENO]);
+	close(STDOUT_FILENO);
 
-	return 0;
+	wait(&c);
+
+	return c;
 }
