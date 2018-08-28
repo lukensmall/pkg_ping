@@ -152,8 +152,13 @@ manpage(char *a)
 int
 main(int argc, char *argv[])
 {
-	if (pledge("stdio rpath wpath cpath proc exec id unveil", NULL) == -1)
-		err(EXIT_FAILURE, "pledge");
+	if (getuid() == 0) {
+		if (pledge("stdio wpath cpath proc exec unveil", NULL) == -1)
+			err(EXIT_FAILURE, "pledge line: %d\n", __LINE__);
+	} else {
+		if (pledge("stdio proc exec unveil", NULL) == -1)
+			err(EXIT_FAILURE, "pledge line: %d\n", __LINE__);
+	}
 	pid_t ftp_pid, sed_pid, write_pid;
 	int ftp_to_sed[2];
 	int sed_to_parent[2];
@@ -199,7 +204,7 @@ main(int argc, char *argv[])
 						errx(EXIT_FAILURE, "No negative numbers.");
 					printf("Incorrect floating ");
 					printf("point format.");
-					return 1;
+					return EXIT_FAILURE;
 				}
 			}
 			errno = 0;
@@ -229,7 +234,7 @@ main(int argc, char *argv[])
 			break;
 		default:
 			manpage(argv[0]);
-			return 1;
+			return EXIT_FAILURE;
 		}
 	}
 
@@ -247,7 +252,7 @@ main(int argc, char *argv[])
 
 	tag = (char *) malloc(tag_len - 1 + 1);
 	if (tag == NULL)
-		err(1, "malloc");
+		err(EXIT_FAILURE, "malloc");
 
 	if (current == 0)
 		strlcpy(tag, name.release, tag_len);
@@ -260,7 +265,7 @@ main(int argc, char *argv[])
 
 
 	if (pipe(parent_to_write) == -1)
-		err(1, NULL);
+		err(EXIT_FAILURE, NULL);
 
 	write_pid = fork();
 	if (write_pid == (pid_t) 0) {
@@ -285,27 +290,32 @@ main(int argc, char *argv[])
 		}
 		close(parent_to_write[1]);
 		if (dup2(parent_to_write[0], STDIN_FILENO) == -1)
-			err(1, NULL);
+			err(EXIT_FAILURE, "dup2 line: %d", __LINE__);
 
 		kq = kqueue();
 		if (kq == -1)
-			err(1, "kq!");
+			err(EXIT_FAILURE, "kq!");
 
 		EV_SET(&ke, parent_to_write[0], EVFILT_READ,
 		    EV_ADD | EV_ONESHOT, 0, 0, NULL);
 
 		if (kevent(kq, &ke, 1, NULL, 0, NULL) == -1) {
 			printf("parent_to_write kevent register fail.\n");
-			_exit(1);
+			_exit(EXIT_FAILURE);
 		}
 		i = kevent(kq, NULL, 0, &ke, 1, NULL);
 		if (i == -1) {
 			printf("parent_to_write pipe failed.\n");
-			_exit(1);
+			_exit(EXIT_FAILURE);
 		}
 		if (i == 0) {
 			printf("parent_to_write pipe signal received.\n");
-			_exit(1);
+			_exit(EXIT_FAILURE);
+		}
+		if (ke.flags & EV_EOF) {
+			if (getuid() == 0)
+				printf("/etc/installurl not written.\n");
+			_exit(EXIT_FAILURE);
 		}
 		FILE *pkg_write;
 		if (getuid() == 0) {
@@ -313,7 +323,7 @@ main(int argc, char *argv[])
 
 			if (pledge("stdio", NULL) == -1) {
 				fprintf(stderr, "pledge line: %d\n", __LINE__);
-				_exit(1);
+				_exit(EXIT_FAILURE);
 			}
 		} else
 			pkg_write = NULL;
@@ -322,18 +332,24 @@ main(int argc, char *argv[])
 		if (input == NULL) {
 			printf("input = fdopen (parent_to_write[0], \"r\") ");
 			printf("failed.\n");
-			_exit(1);
+			_exit(EXIT_FAILURE);
 		}
+		i = 0;
 		if (pkg_write != NULL) {
 			if (verbose == 2)
 				printf("\n\n");
 			printf("/etc/installurl: ");
 			while ((c = getc(input)) != EOF) {
+				if ( i >= 300) {
+					printf("\nreceived mirror length became too long.\n");
+					printf("/etc/installurl not written.\n");
+					_exit(EXIT_FAILURE);
+				}
 				printf("%c", c);
-				putc(c, pkg_write);
+				tag[i++] = c;
 			}
-			fclose(pkg_write);
-		} else /* if (verbose > 0) */ {
+			fwrite(tag, i, sizeof(char), pkg_write);
+		} else {
 			if (verbose == 2)
 				printf("\n");
 			printf("\nRun as root to write to /etc/installurl\nor type ");
@@ -342,22 +358,30 @@ main(int argc, char *argv[])
 			{
 				if (c != '\n')
 					printf("%c", c);
+				else
+					break;
+					
+				if ( i++ >= 300) {
+					printf("\nreceived mirror length became too long.\n");
+					_exit(EXIT_FAILURE);
+				}
 			}
 			printf("\" > /etc/installurl\n");
 		}
-		fclose(input);
-		close(parent_to_write[0]);
-
 		_exit(0);
 	}
 	if (write_pid == -1)
-		err(1, "fork");
-
-	close(parent_to_write[0]);
-	setuid(1000);
+		err(EXIT_FAILURE, "fork");
 
 	if (pledge("stdio proc exec unveil", NULL) == -1)
 		err(EXIT_FAILURE, "pledge");
+
+	if (unveil("/usr/bin/ftp", "x") == -1) {
+		printf("unveil line: %d\n", __LINE__);
+		_exit(EXIT_FAILURE);
+	}
+
+	close(parent_to_write[0]);
 
 	struct timespec timeout0 = {20, 0};
 	struct timespec timeout;
@@ -375,22 +399,17 @@ main(int argc, char *argv[])
 	if (pipe(ftp_to_sed) == -1)
 		err(EXIT_FAILURE, "pipe");
 
-
-	if (unveil("/usr/bin/ftp", "x") == -1) {
-		printf("unveil line: %d\n", __LINE__);
-		_exit(EXIT_FAILURE);
-	}
 	ftp_pid = fork();
 	if (ftp_pid == (pid_t) 0) {
 		if (pledge("stdio exec", NULL) == -1) {
 			printf("ftp pledge 1\n");
-			_exit(1);
+			_exit(EXIT_FAILURE);
 		}
 
 		close(ftp_to_sed[STDIN_FILENO]);
 		if (dup2(ftp_to_sed[STDOUT_FILENO], STDOUT_FILENO) == -1) {
 			printf("ftp STDOUT dup2\n");
-			_exit(1);
+			_exit(EXIT_FAILURE);
 		}
 
 		execl("/usr/bin/ftp", "ftp", "-Vo", "-",
@@ -398,11 +417,11 @@ main(int argc, char *argv[])
 
 		if (pledge("stdio", NULL) == -1) {
 			fprintf(stderr, "ftp pledge 2\n");
-			_exit(1);
+			_exit(EXIT_FAILURE);
 		}
 
 		fprintf(stderr, "ftp execl() failed\n");
-		_exit(1);
+		_exit(EXIT_FAILURE);
 	}
 	if (ftp_pid == -1)
 		err(EXIT_FAILURE, "fork");
@@ -418,30 +437,30 @@ main(int argc, char *argv[])
 	sed_pid = fork();
 	if (sed_pid == (pid_t) 0) {
 
-		if (unveil("/usr/bin/sed", "x") == -1) {
+		if (unveil("/usr/bin/ftp", "") == -1) {
 			printf("unveil line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 
-		if (unveil("/usr/bin/ftp", "") == -1) {
+		if (unveil("/usr/bin/sed", "x") == -1) {
 			printf("unveil line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 
 		if (pledge("stdio exec", NULL) == -1) {
 			printf("sed pledge 1");
-			_exit(1);
+			_exit(EXIT_FAILURE);
 		}
 
 		close(sed_to_parent[STDIN_FILENO]);
 
 		if (dup2(ftp_to_sed[STDIN_FILENO], STDIN_FILENO) == -1) {
 			printf("sed STDIN dup2\n");
-			_exit(1);
+			_exit(EXIT_FAILURE);
 		}
 		if (dup2(sed_to_parent[STDOUT_FILENO], STDOUT_FILENO) == -1) {
 			printf("sed STDOUT dup2\n");
-			_exit(1);
+			_exit(EXIT_FAILURE);
 		}
 
 		execl("/usr/bin/sed", "sed", "-n",
@@ -451,10 +470,10 @@ main(int argc, char *argv[])
 
 		if (pledge("stdio", NULL) == -1) {
 			fprintf(stderr, "sed pledge 2\n");
-			_exit(1);
+			_exit(EXIT_FAILURE);
 		}
 		fprintf(stderr, "sed execl() failed\n");
-		_exit(1);
+		_exit(EXIT_FAILURE);
 	}
 	if (sed_pid == -1) {
 		n = errno;
@@ -631,7 +650,7 @@ main(int argc, char *argv[])
 	waitpid(sed_pid, NULL, 0);
 
 	if (array_length == 0)
-		errx(EXIT_FAILURE, "No mirrors found.");
+		errx(EXIT_FAILURE, "No mirrors found. Is www.openbsd.org live?");
 
 	free(array[array_length]->label);
 	free(array[array_length]);
@@ -693,7 +712,7 @@ main(int argc, char *argv[])
 
 			if (pledge("stdio exec", NULL) == -1) {
 				fprintf(stderr, "ftp pledge 3");
-				_exit(1);
+				_exit(EXIT_FAILURE);
 			}
 
 			close(block_pipe[STDOUT_FILENO]);
@@ -713,10 +732,10 @@ main(int argc, char *argv[])
 
 			if (pledge("stdio", NULL) == -1) {
 				fprintf(stderr, "ftp pledge 4");
-				_exit(1);
+				_exit(EXIT_FAILURE);
 			}
 			fprintf(stderr, "ftp execl() failed.");
-			_exit(1);
+			_exit(EXIT_FAILURE);
 		}
 		if (ftp_pid == -1)
 			err(EXIT_FAILURE, "fork");
@@ -819,7 +838,7 @@ main(int argc, char *argv[])
 	if (dup2(parent_to_write[STDOUT_FILENO], STDOUT_FILENO) == -1) {
 		kill(write_pid, SIGKILL);
 		printf("%s\n", array[0]->ftp_file);
-		return 1;
+		return EXIT_FAILURE;
 	}
 	printf("%s\n", array[0]->ftp_file);
 	fflush(stdout);
