@@ -288,15 +288,15 @@ main(int argc, char *argv[])
 				_exit(EXIT_FAILURE);
 			}
 		}
-		close(parent_to_write[1]);
-		if (dup2(parent_to_write[0], STDIN_FILENO) == -1)
+		close(parent_to_write[STDOUT_FILENO]);
+		if (dup2(parent_to_write[STDIN_FILENO], STDIN_FILENO) == -1)
 			err(EXIT_FAILURE, "dup2 line: %d", __LINE__);
 
 		kq = kqueue();
 		if (kq == -1)
 			err(EXIT_FAILURE, "kq!");
 
-		EV_SET(&ke, parent_to_write[0], EVFILT_READ,
+		EV_SET(&ke, parent_to_write[STDIN_FILENO], EVFILT_READ,
 		    EV_ADD | EV_ONESHOT, 0, 0, NULL);
 
 		if (kevent(kq, &ke, 1, NULL, 0, NULL) == -1) {
@@ -328,7 +328,7 @@ main(int argc, char *argv[])
 		} else
 			pkg_write = NULL;
 
-		input = fdopen(parent_to_write[0], "r");
+		input = fdopen(parent_to_write[STDIN_FILENO], "r");
 		if (input == NULL) {
 			printf("input = fdopen (parent_to_write[0], \"r\") ");
 			printf("failed.\n");
@@ -381,7 +381,7 @@ main(int argc, char *argv[])
 		_exit(EXIT_FAILURE);
 	}
 
-	close(parent_to_write[0]);
+	close(parent_to_write[STDIN_FILENO]);
 
 	struct timespec timeout0 = {20, 0};
 	struct timespec timeout;
@@ -829,9 +829,10 @@ main(int argc, char *argv[])
 		array[0]->ftp_file[strlen(array[0]->ftp_file) - tag_len] = '\0';
 
 	if (array[0]->diff >= s) {
-		if ( current == 0 )
-			errx(EXIT_FAILURE, "\n\nNo mirrors. IF THIS IS -CURRENT, use -c\n");
-		else
+		if ( current == 0 ) {
+			printf("\n\n");
+			errx(EXIT_FAILURE, "No mirrors. IF THIS IS -CURRENT, use -c\n");
+		} else
 			errx(EXIT_FAILURE, "No mirrors found.");	
 	}
 
