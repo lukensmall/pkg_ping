@@ -159,6 +159,12 @@ main(int argc, char *argv[])
 		if (pledge("stdio proc exec unveil", NULL) == -1)
 			err(EXIT_FAILURE, "pledge line: %d\n", __LINE__);
 	}
+
+	if (unveil("/usr/bin/ftp", "x") == -1) {
+		printf("unveil line: %d\n", __LINE__);
+		_exit(EXIT_FAILURE);
+	}
+
 	pid_t ftp_pid, sed_pid, write_pid;
 	int ftp_to_sed[2];
 	int sed_to_parent[2];
@@ -269,6 +275,7 @@ main(int argc, char *argv[])
 
 	write_pid = fork();
 	if (write_pid == (pid_t) 0) {
+
 		if (getuid() == 0) {
 			if (pledge("stdio wpath cpath unveil", NULL) == -1) {
 				printf("pledge line: %d\n", __LINE__);
@@ -289,8 +296,10 @@ main(int argc, char *argv[])
 			}
 		}
 		close(parent_to_write[STDOUT_FILENO]);
-		if (dup2(parent_to_write[STDIN_FILENO], STDIN_FILENO) == -1)
-			err(EXIT_FAILURE, "dup2 line: %d", __LINE__);
+		if (dup2(parent_to_write[STDIN_FILENO], STDIN_FILENO) == -1) {
+			printf("dup2 line: %d\n", __LINE__);
+			_exit(EXIT_FAILURE);
+		}
 
 		kq = kqueue();
 		if (kq == -1)
@@ -308,34 +317,21 @@ main(int argc, char *argv[])
 			printf("parent_to_write pipe failed.\n");
 			_exit(EXIT_FAILURE);
 		}
-		if (i == 0) {
-			printf("parent_to_write pipe signal received.\n");
-			_exit(EXIT_FAILURE);
-		}
-		if (ke.flags & EV_EOF) {
+		if (ke.data == 0) {
 			if (getuid() == 0)
 				printf("/etc/installurl not written.\n");
 			_exit(EXIT_FAILURE);
 		}
 		FILE *pkg_write;
-		if (getuid() == 0) {
-			pkg_write = fopen("/etc/installurl", "w");
-
-			if (pledge("stdio", NULL) == -1) {
-				fprintf(stderr, "pledge line: %d\n", __LINE__);
-				_exit(EXIT_FAILURE);
-			}
-		} else
-			pkg_write = NULL;
 
 		input = fdopen(parent_to_write[STDIN_FILENO], "r");
 		if (input == NULL) {
-			printf("input = fdopen (parent_to_write[0], \"r\") ");
+			printf("input = fdopen (parent_to_write[STDIN_FILENO], \"r\") ");
 			printf("failed.\n");
 			_exit(EXIT_FAILURE);
 		}
 		i = 0;
-		if (pkg_write != NULL) {
+		if (getuid() == 0) {
 			if (verbose == 2)
 				printf("\n\n");
 			printf("/etc/installurl: ");
@@ -348,11 +344,25 @@ main(int argc, char *argv[])
 				printf("%c", c);
 				tag[i++] = c;
 			}
-			fwrite(tag, i, sizeof(char), pkg_write);
+			
+			pkg_write = fopen("/etc/installurl", "w");
+			
+			if (pledge("stdio", NULL) == -1) {
+				printf("pledge line: %d\n", __LINE__);
+				_exit(EXIT_FAILURE);
+			}
+			
+			if (pkg_write != NULL) {
+				fwrite(tag, i, sizeof(char), pkg_write);
+				fclose(pkg_write);
+			} else {
+				printf("/etc/installurl not written.\n");
+				_exit(EXIT_FAILURE);
+			}
 		} else {
 			if (verbose == 2)
 				printf("\n");
-			printf("\nRun as root to write to /etc/installurl\nor type ");
+			printf("\nRun as root to write to /etc/installurl or type ");
 			printf("the following line as root:\necho \"");
 			while ((c = getc(input)) != EOF)
 			{
@@ -375,11 +385,6 @@ main(int argc, char *argv[])
 
 	if (pledge("stdio proc exec unveil", NULL) == -1)
 		err(EXIT_FAILURE, "pledge");
-
-	if (unveil("/usr/bin/ftp", "x") == -1) {
-		printf("unveil line: %d\n", __LINE__);
-		_exit(EXIT_FAILURE);
-	}
 
 	close(parent_to_write[STDIN_FILENO]);
 
