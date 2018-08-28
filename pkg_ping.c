@@ -442,6 +442,11 @@ main(int argc, char *argv[])
 	sed_pid = fork();
 	if (sed_pid == (pid_t) 0) {
 
+		if (pledge("stdio exec unveil", NULL) == -1) {
+			printf("sed pledge 1\n");
+			_exit(EXIT_FAILURE);
+		}
+		
 		if (unveil("/usr/bin/ftp", "") == -1) {
 			printf("unveil line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
@@ -453,7 +458,7 @@ main(int argc, char *argv[])
 		}
 
 		if (pledge("stdio exec", NULL) == -1) {
-			printf("sed pledge 1");
+			printf("sed pledge 2\n");
 			_exit(EXIT_FAILURE);
 		}
 
@@ -474,7 +479,7 @@ main(int argc, char *argv[])
 		    "-e", "s:^\\(\t[hfr].*\\):\\1:p", NULL);
 
 		if (pledge("stdio", NULL) == -1) {
-			fprintf(stderr, "sed pledge 2\n");
+			fprintf(stderr, "sed pledge 3\n");
 			_exit(EXIT_FAILURE);
 		}
 		fprintf(stderr, "sed execl() failed\n");
