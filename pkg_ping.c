@@ -362,8 +362,8 @@ main(int argc, char *argv[])
 		} else {
 			if (verbose == 2)
 				printf("\n");
-			printf("\nRun as root to write to /etc/installurl or type ");
-			printf("the following line as root:\necho \"");
+			printf("\nRun as root to write to /etc/installurl or as ");
+			printf("root, type:\necho \"");
 			while ((c = getc(input)) != EOF)
 			{
 				if (c != '\n')
