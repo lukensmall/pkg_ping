@@ -135,16 +135,16 @@ get_time_diff(struct timeval a, struct timeval b)
 static void
 manpage(char *a)
 {
-	printf("%s [-v (recognizes up to 2 levels of verbosity)]\n", a);
+	printf("%s\n[-v (recognizes up to 2 levels of verbosity)]\n", a);
 
 	printf("[-u (no USA mirrors...to comply ");
 	printf("with USA encryption export laws)]\n");
 
-	printf("[-s timeout (input floating-point number)]\n");
+	printf("[-s floating-point timeout in seconds (eg. -s 2.3)]\n");
 
 	printf("[-i (insecure mirrors too)]\n");
 
-	printf("[-c (find current snapshot packages)]\n");
+	printf("[-c (find current snapshot package mirrors)]\n");
 
 	printf("[-h (print this message and exit)]\n");
 }
@@ -209,7 +209,7 @@ main(int argc, char *argv[])
 					if (optarg[c] == '-')
 						errx(EXIT_FAILURE, "No negative numbers.");
 					printf("Incorrect floating ");
-					printf("point format.");
+					printf("point format.\n");
 					return EXIT_FAILURE;
 				}
 			}
