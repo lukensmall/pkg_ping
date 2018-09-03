@@ -117,18 +117,20 @@ label_cmp(const void *a, const void *b)
 static double
 get_time_diff(struct timeval a, struct timeval b)
 {
-	int64_t sec;
-	int64_t usec;
+	int64_t seconds, microseconds;
 	double temp;
-	sec = (int64_t) b.tv_sec - (int64_t) a.tv_sec;
-	usec = (int64_t) b.tv_usec - (int64_t) a.tv_usec;
-	if (usec < 0) {
-		--sec;
-		usec += 1000000;
+	
+	seconds      = (int64_t) b.tv_sec  - (int64_t) a.tv_sec;
+	microseconds = (int64_t) b.tv_usec - (int64_t) a.tv_usec;
+	
+	if (microseconds < 0) {
+		--seconds;
+		microseconds += 1000000;
 	}
-	temp = (double) usec;
+	
+	temp  = (double) microseconds;
 	temp /= 1000000.0;
-	temp += (double) sec;
+	temp += (double) seconds;
 	return temp;
 }
 
@@ -160,10 +162,8 @@ main(int argc, char *argv[])
 			err(EXIT_FAILURE, "pledge line: %d\n", __LINE__);
 	}
 
-	if (unveil("/usr/bin/ftp", "x") == -1) {
-		printf("unveil line: %d\n", __LINE__);
-		_exit(EXIT_FAILURE);
-	}
+	if (unveil("/usr/bin/ftp", "x") == -1)
+		err(EXIT_FAILURE, "unveil(\"/usr/bin/ftp\", \"x\")");
 
 	pid_t ftp_pid, sed_pid, write_pid;
 	int ftp_to_sed[2];
@@ -277,6 +277,7 @@ main(int argc, char *argv[])
 	if (write_pid == (pid_t) 0) {
 
 		if (getuid() == 0) {
+			/* can't execute ftp */
 			if (pledge("stdio wpath cpath unveil", NULL) == -1) {
 				printf("pledge line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
@@ -308,15 +309,11 @@ main(int argc, char *argv[])
 		EV_SET(&ke, parent_to_write[STDIN_FILENO], EVFILT_READ,
 		    EV_ADD | EV_ONESHOT, 0, 0, NULL);
 
-		if (kevent(kq, &ke, 1, NULL, 0, NULL) == -1) {
+		if (kevent(kq, &ke, 1, &ke, 1, NULL) == -1) {
 			printf("parent_to_write kevent register fail.\n");
 			_exit(EXIT_FAILURE);
 		}
-		i = kevent(kq, NULL, 0, &ke, 1, NULL);
-		if (i == -1) {
-			printf("parent_to_write pipe failed.\n");
-			_exit(EXIT_FAILURE);
-		}
+
 		if (ke.data == 0) {
 			if (getuid() == 0)
 				printf("/etc/installurl not written.\n");
@@ -378,7 +375,7 @@ main(int argc, char *argv[])
 			}
 			printf("\" > /etc/installurl\n");
 		}
-		_exit(0);
+		_exit(EXIT_SUCCESS);
 	}
 	if (write_pid == -1)
 		err(EXIT_FAILURE, "fork");
@@ -472,7 +469,7 @@ main(int argc, char *argv[])
 			printf("sed STDOUT dup2\n");
 			_exit(EXIT_FAILURE);
 		}
-
+		
 		execl("/usr/bin/sed", "sed", "-n",
 		    "-e", "s:</a>$::",
 		    "-e", "s:\t<strong>\\([^<]*\\)<.*:\\1:p",
@@ -500,18 +497,11 @@ main(int argc, char *argv[])
 
 	EV_SET(&ke, sed_to_parent[STDIN_FILENO], EVFILT_READ,
 	    EV_ADD | EV_ONESHOT, 0, 0, NULL);
-	if (kevent(kq, &ke, 1, NULL, 0, NULL) == -1) {
-		n = errno;
-		kill(ftp_pid, SIGKILL);
-		kill(sed_pid, SIGKILL);
-		errno = n;
-		err(EXIT_FAILURE, "sed_to_parent kevent register fail.");
-	}
-	i = kevent(kq, NULL, 0, &ke, 1, &timeout0);
+	i = kevent(kq, &ke, 1, &ke, 1, &timeout0);
 	if (i == -1) {
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
-		printf("kevent, timeout may be too large.\n");
+		printf("kevent, timeout0 may be too large.\n");
 		manpage(argv[0]);
 	}
 	if (i == 0) {
@@ -527,7 +517,7 @@ main(int argc, char *argv[])
 		kill(sed_pid, SIGKILL);
 		errno = n;
 		errx(EXIT_FAILURE,
-		    "input = fdopen (sed_to_parent[0], \"r\") failed.");
+		    "input = fdopen (sed_to_parent[STDIN_FILENO], \"r\") failed.");
 	}
 	/* if pos exceeds 299, it is a bad file and will gracefully fail */
 	char *line;
