@@ -271,7 +271,7 @@ main(int argc, char *argv[])
 
 
 	if (pipe(parent_to_write) == -1)
-		err(EXIT_FAILURE, NULL);
+		err(EXIT_FAILURE, "pipe line: %d", __LINE__);
 
 	write_pid = fork();
 	if (write_pid == (pid_t) 0) {
