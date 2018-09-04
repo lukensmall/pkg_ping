@@ -9,7 +9,7 @@ This program works on OpenBSD versions 6.4 and won't compile for earlier version
 It uses several commandline options:
 
 -v will make it print out the information of the mirrors in real time. A second one will print out the results sorted in 
-reverse order by time.
+reverse order by time and print a line that you can copy and paste into a root terminal to install that mirror.
 
 -u will make it search for only non-USA mirrors for export encryption compliance if you are searching from outside of the USA.
 
@@ -24,6 +24,6 @@ deduplicated. http/ftp mirrors are faster than the https mirror selections, howe
 
 It will shorten the timeout period to the download time of the fastest mirror throughout execution if no -v are used.
 
-$ pkg_ping -vs1.5 -ivu
+$ ./pkg_ping -vs1.5 -ivu
 
-gcc pkg_ping.c -o pkg_ping
+cc pkg_ping.c -o pkg_ping
