@@ -45,6 +45,8 @@
 /*
    indent pkg_ping.c -bap -br -ce -ci4 -cli0 -d0 -di0 -i8 \
    -ip -l79 -nbc -ncdb -ndj -ei -nfc1 -nlp -npcs -psl -sc -sob
+   
+   cc pkg_ping.c -pipe -Os -o pkg_ping
  */
 
 #include <err.h>
@@ -157,10 +159,8 @@ main(int argc, char *argv[])
 	if (getuid() == 0) {
 		if (pledge("stdio wpath cpath proc exec unveil", NULL) == -1)
 			err(EXIT_FAILURE, "pledge line: %d\n", __LINE__);
-	} else {
-		if (pledge("stdio proc exec unveil", NULL) == -1)
-			err(EXIT_FAILURE, "pledge line: %d\n", __LINE__);
-	}
+	} else if (pledge("stdio proc exec unveil", NULL) == -1)
+		err(EXIT_FAILURE, "pledge line: %d\n", __LINE__);
 
 	if (unveil("/dev/null", "w") == -1)
 		err(EXIT_FAILURE, "unveil line: %d", __LINE__);
@@ -170,8 +170,8 @@ main(int argc, char *argv[])
 	int sed_to_parent[2];
 	int parent_to_write[2];
 	double s;
-	int kq, i, pos, num, c, n, current;
-	int array_max, array_length, u, verbose, insecure, tag_len;
+	int kq, i, pos, num, c, n, current, insecure;
+	int array_max, array_length, u, verbose, tag_len;
 	FILE *input;
 	struct utsname name;
 	struct mirror_st **array;
@@ -194,7 +194,7 @@ main(int argc, char *argv[])
 	if (uname(&name) == -1)
 		err(EXIT_FAILURE, "uname");
 
-	while ((c = getopt(argc, argv, "s:ivuhc")) != -1) {
+	while ((c = getopt(argc, argv, "s:ciuvh")) != -1) {
 		switch (c) {
 		case 's':
 			c = -1;
@@ -222,9 +222,8 @@ main(int argc, char *argv[])
 			if (s <= 0.01)
 				errx(EXIT_FAILURE, "-s should be > 0.01");
 			break;
-		case 'v':
-			if (++verbose > 2)
-				verbose = 2;
+		case 'c':
+			current = 1;
 			break;
 		case 'i':
 			insecure = 1;
@@ -232,12 +231,13 @@ main(int argc, char *argv[])
 		case 'u':
 			u = 1;
 			break;
+		case 'v':
+			if (++verbose > 2)
+				verbose = 2;
+			break;
 		case 'h':
 			manpage(argv[0]);
 			return 0;
-		case 'c':
-			current = 1;
-			break;
 		default:
 			manpage(argv[0]);
 			return EXIT_FAILURE;
@@ -303,8 +303,10 @@ main(int argc, char *argv[])
 		}
 
 		kq = kqueue();
-		if (kq == -1)
-			err(EXIT_FAILURE, "kq!");
+		if (kq == -1) {
+			printf("kq! line: %d\n", __LINE__);
+			_exit(EXIT_FAILURE);
+		}
 
 		EV_SET(&ke, parent_to_write[STDIN_FILENO], EVFILT_READ,
 		    EV_ADD | EV_ONESHOT, 0, 0, NULL);
@@ -378,10 +380,10 @@ main(int argc, char *argv[])
 		_exit(EXIT_SUCCESS);
 	}
 	if (write_pid == -1)
-		err(EXIT_FAILURE, "fork");
+		err(EXIT_FAILURE, "fork line: %d", __LINE__);
 
 	if (pledge("stdio proc exec unveil", NULL) == -1)
-		err(EXIT_FAILURE, "pledge");
+		err(EXIT_FAILURE, "pledge line: %d", __LINE__);
 
 	close(parent_to_write[STDIN_FILENO]);
 
@@ -390,16 +392,15 @@ main(int argc, char *argv[])
 
 	timeout.tv_sec = (time_t) s;
 	timeout.tv_nsec = 
-	    (long) ((s - (double) timeout.tv_sec)
-	    * 1000000000);
+	    (long) ((s - (double) timeout.tv_sec) * 1000000000);
 
 	kq = kqueue();
 	if (kq == -1)
-		err(EXIT_FAILURE, "kq!");
+		err(EXIT_FAILURE, "kq! line: %d", __LINE__);
 
 
 	if (pipe(ftp_to_sed) == -1)
-		err(EXIT_FAILURE, "pipe");
+		err(EXIT_FAILURE, "pipe line: %d", __LINE__);
 
 	ftp_pid = fork();
 	if (ftp_pid == (pid_t) 0) {
@@ -410,14 +411,14 @@ main(int argc, char *argv[])
 		}
 
 		if (pledge("stdio exec", NULL) == -1) {
-			printf("ftp pledge 1\n");
+			printf("ftp pledge 1 line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 
 		close(ftp_to_sed[STDIN_FILENO]);
 		
 		if (dup2(ftp_to_sed[STDOUT_FILENO], STDOUT_FILENO) == -1) {
-			printf("ftp STDOUT dup2\n");
+			printf("ftp STDOUT dup2 line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 
@@ -425,7 +426,7 @@ main(int argc, char *argv[])
 		    "https://www.openbsd.org/ftp.html", NULL);
 
 		if (pledge("stdio", NULL) == -1) {
-			fprintf(stderr, "ftp pledge 2\n");
+			fprintf(stderr, "ftp pledge 2 line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 
@@ -441,7 +442,7 @@ main(int argc, char *argv[])
 		n = errno;
 		kill(ftp_pid, SIGKILL);
 		errno = n;
-		err(EXIT_FAILURE, "pipe");
+		err(EXIT_FAILURE, "pipe line: %d", __LINE__);
 	}
 	sed_pid = fork();
 	if (sed_pid == (pid_t) 0) {
@@ -452,18 +453,18 @@ main(int argc, char *argv[])
 		}
 
 		if (pledge("stdio exec", NULL) == -1) {
-			printf("sed pledge 2\n");
+			printf("sed pledge 2 line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 
 		close(sed_to_parent[STDIN_FILENO]);
 
 		if (dup2(ftp_to_sed[STDIN_FILENO], STDIN_FILENO) == -1) {
-			printf("sed STDIN dup2\n");
+			printf("sed STDIN dup2 line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 		if (dup2(sed_to_parent[STDOUT_FILENO], STDOUT_FILENO) == -1) {
-			printf("sed STDOUT dup2\n");
+			printf("sed STDOUT dup2 line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 		
@@ -473,10 +474,10 @@ main(int argc, char *argv[])
 		    "-e", "s:^\\(\t[hfr].*\\):\\1:p", NULL);
 
 		if (pledge("stdio", NULL) == -1) {
-			fprintf(stderr, "sed pledge 3\n");
+			fprintf(stderr, "sed pledge 3 line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
-		fprintf(stderr, "sed execl() failed\n");
+		fprintf(stderr, "sed execl() line: %d\n", __LINE__);
 		_exit(EXIT_FAILURE);
 	}
 	if (sed_pid == -1) {
@@ -501,7 +502,7 @@ main(int argc, char *argv[])
 	if (i == -1) {
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
-		printf("kevent, timeout0 may be too large.\n");
+		printf("kevent, timeout0 may be too large. line: %d\n", __LINE__);
 		manpage(argv[0]);
 	}
 	if (i == 0) {
@@ -711,7 +712,7 @@ main(int argc, char *argv[])
 		if (ftp_pid == (pid_t) 0) {
 
 			if (pledge("stdio exec", NULL) == -1) {
-				fprintf(stderr, "ftp pledge 3");
+				printf("ftp pledge 3 line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
 
@@ -722,7 +723,8 @@ main(int argc, char *argv[])
 			if (verbose >= 1) {
 				execl("/usr/bin/ftp", "ftp", "-Vmo",
 				    "/dev/null", array[c]->ftp_file, NULL);
-			} else {
+				i = -1;
+			} else {		
 				i = open("/dev/null", O_WRONLY);
 				if (i != -1)
 					dup2(i, STDERR_FILENO);
@@ -731,10 +733,10 @@ main(int argc, char *argv[])
 			}
 
 			if (pledge("stdio", NULL) == -1) {
-				fprintf(stderr, "ftp pledge 4");
+				printf("ftp pledge 4 line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
-			fprintf(stderr, "ftp execl() failed line: %d\n", __LINE__);
+			printf("ftp execl() failed line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 		if (ftp_pid == -1)
