@@ -203,7 +203,7 @@ main(int argc, char *argv[])
 				if (optarg[c] >= '0' || optarg[c] <= '9')
 					continue;
 				if (optarg[c] == '.' && ++i == 1)
-						continue;
+					continue;
 					
 				if (optarg[c] == '-')
 					errx(EXIT_FAILURE, "No negative numbers.");
