@@ -156,14 +156,21 @@ manpage(char *a)
 int
 main(int argc, char *argv[])
 {
-	if (getuid() == 0) {
-		if (pledge("stdio wpath cpath proc exec unveil", NULL) == -1)
-			err(EXIT_FAILURE, "pledge line: %d\n", __LINE__);
-	} else if (pledge("stdio proc exec unveil", NULL) == -1)
-		err(EXIT_FAILURE, "pledge line: %d\n", __LINE__);
-
-	if (unveil("/dev/null", "w") == -1)
+	if (unveil("/usr/bin/ftp", "x") == -1)
 		err(EXIT_FAILURE, "unveil line: %d", __LINE__);
+
+	if (unveil("/usr/bin/sed", "x") == -1)
+		err(EXIT_FAILURE, "unveil line: %d", __LINE__);
+
+	if (getuid() == 0) {
+
+		if (unveil("/etc/installurl", "cw") == -1)
+			err(EXIT_FAILURE, "unveil line: %d", __LINE__);
+		
+		if (pledge("stdio wpath cpath proc exec", NULL) == -1)
+			err(EXIT_FAILURE, "pledge line: %d\n", __LINE__);
+	} else if (pledge("stdio proc exec", NULL) == -1)
+		err(EXIT_FAILURE, "pledge line: %d\n", __LINE__);
 
 	pid_t ftp_pid, sed_pid, write_pid;
 	int ftp_to_sed[2];
@@ -177,6 +184,8 @@ main(int argc, char *argv[])
 	struct mirror_st **array;
 	struct kevent ke;
 	char *tag;
+	struct timespec timeout0 = {20, 0};
+	struct timespec timeout;
 
 	array_max = 300;
 
@@ -255,17 +264,17 @@ main(int argc, char *argv[])
 
 	tag = (char *) malloc(tag_len - 1 + 1);
 	if (tag == NULL)
-		err(EXIT_FAILURE, "malloc");
+		err(EXIT_FAILURE, "malloc line: %d\n", __LINE__);
 
 	if (current == 0)
 		strlcpy(tag, name.release, tag_len);
 	else
 		strlcpy(tag, "snapshots", tag_len);
+		
 	strlcat(tag, "/", tag_len);
 	strlcat(tag, name.machine, tag_len);
 	strlcat(tag, "/SHA256", tag_len);
-
-
+	
 
 	if (pipe(parent_to_write) == -1)
 		err(EXIT_FAILURE, "pipe line: %d", __LINE__);
@@ -273,12 +282,9 @@ main(int argc, char *argv[])
 	write_pid = fork();
 	if (write_pid == (pid_t) 0) {
 
+		FILE *pkg_write;
+		
 		if (getuid() == 0) {
-			
-			if (unveil("/etc/installurl", "cw") == -1) {
-				printf("unveil line: %d\n", __LINE__);
-				_exit(EXIT_FAILURE);
-			}
 			
 			if (pledge("stdio wpath cpath", NULL) == -1) {
 				printf("pledge line: %d\n", __LINE__);
@@ -318,7 +324,6 @@ main(int argc, char *argv[])
 				printf("/etc/installurl not written.\n");
 			_exit(EXIT_FAILURE);
 		}
-		FILE *pkg_write;
 
 		input = fdopen(parent_to_write[STDIN_FILENO], "r");
 		if (input == NULL) {
@@ -379,13 +384,11 @@ main(int argc, char *argv[])
 	if (write_pid == -1)
 		err(EXIT_FAILURE, "fork line: %d", __LINE__);
 
-	if (pledge("stdio proc exec unveil", NULL) == -1)
+	if (pledge("stdio proc exec", NULL) == -1)
 		err(EXIT_FAILURE, "pledge line: %d", __LINE__);
 
 	close(parent_to_write[STDIN_FILENO]);
 
-	struct timespec timeout0 = {20, 0};
-	struct timespec timeout;
 
 	timeout.tv_sec = (time_t) s;
 	timeout.tv_nsec = 
@@ -401,11 +404,6 @@ main(int argc, char *argv[])
 
 	ftp_pid = fork();
 	if (ftp_pid == (pid_t) 0) {
-
-		if (unveil("/usr/bin/ftp", "x") == -1) {
-			printf("unveil line: %d\n", __LINE__);
-			_exit(EXIT_FAILURE);
-		}
 
 		if (pledge("stdio exec", NULL) == -1) {
 			printf("ftp pledge 1 line: %d\n", __LINE__);
@@ -444,11 +442,6 @@ main(int argc, char *argv[])
 	sed_pid = fork();
 	if (sed_pid == (pid_t) 0) {
 
-		if (unveil("/usr/bin/sed", "x") == -1) {
-			printf("unveil line: %d\n", __LINE__);
-			_exit(EXIT_FAILURE);
-		}
-
 		if (pledge("stdio exec", NULL) == -1) {
 			printf("sed pledge 2 line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
@@ -484,9 +477,6 @@ main(int argc, char *argv[])
 		err(EXIT_FAILURE, "fork line: %d", __LINE__);
 	}
 
-	if (unveil("/usr/bin/ftp", "x") == -1)
-		err(EXIT_FAILURE, "unveil line: %d\n", __LINE__);
-		
 	if (pledge("stdio proc exec", NULL) == -1)
 		err(EXIT_FAILURE, "pledge line: %d", __LINE__);
 
@@ -517,7 +507,7 @@ main(int argc, char *argv[])
 		errx(EXIT_FAILURE,
 		    "input = fdopen (sed_to_parent[STDIN_FILENO], \"r\") failed.");
 	}
-	/* if pos exceeds 299, it is a bad file and will gracefully fail */
+	/* if the index for line[] exceeds 299, it will error out */
 	char *line;
 	line = (char *) malloc(300);
 	if (line == NULL)
