@@ -200,18 +200,15 @@ main(int argc, char *argv[])
 			c = -1;
 			i = 0;
 			while (optarg[++c] != '\0') {
-				if (optarg[c] == '.')
-					++i;
-
-				if (((optarg[c] < '0' || optarg[c] > '9')
-					&& (optarg[c] != '.')) || i > 1) {
-
-					if (optarg[c] == '-')
-						errx(EXIT_FAILURE, "No negative numbers.");
-					printf("Incorrect floating ");
-					printf("point format.\n");
-					return EXIT_FAILURE;
-				}
+				if (optarg[c] >= '0' || optarg[c] <= '9'))
+					continue;
+				if (optarg[c] == '.' && ++i == 1)
+						continue;
+					
+				if (optarg[c] == '-')
+					errx(EXIT_FAILURE, "No negative numbers.");
+				printf("Bad floating point format.\n");
+				return EXIT_FAILURE;
 			}
 			errno = 0;
 			strtod(optarg, NULL);
