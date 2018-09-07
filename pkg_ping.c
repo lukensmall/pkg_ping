@@ -46,7 +46,7 @@
    indent pkg_ping.c -bap -br -ce -ci4 -cli0 -d0 -di0 -i8 \
    -ip -l79 -nbc -ncdb -ndj -ei -nfc1 -nlp -npcs -psl -sc -sob
    
-   cc pkg_ping.c -pipe -Os -o pkg_ping
+   cc pkg_ping.c -pipe -o pkg_ping
  */
 
 #include <err.h>
@@ -200,7 +200,7 @@ main(int argc, char *argv[])
 			c = -1;
 			i = 0;
 			while (optarg[++c] != '\0') {
-				if (optarg[c] >= '0' || optarg[c] <= '9'))
+				if (optarg[c] >= '0' || optarg[c] <= '9')
 					continue;
 				if (optarg[c] == '.' && ++i == 1)
 						continue;
