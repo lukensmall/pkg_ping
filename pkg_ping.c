@@ -1,31 +1,28 @@
 /*
  * BSD 2-Clause License
  *
- * Copyright (c) 2017, 2018, Luke N Small, lukensmall@gmail.com
+ * Copyright (c) 2017, 2018, 2019, Luke N Small, lukensmall@gmail.com
  * All rights reserved.
- 
+
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions 
+ * modification, are permitted provided that the following conditions
  * are met:
-
- * Redistributions of source code must retain the above copyright 
+ * Redistributions of source code must retain the above copyright
  * notice, this list of conditions and the following disclaimer.
-
  * Redistributions in binary form must reproduce the above copyright
- * notice, this list of conditions and the following disclaimer in the 
+ * notice, this list of conditions and the following disclaimer in the
  * documentation and/or other materials provided with the distribution.
-
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
- * LIMITED TO, THE  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS 
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE 
- * COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, 
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
  * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED 
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
+ * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+ * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
- * WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+ * WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
@@ -45,7 +42,7 @@
 /*
    indent pkg_ping.c -bap -br -ce -ci4 -cli0 -d0 -di0 -i8 \
    -ip -l79 -nbc -ncdb -ndj -ei -nfc1 -nlp -npcs -psl -sc -sob
-   
+
    cc pkg_ping.c -pipe -o pkg_ping
  */
 
@@ -60,6 +57,8 @@
 #include <sys/utsname.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
+//~ #define pledge(x,y) 0
 
 struct mirror_st {
 	char *label;
@@ -121,16 +120,15 @@ get_time_diff(struct timeval a, struct timeval b)
 {
 	int64_t seconds, microseconds;
 	double temp;
-	
-	seconds      = (int64_t) b.tv_sec  - (int64_t) a.tv_sec;
+
+	seconds = (int64_t) b.tv_sec - (int64_t) a.tv_sec;
 	microseconds = (int64_t) b.tv_usec - (int64_t) a.tv_usec;
-	
+
 	if (microseconds < 0) {
 		--seconds;
 		microseconds += 1000000;
 	}
-	
-	temp  = (double) microseconds;
+	temp = (double) microseconds;
 	temp /= 1000000.0;
 	temp += (double) seconds;
 	return temp;
@@ -164,10 +162,10 @@ main(int argc, char *argv[])
 
 	if (getuid() == 0) {
 
-		if (unveil("/etc/installurl", "cw") == -1)
+		if (unveil("/etc/installurl", "crw") == -1)
 			err(EXIT_FAILURE, "unveil line: %d", __LINE__);
-		
-		if (pledge("stdio wpath cpath proc exec", NULL) == -1)
+
+		if (pledge("stdio rpath wpath cpath proc exec", NULL) == -1)
 			err(EXIT_FAILURE, "pledge line: %d\n", __LINE__);
 	} else if (pledge("stdio proc exec", NULL) == -1)
 		err(EXIT_FAILURE, "pledge line: %d\n", __LINE__);
@@ -184,13 +182,12 @@ main(int argc, char *argv[])
 	struct mirror_st **array;
 	struct kevent ke;
 	char *tag;
-	struct timespec timeout0 = {20, 0};
+	struct timespec timeout0 = { 20, 0 };
 	struct timespec timeout;
 
 	array_max = 300;
 
-	array = (struct mirror_st **)
-	    calloc(array_max, sizeof(struct mirror_st *));
+	array = calloc(array_max, sizeof(struct mirror_st *));
 	if (array == NULL)
 		err(EXIT_FAILURE, "calloc");
 
@@ -203,8 +200,17 @@ main(int argc, char *argv[])
 	if (uname(&name) == -1)
 		err(EXIT_FAILURE, "uname");
 
-	while ((c = getopt(argc, argv, "s:ciuvh")) != -1) {
+	while ((c = getopt(argc, argv, "chis:uv")) != -1) {
 		switch (c) {
+		case 'c':
+			current = 1;
+			break;
+		case 'h':
+			manpage(argv[0]);
+			return 0;
+		case 'i':
+			insecure = 1;
+			break;
 		case 's':
 			c = -1;
 			i = 0;
@@ -213,7 +219,7 @@ main(int argc, char *argv[])
 					continue;
 				if (optarg[c] == '.' && ++i == 1)
 					continue;
-					
+
 				if (optarg[c] == '-')
 					errx(EXIT_FAILURE, "No negative numbers.");
 				printf("Bad floating point format.\n");
@@ -228,12 +234,6 @@ main(int argc, char *argv[])
 			if (s <= 0.01)
 				errx(EXIT_FAILURE, "-s should be > 0.01");
 			break;
-		case 'c':
-			current = 1;
-			break;
-		case 'i':
-			insecure = 1;
-			break;
 		case 'u':
 			u = 1;
 			break;
@@ -241,40 +241,38 @@ main(int argc, char *argv[])
 			if (++verbose > 2)
 				verbose = 2;
 			break;
-		case 'h':
-			manpage(argv[0]);
-			return 0;
 		default:
 			manpage(argv[0]);
 			return EXIT_FAILURE;
 		}
 	}
-
-	//~argc -= optind;
-	//~argv += optind;
+	if (optind < argc) {
+		manpage(argv[0]);
+		errx(EXIT_FAILURE, "non-option ARGV-element: %s", argv[optind]);
+	}
 
 
 	if (current == 0) {
 		tag_len = strlen("/") + strlen(name.release) + strlen("/") +
-			strlen(name.machine) + strlen("/SHA256");
+		    strlen(name.machine) + strlen("/SHA256");
 	} else {
 		tag_len = strlen("/") + strlen("snapshots") + strlen("/") +
-			strlen(name.machine) + strlen("/SHA256");
+		    strlen(name.machine) + strlen("/SHA256");
 	}
 
-	tag = (char *) malloc(tag_len - 1 + 1);
+	tag = calloc(tag_len - 1 + 1, sizeof(char));
 	if (tag == NULL)
-		err(EXIT_FAILURE, "malloc line: %d\n", __LINE__);
+		err(EXIT_FAILURE, "calloc line: %d\n", __LINE__);
 
 	if (current == 0)
 		strlcpy(tag, name.release, tag_len);
 	else
 		strlcpy(tag, "snapshots", tag_len);
-		
+
 	strlcat(tag, "/", tag_len);
 	strlcat(tag, name.machine, tag_len);
 	strlcat(tag, "/SHA256", tag_len);
-	
+
 
 	if (pipe(parent_to_write) == -1)
 		err(EXIT_FAILURE, "pipe line: %d", __LINE__);
@@ -283,34 +281,30 @@ main(int argc, char *argv[])
 	if (write_pid == (pid_t) 0) {
 
 		FILE *pkg_write;
-		
+
 		if (getuid() == 0) {
-			
-			if (pledge("stdio wpath cpath", NULL) == -1) {
+
+			if (pledge("stdio wpath rpath cpath", NULL) == -1) {
 				printf("pledge line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
-			
 		} else {
-			
+
 			if (pledge("stdio", NULL) == -1) {
 				printf("pledge line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
-			
 		}
 		close(parent_to_write[STDOUT_FILENO]);
 		if (dup2(parent_to_write[STDIN_FILENO], STDIN_FILENO) == -1) {
 			printf("dup2 line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
-
 		kq = kqueue();
 		if (kq == -1) {
 			printf("kq! line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
-
 		EV_SET(&ke, parent_to_write[STDIN_FILENO], EVFILT_READ,
 		    EV_ADD | EV_ONESHOT, 0, 0, NULL);
 
@@ -318,16 +312,15 @@ main(int argc, char *argv[])
 			printf("parent_to_write kevent register fail.\n");
 			_exit(EXIT_FAILURE);
 		}
-
 		if (ke.data == 0) {
 			if (getuid() == 0)
 				printf("/etc/installurl not written.\n");
 			_exit(EXIT_FAILURE);
 		}
-
 		input = fdopen(parent_to_write[STDIN_FILENO], "r");
 		if (input == NULL) {
-			printf("input = fdopen (parent_to_write[STDIN_FILENO], \"r\") ");
+			printf("input = ");
+			printf("fdopen (parent_to_write[STDIN_FILENO], \"r\") ");
 			printf("failed.\n");
 			_exit(EXIT_FAILURE);
 		}
@@ -337,22 +330,21 @@ main(int argc, char *argv[])
 				printf("\n\n");
 			printf("/etc/installurl: ");
 			while ((c = getc(input)) != EOF) {
-				if ( i >= 300) {
-					printf("\nreceived mirror length became too long.\n");
+				if (i >= 300) {
+					printf("\nmirror length became too long.\n");
 					printf("/etc/installurl not written.\n");
 					_exit(EXIT_FAILURE);
 				}
 				printf("%c", c);
 				tag[i++] = c;
 			}
-			
+
 			pkg_write = fopen("/etc/installurl", "w");
-			
+
 			if (pledge("stdio", NULL) == -1) {
 				printf("pledge line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
-			
 			if (pkg_write != NULL) {
 				fwrite(tag, i, sizeof(char), pkg_write);
 				fclose(pkg_write);
@@ -365,15 +357,14 @@ main(int argc, char *argv[])
 				printf("\n");
 			printf("\nRun as root to write to /etc/installurl or as ");
 			printf("root, type:\necho \"");
-			while ((c = getc(input)) != EOF)
-			{
+			while ((c = getc(input)) != EOF) {
 				if (c != '\n')
 					printf("%c", c);
 				else
 					break;
-					
-				if ( i++ >= 300) {
-					printf("\nreceived mirror length became too long.\n");
+
+				if (i++ >= 300) {
+					printf("\nmirror length became too long.\n");
 					_exit(EXIT_FAILURE);
 				}
 			}
@@ -391,7 +382,7 @@ main(int argc, char *argv[])
 
 
 	timeout.tv_sec = (time_t) s;
-	timeout.tv_nsec = 
+	timeout.tv_nsec =
 	    (long) ((s - (double) timeout.tv_sec) * 1000000000);
 
 	kq = kqueue();
@@ -409,14 +400,12 @@ main(int argc, char *argv[])
 			printf("ftp pledge 1 line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
-
 		close(ftp_to_sed[STDIN_FILENO]);
-		
+
 		if (dup2(ftp_to_sed[STDOUT_FILENO], STDOUT_FILENO) == -1) {
 			printf("ftp STDOUT dup2 line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
-
 		execl("/usr/bin/ftp", "ftp", "-Vo", "-",
 		    "https://www.openbsd.org/ftp.html", NULL);
 
@@ -424,7 +413,6 @@ main(int argc, char *argv[])
 			fprintf(stderr, "ftp pledge 2 line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
-
 		fprintf(stderr, "ftp execl() failed line: %d\n", __LINE__);
 		_exit(EXIT_FAILURE);
 	}
@@ -446,7 +434,6 @@ main(int argc, char *argv[])
 			printf("sed pledge 2 line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
-
 		close(sed_to_parent[STDIN_FILENO]);
 
 		if (dup2(ftp_to_sed[STDIN_FILENO], STDIN_FILENO) == -1) {
@@ -457,7 +444,6 @@ main(int argc, char *argv[])
 			printf("sed STDOUT dup2 line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
-		
 		execl("/usr/bin/sed", "sed", "-n",
 		    "-e", "s:</a>$::",
 		    "-e", "s:\t<strong>\\([^<]*\\)<.*:\\1:p",
@@ -476,7 +462,6 @@ main(int argc, char *argv[])
 		errno = n;
 		err(EXIT_FAILURE, "fork line: %d", __LINE__);
 	}
-
 	if (pledge("stdio proc exec", NULL) == -1)
 		err(EXIT_FAILURE, "pledge line: %d", __LINE__);
 
@@ -489,7 +474,8 @@ main(int argc, char *argv[])
 	if (i == -1) {
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
-		printf("kevent, timeout0 may be too large. line: %d\n", __LINE__);
+		printf("kevent, timeout0 ");
+		printf("may be too large. line: %d\n", __LINE__);
 		manpage(argv[0]);
 	}
 	if (i == 0) {
@@ -505,13 +491,13 @@ main(int argc, char *argv[])
 		kill(sed_pid, SIGKILL);
 		errno = n;
 		errx(EXIT_FAILURE,
-		    "input = fdopen (sed_to_parent[STDIN_FILENO], \"r\") failed.");
+		    "input = fdopen(sed_to_parent[STDIN_FILENO], \"r\") fail.");
 	}
 	/* if the index for line[] exceeds 299, it will error out */
 	char *line;
-	line = (char *) malloc(300);
+	line = calloc(300, sizeof(char));
 	if (line == NULL)
-		err(EXIT_FAILURE, "malloc line: %d", __LINE__);
+		err(EXIT_FAILURE, "calloc line: %d", __LINE__);
 
 	num = 0;
 	pos = 0;
@@ -551,13 +537,13 @@ main(int argc, char *argv[])
 						continue;
 					}
 				}
-				array[array_length]->label = malloc(pos);
+				array[array_length]->label = calloc(pos, sizeof(char));
 				if (array[array_length]->label == NULL) {
 					n = errno;
 					kill(ftp_pid, SIGKILL);
 					kill(sed_pid, SIGKILL);
 					errno = n;
-					err(EXIT_FAILURE, "malloc line: %d", __LINE__);
+					err(EXIT_FAILURE, "calloc line: %d", __LINE__);
 				}
 				strlcpy(array[array_length]->label, line, pos);
 
@@ -590,13 +576,13 @@ main(int argc, char *argv[])
 				pos += tag_len - 1;
 
 
-				array[array_length]->ftp_file = malloc(pos);
+				array[array_length]->ftp_file = calloc(pos, sizeof(char));
 				if (array[array_length]->ftp_file == NULL) {
 					n = errno;
 					kill(ftp_pid, SIGKILL);
 					kill(sed_pid, SIGKILL);
 					errno = n;
-					err(EXIT_FAILURE, "malloc line: %d", __LINE__);
+					err(EXIT_FAILURE, "calloc line: %d", __LINE__);
 				}
 				strlcpy(array[array_length]->ftp_file,
 				    line, pos);
@@ -610,11 +596,11 @@ main(int argc, char *argv[])
 					    sizeof(struct mirror_st));
 
 					if (array == NULL)
-						err(EXIT_FAILURE, "reallocarray line: %d", __LINE__);
+						err(EXIT_FAILURE,
+						    "reallocarray line: %d", __LINE__);
 				}
 				array[array_length]
-				    = (struct mirror_st *)
-				    malloc(sizeof(struct mirror_st));
+				    = malloc(sizeof(struct mirror_st));
 
 				if (array[array_length] == NULL) {
 					n = errno;
@@ -638,7 +624,7 @@ main(int argc, char *argv[])
 	waitpid(sed_pid, NULL, 0);
 
 	if (array_length == 0)
-		errx(EXIT_FAILURE, "No mirrors found. Is www.openbsd.org live?");
+		errx(EXIT_FAILURE, "No mirror found. Is www.openbsd.org live?");
 
 	free(array[array_length]->label);
 	free(array[array_length]);
@@ -702,7 +688,6 @@ main(int argc, char *argv[])
 				printf("ftp pledge 3 line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
-
 			close(block_pipe[STDOUT_FILENO]);
 			read(block_pipe[STDIN_FILENO], &n, sizeof(int));
 			close(block_pipe[STDIN_FILENO]);
@@ -711,7 +696,7 @@ main(int argc, char *argv[])
 				execl("/usr/bin/ftp", "ftp", "-Vmo",
 				    "/dev/null", array[c]->ftp_file, NULL);
 				i = -1;
-			} else {		
+			} else {
 				i = open("/dev/null", O_WRONLY);
 				if (i != -1)
 					dup2(i, STDERR_FILENO);
@@ -738,9 +723,9 @@ main(int argc, char *argv[])
 			n = errno;
 			kill(ftp_pid, SIGKILL);
 			errno = n;
-			err(EXIT_FAILURE, "kevent register fail line: %d", __LINE__);
+			err(EXIT_FAILURE,
+			    "kevent register fail line: %d", __LINE__);
 		}
-		
 		array[c]->diff = 0;
 		gettimeofday(&tv_start, NULL);
 
@@ -818,13 +803,13 @@ main(int argc, char *argv[])
 		array[0]->ftp_file[strlen(array[0]->ftp_file) - tag_len] = '\0';
 
 	if (array[0]->diff >= s) {
-		if ( current == 0 ) {
+		if (current == 0) {
 			printf("\n\n");
-			errx(EXIT_FAILURE, "No mirrors. IF THIS IS -CURRENT, use -c\n");
+			errx(EXIT_FAILURE,
+			    "No mirrors. IF THIS IS -CURRENT, use -c\n");
 		} else
-			errx(EXIT_FAILURE, "No mirrors found.");	
+			errx(EXIT_FAILURE, "No mirrors found.");
 	}
-
 	if (dup2(parent_to_write[STDOUT_FILENO], STDOUT_FILENO) == -1) {
 		kill(write_pid, SIGKILL);
 		printf("%s\n", array[0]->ftp_file);
