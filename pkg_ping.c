@@ -28,22 +28,22 @@
 
 
 /*
- * Special thanks to Dan Mclaughlin for the ftp to sed idea
+ * Special thanks to "Dan Mclaughlin" on misc@ for the ftp to sed idea
  *
  * "
  * ftp -o - http://www.openbsd.org/ftp.html | \
  * sed -n \
  *  -e 's:</a>$::' \
- * 	-e 's:	<strong>\([^<]*\)<.*:\1:p' \
- * 	-e 's:^\(	[hfr].*\):\1:p'
+ *      -e 's:  <strong>\([^<]*\)<.*:\1:p' \
+ *      -e 's:^\(       [hfr].*\):\1:p'
  * "
  */
 
 /*
-   indent pkg_ping.c -bap -br -ce -ci4 -cli0 -d0 -di0 -i8 \
-   -ip -l79 -nbc -ncdb -ndj -ei -nfc1 -nlp -npcs -psl -sc -sob
+	indent pkg_ping.c -bap -br -ce -ci4 -cli0 -d0 -di0 -i8 \
+	-ip -l79 -nbc -ncdb -ndj -ei -nfc1 -nlp -npcs -psl -sc -sob
 
-   cc pkg_ping.c -pipe -o pkg_ping
+	cc pkg_ping.c -pipe -o pkg_ping
  */
 
 #include <err.h>
@@ -57,8 +57,6 @@
 #include <sys/utsname.h>
 #include <sys/wait.h>
 #include <unistd.h>
-
-//~ #define pledge(x,y) 0
 
 struct mirror_st {
 	char *label;
@@ -221,7 +219,8 @@ main(int argc, char *argv[])
 					continue;
 
 				if (optarg[c] == '-')
-					errx(EXIT_FAILURE, "No negative numbers.");
+					errx(EXIT_FAILURE,
+					    "No negative numbers.");
 				printf("Bad floating point format.\n");
 				return EXIT_FAILURE;
 			}
@@ -319,8 +318,8 @@ main(int argc, char *argv[])
 		}
 		input = fdopen(parent_to_write[STDIN_FILENO], "r");
 		if (input == NULL) {
-			printf("input = ");
-			printf("fdopen (parent_to_write[STDIN_FILENO], \"r\") ");
+			printf("input = fdopen ");
+			printf("(parent_to_write[STDIN_FILENO], \"r\") ");
 			printf("failed.\n");
 			_exit(EXIT_FAILURE);
 		}
@@ -331,8 +330,11 @@ main(int argc, char *argv[])
 			printf("/etc/installurl: ");
 			while ((c = getc(input)) != EOF) {
 				if (i >= 300) {
-					printf("\nmirror length became too long.\n");
-					printf("/etc/installurl not written.\n");
+					printf("\nmirror ");
+					printf("length became too long.\n");
+					
+					printf("/etc/installurl");
+					printf(" not written.\n");
 					_exit(EXIT_FAILURE);
 				}
 				printf("%c", c);
@@ -355,7 +357,8 @@ main(int argc, char *argv[])
 		} else {
 			if (verbose == 2)
 				printf("\n");
-			printf("\nRun as root to write to /etc/installurl or as ");
+			printf("\nRun as root to write ");
+			printf("to /etc/installurl or as ");
 			printf("root, type:\necho \"");
 			while ((c = getc(input)) != EOF) {
 				if (c != '\n')
@@ -364,7 +367,8 @@ main(int argc, char *argv[])
 					break;
 
 				if (i++ >= 300) {
-					printf("\nmirror length became too long.\n");
+					printf("\nmirror length ");
+					printf("became too long.\n");
 					_exit(EXIT_FAILURE);
 				}
 			}
@@ -514,7 +518,8 @@ main(int argc, char *argv[])
 		if (pos >= 300) {
 			kill(ftp_pid, SIGKILL);
 			kill(sed_pid, SIGKILL);
-			errx(EXIT_FAILURE, "pos got too big! line: %d", __LINE__);
+			errx(EXIT_FAILURE,
+			    "pos got too big! line: %d", __LINE__);
 		}
 		if (num == 0) {
 			if (c != '\n')
@@ -537,13 +542,15 @@ main(int argc, char *argv[])
 						continue;
 					}
 				}
-				array[array_length]->label = calloc(pos, sizeof(char));
+				array[array_length]->label = 
+				    calloc(pos, sizeof(char));
 				if (array[array_length]->label == NULL) {
 					n = errno;
 					kill(ftp_pid, SIGKILL);
 					kill(sed_pid, SIGKILL);
 					errno = n;
-					err(EXIT_FAILURE, "calloc line: %d", __LINE__);
+					err(EXIT_FAILURE,
+					    "calloc line: %d", __LINE__);
 				}
 				strlcpy(array[array_length]->label, line, pos);
 
@@ -575,14 +582,16 @@ main(int argc, char *argv[])
 
 				pos += tag_len - 1;
 
-
-				array[array_length]->ftp_file = calloc(pos, sizeof(char));
+				array[array_length]->ftp_file =
+				    calloc(pos, sizeof(char));
+				    
 				if (array[array_length]->ftp_file == NULL) {
 					n = errno;
 					kill(ftp_pid, SIGKILL);
 					kill(sed_pid, SIGKILL);
 					errno = n;
-					err(EXIT_FAILURE, "calloc line: %d", __LINE__);
+					err(EXIT_FAILURE,
+					    "calloc line: %d", __LINE__);
 				}
 				strlcpy(array[array_length]->ftp_file,
 				    line, pos);
@@ -595,9 +604,11 @@ main(int argc, char *argv[])
 					array = reallocarray(array, array_max,
 					    sizeof(struct mirror_st));
 
-					if (array == NULL)
+					if (array == NULL) {
 						err(EXIT_FAILURE,
-						    "reallocarray line: %d", __LINE__);
+						    "reallocarray line: %d",
+						    __LINE__);
+					}
 				}
 				array[array_length]
 				    = malloc(sizeof(struct mirror_st));
@@ -607,7 +618,8 @@ main(int argc, char *argv[])
 					kill(ftp_pid, SIGKILL);
 					kill(sed_pid, SIGKILL);
 					errno = n;
-					err(EXIT_FAILURE, "malloc line: %d", __LINE__);
+					err(EXIT_FAILURE,
+					    "malloc line: %d", __LINE__);
 				}
 				pos = 0;
 				num = 0;
@@ -635,7 +647,8 @@ main(int argc, char *argv[])
 	if (insecure) {
 		qsort(array, array_length, sizeof(struct mirror_st *), ftp_cmp);
 		for (c = 1; c < array_length; ++c) {
-			if (!strcmp(array[c - 1]->ftp_file, array[c]->ftp_file)) {
+			if (!strcmp(array[c - 1]->ftp_file,
+			    array[c]->ftp_file)) {
 				free(array[c - 1]->label);
 				free(array[c - 1]->ftp_file);
 				free(array[c - 1]);
@@ -790,7 +803,8 @@ main(int argc, char *argv[])
 			    = '\0';
 
 			printf("%d : %s:\n\techo ", c + 1, array[c]->label);
-			printf("\"%s\" > /etc/installurl : ", array[c]->ftp_file);
+			printf("\"%s\" > /etc/installurl : ",
+			    array[c]->ftp_file);
 
 			if (array[c]->diff < s)
 				printf("%f\n\n", array[c]->diff);
