@@ -96,6 +96,18 @@ ftp_cmp(const void *a, const void *b)
 }
 
 static int
+label_rev_cmp(const void *a, const void *b)
+{
+	struct mirror_st **one;
+	struct mirror_st **two;
+
+	one = (struct mirror_st **) a;
+	two = (struct mirror_st **) b;
+
+	return strcmp((*two)->label, (*one)->label);
+}
+
+static int
 label_cmp(const void *a, const void *b)
 {
 	struct mirror_st **one;
@@ -166,7 +178,7 @@ main(int argc, char *argv[])
 		if (unveil("/etc/installurl", "crw") == -1)
 			err(EXIT_FAILURE, "unveil line: %d", __LINE__);
 
-		if (pledge("stdio rpath wpath cpath proc exec", NULL) == -1)
+		if (pledge("stdio proc exec cpath rpath wpath", NULL) == -1)
 			err(EXIT_FAILURE, "pledge line: %d\n", __LINE__);
 	} else if (pledge("stdio proc exec", NULL) == -1)
 		err(EXIT_FAILURE, "pledge line: %d\n", __LINE__);
@@ -286,7 +298,7 @@ main(int argc, char *argv[])
 
 		if (getuid() == 0) {
 
-			if (pledge("stdio wpath rpath cpath", NULL) == -1) {
+			if (pledge("stdio cpath rpath wpath", NULL) == -1) {
 				printf("pledge line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
@@ -801,6 +813,36 @@ main(int argc, char *argv[])
 
 	if (verbose == 2) {
 		printf("\n\n");
+		
+		int ts = -1, te = -1, ds = -1, de = -1;
+		
+		for (c = 0; c < array_length; ++c) {
+			if (array[c]->diff < s)
+				continue;
+			else if (array[c]->diff == s) {
+				if (ts == -1) 
+					ts = te = c;
+				else
+					te = c;
+			}
+			else {
+				if(ds == -1) 
+					ds = de = c;
+				else
+					de = c;
+			}
+		}
+		
+		if (ts != -1) {
+			qsort(array + ts, 1 + te - ts, 
+			    sizeof(struct mirror_st *), label_rev_cmp);
+		}
+		
+		if (ds != -1) {
+			qsort(array + ds, 1 + de - ds,
+			    sizeof(struct mirror_st *), label_rev_cmp);
+		}
+		
 		for (c = array_length - 1; c >= 0; --c) {
 			array[c]->ftp_file[strlen(array[c]->ftp_file) - tag_len]
 			    = '\0';
