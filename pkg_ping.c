@@ -843,7 +843,16 @@ main(int argc, char *argv[])
 			    sizeof(struct mirror_st *), label_rev_cmp);
 		}
 		
-		for (c = array_length - 1; c >= 0; --c) {
+		c = array_length - 1;
+		
+		if (array[c]->diff < s)
+			printf("SUCCESSFUL MIRRORS:\n\n");
+		else if (array[c]->diff == s)
+			printf("TIMEOUT MIRRORS:\n\n");
+		else
+			printf("DOWNLOAD ERROR MIRRORS:\n\n");
+
+		for (; c >= 0; --c) {
 			array[c]->ftp_file[strlen(array[c]->ftp_file) - tag_len]
 			    = '\0';
 
@@ -853,10 +862,17 @@ main(int argc, char *argv[])
 
 			if (array[c]->diff < s)
 				printf("%f\n\n", array[c]->diff);
-			else if (array[c]->diff == s)
+			else if (array[c]->diff == s) {
 				printf("Timeout\n\n");
-			else
+				if (c == ts)
+					printf("\nSUCCESSFUL MIRRORS:\n\n\n");
+			}
+			else {
 				printf("Download Error\n\n");
+				if (c == ds)
+					printf("\nTIMEOUT MIRRORS:\n\n\n");
+			}
+			    
 		}
 	} else
 		array[0]->ftp_file[strlen(array[0]->ftp_file) - tag_len] = '\0';
