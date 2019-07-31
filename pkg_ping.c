@@ -814,11 +814,13 @@ main(int argc, char *argv[])
 	if (verbose == 2) {
 		printf("\n\n");
 		
-		int ts = -1, te = -1, ds = -1, de = -1;
+		int ts = -1, te = -1,   ds = -1, de = -1,   ss = -1;
 		
 		for (c = 0; c < array_length; ++c) {
-			if (array[c]->diff < s)
-				continue;
+			if (array[c]->diff < s) {
+				if (ss == -1) 
+					ss = c;
+			}
 			else if (array[c]->diff == s) {
 				if (ts == -1) 
 					ts = te = c;
@@ -855,7 +857,7 @@ main(int argc, char *argv[])
 		for (; c >= 0; --c) {
 			array[c]->ftp_file[strlen(array[c]->ftp_file) - tag_len]
 			    = '\0';
-
+			    
 			printf("%d : %s:\n\techo ", c + 1, array[c]->label);
 			printf("\"%s\" > /etc/installurl : ",
 			    array[c]->ftp_file);
@@ -864,13 +866,17 @@ main(int argc, char *argv[])
 				printf("%f\n\n", array[c]->diff);
 			else if (array[c]->diff == s) {
 				printf("Timeout\n\n");
-				if (c == ts)
+				if (c == ts && ss != -1)
 					printf("\nSUCCESSFUL MIRRORS:\n\n\n");
 			}
 			else {
 				printf("Download Error\n\n");
-				if (c == ds)
-					printf("\nTIMEOUT MIRRORS:\n\n\n");
+				if (c == ds) {
+					if (ss != -1 && ts == -1)
+						printf("\nSUCCESSFUL MIRRORS:\n\n\n");
+					else if (ts != -1)
+						printf("\nTIMEOUT MIRRORS:\n\n\n");
+				}
 			}
 			    
 		}
@@ -899,3 +905,4 @@ main(int argc, char *argv[])
 
 	return c;
 }
+
