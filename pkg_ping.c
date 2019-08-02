@@ -872,10 +872,10 @@ main(int argc, char *argv[])
 			else {
 				printf("Download Error\n\n");
 				if (c == ds) {
-					if (ss != -1 && ts == -1)
-						printf("\nSUCCESSFUL MIRRORS:\n\n\n");
-					else if (ts != -1)
+					if (ts != -1)
 						printf("\nTIMEOUT MIRRORS:\n\n\n");
+					else if (ss != -1)
+						printf("\nSUCCESSFUL MIRRORS:\n\n\n");
 				}
 			}
 			    
@@ -905,4 +905,3 @@ main(int argc, char *argv[])
 
 	return c;
 }
-
