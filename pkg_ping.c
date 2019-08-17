@@ -814,20 +814,22 @@ main(int argc, char *argv[])
 		
 		int ts = -1, te = -1,   ds = -1, de = -1,   ss = -1;
 		
-		for (c = 0; c < array_length; ++c) {
+		for (c = array_length - 1; c >= 0; --c) {
 			
-			if (array[c]->diff < s)
+			if (array[c]->diff < s) {
 				ss = 0;
+				break;
+			}
 			else if (array[c]->diff == s) {
 				if (ts == -1) 
 					ts = te = c;
 				else
-					te = c;
+					ts = c;
 			} else {
 				if(ds == -1) 
 					ds = de = c;
 				else
-					de = c;
+					ds = c;
 			}
 		}
 		
