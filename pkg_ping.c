@@ -44,7 +44,6 @@
 /*
 	indent pkg_ping.c -bap -br -ce -ci4 -cli0 -d0 -di0 -i8 \
 	-ip -l79 -nbc -ncdb -ndj -ei -nfc1 -nlp -npcs -psl -sc -sob
-	
 	cc pkg_ping.c -pipe -o pkg_ping
  */
 
@@ -817,15 +816,14 @@ main(int argc, char *argv[])
 		
 		for (c = 0; c < array_length; ++c) {
 			
-			if (array[c]->diff < s) {
-				ss = c;
-			} else if (array[c]->diff == s) {
+			if (array[c]->diff < s)
+				ss = 0;
+			else if (array[c]->diff == s) {
 				if (ts == -1) 
 					ts = te = c;
 				else
 					te = c;
-			}
-			else {
+			} else {
 				if(ds == -1) 
 					ds = de = c;
 				else
