@@ -3,7 +3,6 @@
  *
  * Copyright (c) 2017, 2018, 2019, Luke N Small, lukensmall@gmail.com
  * All rights reserved.
-
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -45,7 +44,7 @@
 /*
 	indent pkg_ping.c -bap -br -ce -ci4 -cli0 -d0 -di0 -i8 \
 	-ip -l79 -nbc -ncdb -ndj -ei -nfc1 -nlp -npcs -psl -sc -sob
-
+	
 	cc pkg_ping.c -pipe -o pkg_ping
  */
 
@@ -814,20 +813,24 @@ main(int argc, char *argv[])
 	if (verbose == 2) {
 		printf("\n\n");
 		
-		int ts = -1, te = -1,   ds = -1, de = -1,   ss = -1;
+		int ss,  ts = -1, te = -1,   ds = -1, de = -1;
 		
-		for (c = 0; c < array_length; ++c) {
-			if (array[c]->diff < s) {
-				if (ss == -1) 
-					ss = c;
-			}
-			else if (array[c]->diff == s) {
+		if (array[0]->diff < s) {
+			ss = 0;
+			c = 1;
+		} else {
+			ss = -1;
+			c = 0;
+		}
+		
+		for (; c < array_length; ++c) {
+			
+			if (array[c]->diff == s) {
 				if (ts == -1) 
 					ts = te = c;
 				else
 					te = c;
-			}
-			else {
+			} else {
 				if(ds == -1) 
 					ds = de = c;
 				else
