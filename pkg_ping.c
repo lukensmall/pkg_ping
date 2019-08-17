@@ -866,15 +866,12 @@ main(int argc, char *argv[])
 				printf("Timeout\n\n");
 				if (c == ts && ss != -1)
 					printf("\nSUCCESSFUL MIRRORS:\n\n\n");
-			}
-			else {
+			} else {
 				printf("Download Error\n\n");
-				if (c == ds) {
-					if (ts != -1)
-						printf("\nTIMEOUT MIRRORS:\n\n\n");
-					else if (ss != -1)
-						printf("\nSUCCESSFUL MIRRORS:\n\n\n");
-				}
+				if (c == ds && ts != -1)
+					printf("\nTIMEOUT MIRRORS:\n\n\n");
+				else if (c == ds && ss != -1)
+					printf("\nSUCCESSFUL MIRRORS:\n\n\n");
 			}
 			    
 		}
