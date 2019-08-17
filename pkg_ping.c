@@ -813,24 +813,19 @@ main(int argc, char *argv[])
 	if (verbose == 2) {
 		printf("\n\n");
 		
-		int ss,  ts = -1, te = -1,   ds = -1, de = -1;
+		int ts = -1, te = -1,   ds = -1, de = -1,   ss = -1;
 		
-		if (array[0]->diff < s) {
-			ss = 0;
-			c = 1;
-		} else {
-			ss = -1;
-			c = 0;
-		}
-		
-		for (; c < array_length; ++c) {
+		for (c = 0; c < array_length; ++c) {
 			
-			if (array[c]->diff == s) {
+			if (array[c]->diff < s) {
+				ss = c;
+			} else if (array[c]->diff == s) {
 				if (ts == -1) 
 					ts = te = c;
 				else
 					te = c;
-			} else {
+			}
+			else {
 				if(ds == -1) 
 					ds = de = c;
 				else
