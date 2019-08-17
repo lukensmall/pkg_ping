@@ -45,6 +45,7 @@
 /*
 	indent pkg_ping.c -bap -br -ce -ci4 -cli0 -d0 -di0 -i8 \
 	-ip -l79 -nbc -ncdb -ndj -ei -nfc1 -nlp -npcs -psl -sc -sob
+
 	cc pkg_ping.c -pipe -o pkg_ping
  */
 
