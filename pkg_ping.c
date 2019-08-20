@@ -549,8 +549,6 @@ main(int argc, char *argv[])
 								break;
 							c = getc(input);
 						}
-						array[array_length]->label
-						    = NULL;
 						if (c == EOF)
 							break;
 						pos = 0;
@@ -558,7 +556,7 @@ main(int argc, char *argv[])
 					}
 				}
 				array[array_length]->label = 
-				    calloc(pos, sizeof(char));
+				    malloc(pos);
 				if (array[array_length]->label == NULL) {
 					n = errno;
 					kill(ftp_pid, SIGKILL);
@@ -598,7 +596,7 @@ main(int argc, char *argv[])
 				pos += tag_len - 1;
 
 				array[array_length]->ftp_file =
-				    calloc(pos, sizeof(char));
+				    malloc(pos);
 				    
 				if (array[array_length]->ftp_file == NULL) {
 					n = errno;
@@ -606,7 +604,7 @@ main(int argc, char *argv[])
 					kill(sed_pid, SIGKILL);
 					errno = n;
 					err(EXIT_FAILURE,
-					    "calloc line: %d", __LINE__);
+					    "malloc line: %d", __LINE__);
 				}
 				strlcpy(array[array_length]->ftp_file,
 				    line, pos);
@@ -620,6 +618,10 @@ main(int argc, char *argv[])
 					    sizeof(struct mirror_st));
 
 					if (array == NULL) {
+						n = errno;
+						kill(ftp_pid, SIGKILL);
+						kill(sed_pid, SIGKILL);
+						errno = n;
 						err(EXIT_FAILURE,
 						    "reallocarray line: %d",
 						    __LINE__);
@@ -653,7 +655,8 @@ main(int argc, char *argv[])
 	if (array_length == 0)
 		errx(EXIT_FAILURE, "No mirror found. Is www.openbsd.org live?");
 
-	free(array[array_length]->label);
+	if (num == 1)
+		free(array[array_length]->label);
 	free(array[array_length]);
 
 
@@ -723,7 +726,6 @@ main(int argc, char *argv[])
 			if (verbose >= 1) {
 				execl("/usr/bin/ftp", "ftp", "-Vmo",
 				    "/dev/null", array[c]->ftp_file, NULL);
-				i = -1;
 			} else {
 				i = open("/dev/null", O_WRONLY);
 				if (i != -1)
