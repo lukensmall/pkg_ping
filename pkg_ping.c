@@ -563,7 +563,7 @@ main(int argc, char *argv[])
 					kill(sed_pid, SIGKILL);
 					errno = n;
 					err(EXIT_FAILURE,
-					    "calloc line: %d", __LINE__);
+					    "malloc line: %d", __LINE__);
 				}
 				strlcpy(array[array_length]->label, line, pos);
 
