@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2017, 2018, 2019, Luke N Small, lukensmall@gmail.com
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -595,8 +595,7 @@ main(int argc, char *argv[])
 
 				pos += tag_len - 1;
 
-				array[array_length]->ftp_file =
-				    malloc(pos);
+				array[array_length]->ftp_file = malloc(pos);
 				    
 				if (array[array_length]->ftp_file == NULL) {
 					n = errno;
@@ -644,6 +643,8 @@ main(int argc, char *argv[])
 		}
 	}
 	fclose(input);
+	free(tag);
+	free(line);
 
 	close(sed_to_parent[STDIN_FILENO]);
 
@@ -661,19 +662,20 @@ main(int argc, char *argv[])
 
 
 
-
 	if (insecure) {
 		qsort(array, array_length, sizeof(struct mirror_st *), ftp_cmp);
-		for (c = 1; c < array_length; ++c) {
+		c = 1;
+		while (c < array_length) {
 			if (!strcmp(array[c - 1]->ftp_file,
 			    array[c]->ftp_file)) {
 				free(array[c - 1]->label);
 				free(array[c - 1]->ftp_file);
 				free(array[c - 1]);
-				for (i = c--; i < array_length; ++i)
+				for (i = c; i < array_length; ++i)
 					array[i - 1] = array[i];
 				--array_length;
-			}
+			} else
+				++c;
 		}
 	}
 	qsort(array, array_length, sizeof(struct mirror_st *), label_cmp);
@@ -819,7 +821,6 @@ main(int argc, char *argv[])
 		int ts = -1, te = -1,   ds = -1, de = -1,   ss = -1;
 		
 		for (c = array_length - 1; c >= 0; --c) {
-			
 			if (array[c]->diff < s) {
 				ss = 0;
 				break;
@@ -861,17 +862,19 @@ main(int argc, char *argv[])
 			    = '\0';
 			    
 			printf("%d : %s:\n\techo ", c + 1, array[c]->label);
-			printf("\"%s\" > /etc/installurl : ",
+			printf("\"%s\" > /etc/installurl",
 			    array[c]->ftp_file);
 
 			if (array[c]->diff < s)
-				printf("%f\n\n", array[c]->diff);
+				printf(" : %f\n\n", array[c]->diff);
 			else if (array[c]->diff == s) {
-				printf("Timeout\n\n");
+				//~ printf("Timeout");
+				printf("\n\n");
 				if (c == ts && ss != -1)
 					printf("\nSUCCESSFUL MIRRORS:\n\n\n");
 			} else {
-				printf("Download Error\n\n");
+				//~ printf("Download Error");
+				printf("\n\n");
 				if (c == ds && ts != -1)
 					printf("\nTIMEOUT MIRRORS:\n\n\n");
 				else if (c == ds && ss != -1)
