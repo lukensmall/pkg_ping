@@ -509,7 +509,7 @@ main(int argc, char *argv[])
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
 		errno = n;
-		errx(EXIT_FAILURE,
+		err(EXIT_FAILURE,
 		    "input = fdopen(sed_to_parent[STDIN_FILENO], \"r\") fail.");
 	}
 	/* if the index for line[] exceeds 299, it will error out */
