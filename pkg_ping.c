@@ -45,6 +45,7 @@
 /*
 	indent pkg_ping.c -bap -br -ce -ci4 -cli0 -d0 -di0 -i8 \
 	-ip -l79 -nbc -ncdb -ndj -ei -nfc1 -nlp -npcs -psl -sc -sob
+
 	cc pkg_ping.c -pipe -o pkg_ping
  */
 
@@ -786,13 +787,15 @@ main(int argc, char *argv[])
 		if (ke.data == 0) {
 			gettimeofday(&tv_end, NULL);
 			array[c]->diff = get_time_diff(tv_start, tv_end);
-			if (verbose >= 1) {
+			if (verbose == 2) {
 				if (array[c]->diff > s) {
 					array[c]->diff = s;
 					printf("Timeout\n");
-				}
-				else if (verbose == 2)
+				} else
 					printf("%f\n", array[c]->diff);
+			} else if (verbose == 1) {
+				if (array[c]->diff > s) 
+					array[c]->diff = s;
 			} else {
 				S = array[c]->diff;
 				timeout.tv_sec = (int) S;
