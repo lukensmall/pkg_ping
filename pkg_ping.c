@@ -148,7 +148,7 @@ get_time_diff(struct timeval a, struct timeval b)
 }
 
 static void
-manpage(char *a)
+manpage(char a[])
 {
 	printf("%s\n[-v (recognizes up to 2 levels of verbosity)]\n", a);
 
