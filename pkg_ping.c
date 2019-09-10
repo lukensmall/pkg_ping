@@ -340,7 +340,7 @@ main(int argc, char *argv[])
 		}
 		i = 0;
 		if (getuid() == 0) {
-			if (verbose >= 1)
+			if (verbose == 2)
 				printf("\n\n");
 			printf("/etc/installurl: ");
 			while ((c = getc(input)) != EOF) {
@@ -787,16 +787,14 @@ main(int argc, char *argv[])
 		if (ke.data == 0) {
 			gettimeofday(&tv_end, NULL);
 			array[c]->diff = get_time_diff(tv_start, tv_end);
+			if (array[c]->diff > s) 
+				array[c]->diff = s;
 			if (verbose == 2) {
-				if (array[c]->diff > s) {
-					array[c]->diff = s;
+				if (array[c]->diff == s)
 					printf("Timeout\n");
-				} else
+				else
 					printf("%f\n", array[c]->diff);
-			} else if (verbose == 1) {
-				if (array[c]->diff > s) 
-					array[c]->diff = s;
-			} else {
+			} else if (verbose == 0) {
 				S = array[c]->diff;
 				timeout.tv_sec = (int) S;
 				timeout.tv_nsec =
@@ -820,7 +818,6 @@ main(int argc, char *argv[])
 	qsort(array, array_length, sizeof(struct mirror_st *), diff_cmp);
 
 	if (verbose >= 1) {
-		printf("\n\n");
 		
 		int ts = -1, te = -1,   ds = -1, de = -1,   ss = -1;
 		
@@ -855,11 +852,11 @@ main(int argc, char *argv[])
 		c = array_length - 1;
 		
 		if (array[c]->diff < s)
-			printf("SUCCESSFUL MIRRORS:\n\n");
+			printf("\n\nSUCCESSFUL MIRRORS:\n\n\n");
 		else if (array[c]->diff == s)
-			printf("TIMEOUT MIRRORS:\n\n");
+			printf("\n\nTIMEOUT MIRRORS:\n\n\n");
 		else
-			printf("DOWNLOAD ERROR MIRRORS:\n\n");
+			printf("\n\nDOWNLOAD ERROR MIRRORS:\n\n\n");
 
 		for (; c >= 0; --c) {
 			array[c]->ftp_file[strlen(array[c]->ftp_file) - tag_len]
