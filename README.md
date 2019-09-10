@@ -8,8 +8,9 @@ This program works on OpenBSD versions 6.4 and 6.5-beta and won't compile for ea
 
 It uses several commandline options:
 
--v will make it print out the information of the mirrors in real time. A second one will print out the results sorted in 
-reverse order by time and print a line that you can copy and paste into a root terminal to install that mirror.
+-v will print out the results sorted in reverse order by time or if timed out, or download error, alphabetically and print a line
+that you can copy and paste into a root terminal to install that mirror. A second 'v' will make it print out the information of 
+the mirrors in real time.
 
 -u will make it search for only non-USA mirrors for export encryption compliance if you are searching from outside of the USA.
 
@@ -26,4 +27,6 @@ It will shorten the timeout period to the download time of the fastest mirror th
 
 cc pkg_ping.c -o pkg_ping
 
-eg. "./pkg_ping -vs1.5 -ivu"
+eg. ./pkg_ping -vs1.5 -ivu
+
+eg. ./pkg_ping -vivcs 1.5
