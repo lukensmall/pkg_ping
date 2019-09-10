@@ -45,7 +45,6 @@
 /*
 	indent pkg_ping.c -bap -br -ce -ci4 -cli0 -d0 -di0 -i8 \
 	-ip -l79 -nbc -ncdb -ndj -ei -nfc1 -nlp -npcs -psl -sc -sob
-
 	cc pkg_ping.c -pipe -o pkg_ping
  */
 
@@ -340,7 +339,7 @@ main(int argc, char *argv[])
 		}
 		i = 0;
 		if (getuid() == 0) {
-			if (verbose == 2)
+			if (verbose >= 1)
 				printf("\n\n");
 			printf("/etc/installurl: ");
 			while ((c = getc(input)) != EOF) {
@@ -370,7 +369,7 @@ main(int argc, char *argv[])
 				_exit(EXIT_FAILURE);
 			}
 		} else {
-			if (verbose == 2)
+			if (verbose >= 1)
 				printf("\n");
 			printf("\nRun as root to write ");
 			printf("to /etc/installurl or as ");
@@ -682,7 +681,7 @@ main(int argc, char *argv[])
 	double S = s;
 
 	for (c = 0; c < array_length; ++c) {
-		if (verbose >= 1) {
+		if (verbose == 2) {
 			if (array_length >= 1000) {
 				printf("\n%4d : %s  :  %s\n", array_length - c,
 				    array[c]->label, array[c]->ftp_file);
@@ -725,7 +724,7 @@ main(int argc, char *argv[])
 			read(block_pipe[STDIN_FILENO], &n, sizeof(int));
 			close(block_pipe[STDIN_FILENO]);
 
-			if (verbose >= 1) {
+			if (verbose == 2) {
 				execl("/usr/bin/ftp", "ftp", "-Vmo",
 				    "/dev/null", array[c]->ftp_file, NULL);
 			} else {
@@ -776,7 +775,7 @@ main(int argc, char *argv[])
 				err(EXIT_FAILURE, "kevent line: %d", __LINE__);
 			}
 			if (i == 0) {
-				if (verbose >= 1)
+				if (verbose == 2)
 					printf("\nTimeout\n");
 				kill(ftp_pid, SIGKILL);
 				array[c]->diff = s;
@@ -788,9 +787,11 @@ main(int argc, char *argv[])
 			gettimeofday(&tv_end, NULL);
 			array[c]->diff = get_time_diff(tv_start, tv_end);
 			if (verbose >= 1) {
-				if (array[c]->diff > s)
+				if (array[c]->diff > s) {
 					array[c]->diff = s;
-				else
+					printf("Timeout\n");
+				}
+				else if (verbose == 2)
 					printf("%f\n", array[c]->diff);
 			} else {
 				S = array[c]->diff;
@@ -801,7 +802,7 @@ main(int argc, char *argv[])
 			}
 		} else if (array[c]->diff == 0) {
 			array[c]->diff = s + 1;
-			if (verbose >= 1)
+			if (verbose == 2)
 				printf("Download Error\n");
 		}
 		waitpid(ftp_pid, NULL, 0);
@@ -809,13 +810,13 @@ main(int argc, char *argv[])
 	if (pledge("stdio", NULL) == -1)
 		err(EXIT_FAILURE, "pledge line: %d", __LINE__);
 
-	if (verbose == 0) {
+	if (verbose < 2) {
 		printf("\b \b");
 		fflush(stdout);
 	}
 	qsort(array, array_length, sizeof(struct mirror_st *), diff_cmp);
 
-	if (verbose == 2) {
+	if (verbose >= 1) {
 		printf("\n\n");
 		
 		int ts = -1, te = -1,   ds = -1, de = -1,   ss = -1;
