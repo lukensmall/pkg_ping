@@ -481,8 +481,6 @@ main(int argc, char *argv[])
 		errno = n;
 		err(EXIT_FAILURE, "fork line: %d", __LINE__);
 	}
-	if (pledge("stdio proc exec", NULL) == -1)
-		err(EXIT_FAILURE, "pledge line: %d", __LINE__);
 
 	close(ftp_to_sed[STDIN_FILENO]);
 	close(sed_to_parent[STDOUT_FILENO]);
@@ -537,39 +535,39 @@ main(int argc, char *argv[])
 			    "pos got too big! line: %d", __LINE__);
 		}
 		if (num == 0) {
-			if (c != '\n')
+			if (c != '\n') {
 				line[pos++] = c;
-			else {
-				line[pos++] = '\0';
-				if (u && pos >= 3) {
-					if (!strncmp("USA", line, 3)) {
-						c = getc(input);
-						while (c != EOF) {
-							if (c == '\n')
-								break;
-							c = getc(input);
-						}
-						if (c == EOF)
-							break;
-						pos = 0;
-						continue;
-					}
-				}
-				array[array_length]->label = 
-				    malloc(pos);
-				if (array[array_length]->label == NULL) {
-					n = errno;
-					kill(ftp_pid, SIGKILL);
-					kill(sed_pid, SIGKILL);
-					errno = n;
-					err(EXIT_FAILURE,
-					    "malloc line: %d", __LINE__);
-				}
-				strlcpy(array[array_length]->label, line, pos);
-
-				pos = 0;
-				num = 1;
+				continue;
 			}
+			line[pos++] = '\0';
+			if (u && pos >= 3) {
+				if (!strncmp("USA", line, 3)) {
+					c = getc(input);
+					while (c != EOF) {
+						if (c == '\n')
+							break;
+						c = getc(input);
+					}
+					if (c == EOF)
+						break;
+					pos = 0;
+					continue;
+				}
+			}
+			array[array_length]->label = 
+			    malloc(pos);
+			if (array[array_length]->label == NULL) {
+				n = errno;
+				kill(ftp_pid, SIGKILL);
+				kill(sed_pid, SIGKILL);
+				errno = n;
+				err(EXIT_FAILURE,
+				    "malloc line: %d", __LINE__);
+			}
+			strlcpy(array[array_length]->label, line, pos);
+
+			pos = 0;
+			num = 1;
 		} else {
 			if (pos == 0) {
 				if ((c != 'h') && (c != 'f') && (c != 'r'))
