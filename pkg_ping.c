@@ -586,58 +586,57 @@ main(int argc, char *argv[])
 				if (strncmp(line, "https", 5))
 					break;
 			}
-			if (c != '\n')
+			if (c != '\n') {
 				line[pos++] = c;
-			else {
-				line[pos++] = '\0';
-
-				pos += tag_len - 1;
-
-				array[array_length]->ftp_file = malloc(pos);
-				    
-				if (array[array_length]->ftp_file == NULL) {
-					n = errno;
-					kill(ftp_pid, SIGKILL);
-					kill(sed_pid, SIGKILL);
-					errno = n;
-					err(EXIT_FAILURE,
-					    "malloc line: %d", __LINE__);
-				}
-				strlcpy(array[array_length]->ftp_file,
-				    line, pos);
-
-				strlcat(array[array_length]->ftp_file,
-				    tag, pos);
-
-				if (++array_length > array_max) {
-					array_max += 100;
-					array = reallocarray(array, array_max,
-					    sizeof(struct mirror_st));
-
-					if (array == NULL) {
-						n = errno;
-						kill(ftp_pid, SIGKILL);
-						kill(sed_pid, SIGKILL);
-						errno = n;
-						err(EXIT_FAILURE,
-						    "reallocarray line: %d",
-						    __LINE__);
-					}
-				}
-				array[array_length]
-				    = malloc(sizeof(struct mirror_st));
-
-				if (array[array_length] == NULL) {
-					n = errno;
-					kill(ftp_pid, SIGKILL);
-					kill(sed_pid, SIGKILL);
-					errno = n;
-					err(EXIT_FAILURE,
-					    "malloc line: %d", __LINE__);
-				}
-				pos = 0;
-				num = 0;
+				continue;
 			}
+			line[pos++] = '\0';
+
+			pos += tag_len - 1;
+
+			array[array_length]->ftp_file = malloc(pos);
+			    
+			if (array[array_length]->ftp_file == NULL) {
+				n = errno;
+				kill(ftp_pid, SIGKILL);
+				kill(sed_pid, SIGKILL);
+				errno = n;
+				err(EXIT_FAILURE,
+				    "malloc line: %d", __LINE__);
+			}
+			strlcpy(array[array_length]->ftp_file,
+			    line, pos);
+
+			strlcat(array[array_length]->ftp_file,
+			    tag, pos);
+
+			if (++array_length > array_max) {
+				array_max += 100;
+				array = reallocarray(array, array_max,
+				    sizeof(struct mirror_st));
+
+				if (array == NULL) {
+					n = errno;
+					kill(ftp_pid, SIGKILL);
+					kill(sed_pid, SIGKILL);
+					errno = n;
+					err(EXIT_FAILURE,
+					    "reallocarray line: %d", __LINE__);
+				}
+			}
+			array[array_length]
+			    = malloc(sizeof(struct mirror_st));
+
+			if (array[array_length] == NULL) {
+				n = errno;
+				kill(ftp_pid, SIGKILL);
+				kill(sed_pid, SIGKILL);
+				errno = n;
+				err(EXIT_FAILURE,
+				    "malloc line: %d", __LINE__);
+			}
+			pos = 0;
+			num = 0;
 		}
 	}
 	fclose(input);
@@ -762,7 +761,7 @@ main(int argc, char *argv[])
 		close(block_pipe[STDOUT_FILENO]);
 
 
-
+		n = 0;
 
 		/* Loop until ftp() is dead and 'ke' is populated */
 		for (;;) {
@@ -774,8 +773,10 @@ main(int argc, char *argv[])
 				err(EXIT_FAILURE, "kevent line: %d", __LINE__);
 			}
 			if (i == 0) {
-				if (verbose == 2)
+				if (verbose == 2) {
+					n = 1;
 					printf("\nTimeout\n");
+				}
 				kill(ftp_pid, SIGKILL);
 				array[c]->diff = s;
 			} else
@@ -788,9 +789,10 @@ main(int argc, char *argv[])
 			if (array[c]->diff > s) 
 				array[c]->diff = s;
 			if (verbose == 2) {
-				if (array[c]->diff == s)
-					printf("Timeout\n");
-				else
+				if (array[c]->diff == s) {
+					if (n == 0)
+						printf("Timeout\n");
+				} else
 					printf("%f\n", array[c]->diff);
 			} else if (verbose == 0) {
 				S = array[c]->diff;
