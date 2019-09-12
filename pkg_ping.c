@@ -425,8 +425,15 @@ main(int argc, char *argv[])
 			printf("ftp STDOUT dup2 line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
-		execl("/usr/bin/ftp", "ftp", "-Vo", "-",
-		    "https://www.openbsd.org/ftp.html", NULL);
+		if (verbose == 2) {
+			fprintf(stderr,
+			    "fetching https://www.openbsd.org/ftp.html\n");
+			execl("/usr/bin/ftp", "ftp", "-Vmo", "-",
+			    "https://www.openbsd.org/ftp.html", NULL);
+		} else {
+			execl("/usr/bin/ftp", "ftp", "-VMo", "-",
+			    "https://www.openbsd.org/ftp.html", NULL);
+		}
 
 		if (pledge("stdio", NULL) == -1) {
 			fprintf(stderr, "ftp pledge 2 line: %d\n", __LINE__);
@@ -904,7 +911,7 @@ main(int argc, char *argv[])
 	close(parent_to_write[STDOUT_FILENO]);
 	close(STDOUT_FILENO);
 
-	wait(&c);
+	waitpid(write_pid, &i, 0);
 
-	return c;
+	return i;
 }
