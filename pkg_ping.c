@@ -133,7 +133,8 @@ manpage(char a[])
 	printf("[-u (no USA mirrors...to comply ");
 	printf("with USA encryption export laws)]\n");
 
-	printf("%s\n[-v (recognizes up to 2 additional levels of verbosity)]\n", a);
+	printf("%s\n[-v (recognizes up to 2 additional levels", a);
+	printf(" of verbosity)]\n");
 
 }
 
@@ -196,7 +197,7 @@ main(int argc, char *argv[])
 		case 'f':
 			if (f == 1) {
 				if (pledge("stdio proc exec", NULL) == -1)
-					err(EXIT_FAILURE, "pledge line: %d\n", __LINE__);
+					err(EXIT_FAILURE, "pledge");
 			}
 			f = 0;
 			break;
@@ -289,7 +290,8 @@ main(int argc, char *argv[])
 				_exit(EXIT_FAILURE);
 			}
 			close(parent_to_write[STDOUT_FILENO]);
-			if (dup2(parent_to_write[STDIN_FILENO], STDIN_FILENO) == -1) {
+			if (dup2(parent_to_write[STDIN_FILENO],
+			    STDIN_FILENO) == -1) {
 				printf("dup2 line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
@@ -302,7 +304,8 @@ main(int argc, char *argv[])
 				EV_ADD | EV_ONESHOT, 0, 0, NULL);
 
 			if (kevent(kq, &ke, 1, &ke, 1, NULL) == -1) {
-				printf("parent_to_write kevent register fail.\n");
+				printf("parent_to_write ");
+				printf("kevent register fail.\n");
 				_exit(EXIT_FAILURE);
 			}
 			if (ke.data == 0) {
@@ -312,7 +315,8 @@ main(int argc, char *argv[])
 			input = fdopen(parent_to_write[STDIN_FILENO], "r");
 			if (input == NULL) {
 				printf("input = fdopen ");
-				printf("(parent_to_write[STDIN_FILENO], \"r\") ");
+				printf("(parent_to_write[STDIN_FILENO],");
+				printf(" \"r\") ");
 				printf("failed.\n");
 				_exit(EXIT_FAILURE);
 			}
@@ -869,9 +873,9 @@ main(int argc, char *argv[])
 	if (f) {
 			
 		if (dup2(parent_to_write[STDOUT_FILENO], STDOUT_FILENO) == -1) {
-			kill(write_pid, SIGKILL);
 			printf("Type:\necho \"%s\" > /etc/installurl\n",
 			    array[0]->ftp_file);
+			printf("(file not written)\n");
 			return EXIT_FAILURE;
 		}
 		printf("%s\n", array[0]->ftp_file);
@@ -885,7 +889,9 @@ main(int argc, char *argv[])
 	}
 	
 	if (getuid() == 0) {
-		printf("Type:\necho \"%s\" > /etc/installurl\n", array[0]->ftp_file);
+		printf("Type:\necho \"%s\" > /etc/installurl\n",
+		    array[0]->ftp_file);
+		printf("(file not written)\n");
 	} else {
 		printf("As root, type:\necho \"%s\" > /etc/installurl\n",
 		    array[0]->ftp_file);
