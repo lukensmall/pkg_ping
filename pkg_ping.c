@@ -210,10 +210,10 @@ main(int argc, char *argv[])
 				return EXIT_FAILURE;
 			}
 			errno = 0;
-			strtod(optarg, NULL);
+			s = strtod(optarg, NULL);
 			if (errno == ERANGE)
 				err(EXIT_FAILURE, "strtod");
-			if ((s = strtod(optarg, NULL)) > 1000.0)
+			if (s > 1000.0)
 				errx(EXIT_FAILURE, "-s should <= 1000");
 			if (s <= 0.01)
 				errx(EXIT_FAILURE, "-s should be > 0.01");
