@@ -95,17 +95,6 @@ ftp_cmp(const void *a, const void *b)
 	return strcmp((*one)->ftp_file, (*two)->ftp_file);
 }
 
-static int
-label_rev_cmp(const void *a, const void *b)
-{
-	struct mirror_st **one;
-	struct mirror_st **two;
-
-	one = (struct mirror_st **) a;
-	two = (struct mirror_st **) b;
-
-	return strcmp((*two)->label, (*one)->label);
-}
 
 static int
 label_cmp(const void *a, const void *b)
@@ -127,25 +116,6 @@ label_cmp(const void *a, const void *b)
 	return strcmp((*one)->label, (*two)->label);
 }
 
-
-static double
-get_time_diff(struct timeval a, struct timeval b)
-{
-	int64_t seconds, microseconds;
-	double temp;
-
-	seconds = (int64_t) b.tv_sec - (int64_t) a.tv_sec;
-	microseconds = (int64_t) b.tv_usec - (int64_t) a.tv_usec;
-
-	if (microseconds < 0) {
-		--seconds;
-		microseconds += 1000000;
-	}
-	temp = (double) microseconds;
-	temp /= 1000000.0;
-	temp += (double) seconds;
-	return temp;
-}
 
 static void
 manpage(char a[])
@@ -792,7 +762,12 @@ main(int argc, char *argv[])
 
 		if (ke.data == 0) {
 			gettimeofday(&tv_end, NULL);
-			array[c]->diff = get_time_diff(tv_start, tv_end);
+			
+			array[c]->diff =
+			    (double)(tv_end.tv_sec - tv_start.tv_sec) +
+			    (double)(tv_end.tv_usec - tv_start.tv_usec) /
+			    1000000.0;
+			    
 			if (array[c]->diff > s) 
 				array[c]->diff = s;
 			if (verbose == 2) {
@@ -848,12 +823,12 @@ main(int argc, char *argv[])
 		
 		if (ts != -1) {
 			qsort(array + ts, 1 + te - ts, 
-			    sizeof(struct mirror_st *), label_rev_cmp);
+			    sizeof(struct mirror_st *), label_cmp);
 		}
 		
 		if (ds != -1) {
 			qsort(array + ds, 1 + de - ds,
-			    sizeof(struct mirror_st *), label_rev_cmp);
+			    sizeof(struct mirror_st *), label_cmp);
 		}
 		
 		c = array_length - 1;
