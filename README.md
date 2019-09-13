@@ -1,4 +1,4 @@
-It uses pledge and unveil for OpenBSD version 6.4 and later snapshots.
+It uses pledge and unveil for OpenBSD version 6.4 and later.
 
 It determines and prints the fastest OpenBSD mirror for your version and architecture for the /etc/installurl file and if run 
 as root, will write it to disk unless the -f flag is used.
