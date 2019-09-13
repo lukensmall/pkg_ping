@@ -4,7 +4,7 @@ It determines and prints the fastest OpenBSD mirror for your version and archite
 as root, will write it to disk.
 Compiler optimization for speed is not necessary as the calls using ftp will take up the vast majority of the run-time. 
 pledge() and unveil() is updated throughout. 
-This program works on OpenBSD versions 6.4 and 6.5-beta and won't compile for earlier versions.
+This program should works on OpenBSD versions 6.4+ and won't compile for earlier versions.
 
 It uses several commandline options:
 
