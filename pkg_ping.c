@@ -62,9 +62,9 @@
 #include <unistd.h>
 
 struct mirror_st {
-	char *label;
-	char *ftp_file;
 	double diff;
+	char *ftp_file;
+	char *label;
 };
 
 static int
@@ -372,7 +372,7 @@ main(int argc, char *argv[])
 
 	timeout.tv_sec = (time_t) s;
 	timeout.tv_nsec =
-	    (long) ((s - (double) timeout.tv_sec) * 1000000000);
+	    (long) ((s - (double) timeout.tv_sec) * 1000000000.0);
 
 	kq = kqueue();
 	if (kq == -1)
@@ -778,10 +778,10 @@ main(int argc, char *argv[])
 					printf("%f\n", array[c]->diff);
 			} else if (verbose == 0) {
 				S = array[c]->diff;
-				timeout.tv_sec = (int) S;
+				timeout.tv_sec = (time_t) S;
 				timeout.tv_nsec =
-				    (int) ((S - (double) timeout.tv_sec)
-				    * 1000000000);
+				    (long) ((S - (double) timeout.tv_sec)
+				    * 1000000000.0);
 			}
 		} else if (array[c]->diff == 0) {
 			array[c]->diff = s + 1;
