@@ -196,25 +196,31 @@ main(int argc, char *argv[])
 			break;
 		case 's':
 			c = -1;
-			i = 0;
+			i = n = 0;
 			while (optarg[++c] != '\0') {
-				if (optarg[c] >= '0' || optarg[c] <= '9')
+				if (optarg[c] >= '0' && optarg[c] <= '9')
+				{
+					n = 1;
 					continue;
+				}
 				if (optarg[c] == '.' && ++i == 1)
 					continue;
 
 				if (optarg[c] == '-')
 					errx(EXIT_FAILURE,
 					    "No negative numbers.");
-				printf("Bad floating point format.\n");
-				return EXIT_FAILURE;
+				errx(EXIT_FAILURE,
+				    "Bad floating point format.");
 			}
+			if (n == 0)
+				errx(EXIT_FAILURE,
+				    "-s needs a numeric character.");
 			errno = 0;
 			s = strtod(optarg, NULL);
 			if (errno == ERANGE)
 				err(EXIT_FAILURE, "strtod");
 			if (s > 1000.0)
-				errx(EXIT_FAILURE, "-s should <= 1000");
+				errx(EXIT_FAILURE, "-s should be <= 1000");
 			if (s <= 0.01)
 				errx(EXIT_FAILURE, "-s should be > 0.01");
 			break;
