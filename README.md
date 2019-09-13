@@ -3,8 +3,10 @@ It uses pledge and unveil for OpenBSD version 6.4 and later snapshots.
 It determines and prints the fastest OpenBSD mirror for your version and architecture for the /etc/installurl file and if run 
 as root, will write it to disk.
 Compiler optimization for speed is not necessary as the calls using ftp will take up the vast majority of the run-time. 
-pledge() and unveil() is updated throughout. 
-This program should works on OpenBSD versions 6.4+ and won't compile for earlier versions.
+pledge() is updated throughout, while unveil(), because of how it is designed, creates all of the limits up front and
+takes away the possibility to run unveil() further.
+ 
+This program should work on OpenBSD versions 6.4+ (Up to 6.6-beta as of this writing) and won't compile for earlier versions.
 
 It uses several commandline options:
 
