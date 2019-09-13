@@ -120,30 +120,34 @@ label_cmp(const void *a, const void *b)
 static void
 manpage(char a[])
 {
-	printf("%s\n[-v (recognizes up to 2 levels of verbosity)]\n", a);
+	printf("[-c (find \"current\" snapshot package mirrors]\n");
+
+	printf("[-f (don't write to file even if run as root)]\n");
+
+	printf("[-h (print this message and exit)]\n");
+
+	printf("[-i (insecure mirrors too)]\n");
+
+	printf("[-s floating-point timeout in seconds (eg. -s 2.3)]\n");
 
 	printf("[-u (no USA mirrors...to comply ");
 	printf("with USA encryption export laws)]\n");
 
-	printf("[-s floating-point timeout in seconds (eg. -s 2.3)]\n");
+	printf("%s\n[-v (recognizes up to 2 additional levels of verbosity)]\n", a);
 
-	printf("[-i (insecure mirrors too)]\n");
-
-	printf("[-c (find current snapshot package mirrors)]\n");
-
-	printf("[-h (print this message and exit)]\n");
 }
 
 int
 main(int argc, char *argv[])
 {
+	int8_t f = (getuid() == 0) ? 1 : 0;
 	if (unveil("/usr/bin/ftp", "x") == -1)
 		err(EXIT_FAILURE, "unveil line: %d", __LINE__);
 
 	if (unveil("/usr/bin/sed", "x") == -1)
 		err(EXIT_FAILURE, "unveil line: %d", __LINE__);
 
-	if (getuid() == 0) {
+	if (f) {
 
 		if (unveil("/etc/installurl", "crw") == -1)
 			err(EXIT_FAILURE, "unveil line: %d", __LINE__);
@@ -158,8 +162,9 @@ main(int argc, char *argv[])
 	int sed_to_parent[2];
 	int parent_to_write[2];
 	double s;
-	int kq, i, pos, num, c, n, current, insecure;
-	int array_max, array_length, u, verbose, tag_len;
+	int kq, i, pos, c, n;
+	int8_t num, current, insecure, u, verbose;
+	int array_max, array_length, tag_len;
 	FILE *input;
 	struct utsname name;
 	struct mirror_st **array;
@@ -183,10 +188,17 @@ main(int argc, char *argv[])
 	if (uname(&name) == -1)
 		err(EXIT_FAILURE, "uname");
 
-	while ((c = getopt(argc, argv, "chis:uv")) != -1) {
+	while ((c = getopt(argc, argv, "cfhis:uv")) != -1) {
 		switch (c) {
 		case 'c':
 			current = 1;
+			break;
+		case 'f':
+			if (f == 1) {
+				if (pledge("stdio proc exec", NULL) == -1)
+					err(EXIT_FAILURE, "pledge line: %d\n", __LINE__);
+			}
+			f = 0;
 			break;
 		case 'h':
 			manpage(argv[0]);
@@ -263,59 +275,49 @@ main(int argc, char *argv[])
 	strlcat(tag, name.machine, tag_len);
 	strlcat(tag, "/SHA256", tag_len);
 
+	if (f) {
+		if (pipe(parent_to_write) == -1)
+			err(EXIT_FAILURE, "pipe line: %d", __LINE__);
 
-	if (pipe(parent_to_write) == -1)
-		err(EXIT_FAILURE, "pipe line: %d", __LINE__);
+		write_pid = fork();
+		if (write_pid == (pid_t) 0) {
 
-	write_pid = fork();
-	if (write_pid == (pid_t) 0) {
-
-		FILE *pkg_write;
-
-		if (getuid() == 0) {
+			FILE *pkg_write;
 
 			if (pledge("stdio cpath rpath wpath", NULL) == -1) {
 				printf("pledge line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
-		} else {
-
-			if (pledge("stdio", NULL) == -1) {
-				printf("pledge line: %d\n", __LINE__);
+			close(parent_to_write[STDOUT_FILENO]);
+			if (dup2(parent_to_write[STDIN_FILENO], STDIN_FILENO) == -1) {
+				printf("dup2 line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
-		}
-		close(parent_to_write[STDOUT_FILENO]);
-		if (dup2(parent_to_write[STDIN_FILENO], STDIN_FILENO) == -1) {
-			printf("dup2 line: %d\n", __LINE__);
-			_exit(EXIT_FAILURE);
-		}
-		kq = kqueue();
-		if (kq == -1) {
-			printf("kq! line: %d\n", __LINE__);
-			_exit(EXIT_FAILURE);
-		}
-		EV_SET(&ke, parent_to_write[STDIN_FILENO], EVFILT_READ,
-		    EV_ADD | EV_ONESHOT, 0, 0, NULL);
+			kq = kqueue();
+			if (kq == -1) {
+				printf("kq! line: %d\n", __LINE__);
+				_exit(EXIT_FAILURE);
+			}
+			EV_SET(&ke, parent_to_write[STDIN_FILENO], EVFILT_READ,
+				EV_ADD | EV_ONESHOT, 0, 0, NULL);
 
-		if (kevent(kq, &ke, 1, &ke, 1, NULL) == -1) {
-			printf("parent_to_write kevent register fail.\n");
-			_exit(EXIT_FAILURE);
-		}
-		if (ke.data == 0) {
-			if (getuid() == 0)
+			if (kevent(kq, &ke, 1, &ke, 1, NULL) == -1) {
+				printf("parent_to_write kevent register fail.\n");
+				_exit(EXIT_FAILURE);
+			}
+			if (ke.data == 0) {
 				printf("/etc/installurl not written.\n");
-			_exit(EXIT_FAILURE);
-		}
-		input = fdopen(parent_to_write[STDIN_FILENO], "r");
-		if (input == NULL) {
-			printf("input = fdopen ");
-			printf("(parent_to_write[STDIN_FILENO], \"r\") ");
-			printf("failed.\n");
-			_exit(EXIT_FAILURE);
-		}
-		i = 0;
-		if (getuid() == 0) {
+				_exit(EXIT_FAILURE);
+			}
+			input = fdopen(parent_to_write[STDIN_FILENO], "r");
+			if (input == NULL) {
+				printf("input = fdopen ");
+				printf("(parent_to_write[STDIN_FILENO], \"r\") ");
+				printf("failed.\n");
+				_exit(EXIT_FAILURE);
+			}
+			
+			i = 0;
 			if (verbose == 2)
 				printf("\n\n");
 			printf("/etc/installurl: ");
@@ -345,35 +347,16 @@ main(int argc, char *argv[])
 				printf("/etc/installurl not written.\n");
 				_exit(EXIT_FAILURE);
 			}
-		} else {
-			if (verbose >= 1)
-				printf("\n");
-			printf("\nRun as root to write ");
-			printf("to /etc/installurl or as ");
-			printf("root, type:\necho \"");
-			while ((c = getc(input)) != EOF) {
-				if (c != '\n')
-					printf("%c", c);
-				else
-					break;
-
-				if (i++ >= 300) {
-					printf("\nmirror length ");
-					printf("became too long.\n");
-					_exit(EXIT_FAILURE);
-				}
-			}
-			printf("\" > /etc/installurl\n");
+			_exit(EXIT_SUCCESS);
 		}
-		_exit(EXIT_SUCCESS);
+		if (write_pid == -1)
+			err(EXIT_FAILURE, "fork line: %d", __LINE__);
+			
+		if (pledge("stdio proc exec", NULL) == -1)
+			err(EXIT_FAILURE, "pledge line: %d", __LINE__);
+
+		close(parent_to_write[STDIN_FILENO]);
 	}
-	if (write_pid == -1)
-		err(EXIT_FAILURE, "fork line: %d", __LINE__);
-
-	if (pledge("stdio proc exec", NULL) == -1)
-		err(EXIT_FAILURE, "pledge line: %d", __LINE__);
-
-	close(parent_to_write[STDIN_FILENO]);
 
 
 	timeout.tv_sec = (time_t) s;
@@ -882,17 +865,31 @@ main(int argc, char *argv[])
 		} else
 			errx(EXIT_FAILURE, "No mirrors found.");
 	}
-	if (dup2(parent_to_write[STDOUT_FILENO], STDOUT_FILENO) == -1) {
-		kill(write_pid, SIGKILL);
+	
+	if (f) {
+			
+		if (dup2(parent_to_write[STDOUT_FILENO], STDOUT_FILENO) == -1) {
+			kill(write_pid, SIGKILL);
+			printf("Type:\necho \"%s\" > /etc/installurl\n",
+			    array[0]->ftp_file);
+			return EXIT_FAILURE;
+		}
 		printf("%s\n", array[0]->ftp_file);
-		return EXIT_FAILURE;
+		fflush(stdout);
+		close(parent_to_write[STDOUT_FILENO]);
+		close(STDOUT_FILENO);
+
+		waitpid(write_pid, &i, 0);
+
+		return i;
 	}
-	printf("%s\n", array[0]->ftp_file);
-	fflush(stdout);
-	close(parent_to_write[STDOUT_FILENO]);
-	close(STDOUT_FILENO);
+	
+	if (getuid() == 0) {
+		printf("Type:\necho \"%s\" > /etc/installurl\n", array[0]->ftp_file);
+	} else {
+		printf("As root, type:\necho \"%s\" > /etc/installurl\n",
+		    array[0]->ftp_file);
+	}
 
-	waitpid(write_pid, &i, 0);
-
-	return i;
+	return 0;
 }
