@@ -12,13 +12,13 @@ It uses several commandline options:
 
 -v will print out the results sorted in reverse order by time or if timed out, or download error, alphabetically and print a line
 that you can copy and paste into a root terminal to install that mirror. A second 'v' will make it print out the information of 
-the mirrors in real time.
+the mirrors in real time, as well.
 
 -u will make it search for only non-USA mirrors for export encryption compliance if you are searching from outside of the USA.
 
 -s will accept floating-point timeout like 1.5 seconds using strtod() and handrolled validation, eg. "-s 1.5", default 5.
 
--c will check "snapshots" for -current.
+-c will check "current" for snapshots.
 
 -h will print the options with -h. these options can be mixed and matched as well.
 
