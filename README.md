@@ -23,9 +23,9 @@ deduplicated. http/ftp mirrors are faster than the https mirror selections, howe
 
 -u will make it search for only non-USA mirrors for export encryption compliance if you are searching from outside of the USA.
 
--v will print out the results sorted in reverse order by time or if timed out, or download error, alphabetically and print a line
-that you can copy and paste into a root terminal to install that mirror. A second 'v' will make it print out the information of 
-the mirrors in real time, as well. Additional -v are ignored.
+-v will show when it is fetching "https://www.openbsd.org/ftp.html", print out the results sorted in reverse order by time
+or if timed out, or download error, alphabetically and print a line that you can copy and paste into a root terminal to
+install that mirror. A second 'v' will make it print out the information of the mirrors in real time, as well.
 
 It will shorten the timeout period to the download time of the fastest mirror throughout execution if no -v are used.
 
