@@ -70,11 +70,8 @@ struct mirror_st {
 static int
 diff_cmp(const void *a, const void *b)
 {
-	struct mirror_st **one;
-	struct mirror_st **two;
-
-	one = (struct mirror_st **) a;
-	two = (struct mirror_st **) b;
+	struct mirror_st **one = (struct mirror_st **) a;
+	struct mirror_st **two = (struct mirror_st **) b;
 
 	if ((*one)->diff < (*two)->diff)
 		return -1;
@@ -86,11 +83,8 @@ diff_cmp(const void *a, const void *b)
 static int
 ftp_cmp(const void *a, const void *b)
 {
-	struct mirror_st **one;
-	struct mirror_st **two;
-
-	one = (struct mirror_st **) a;
-	two = (struct mirror_st **) b;
+	struct mirror_st **one = (struct mirror_st **) a;
+	struct mirror_st **two = (struct mirror_st **) b;
 
 	return strcmp((*one)->ftp_file, (*two)->ftp_file);
 }
@@ -99,12 +93,9 @@ ftp_cmp(const void *a, const void *b)
 static int
 label_cmp(const void *a, const void *b)
 {
-	struct mirror_st **one;
-	struct mirror_st **two;
+	struct mirror_st **one = (struct mirror_st **) a;
+	struct mirror_st **two = (struct mirror_st **) b;
 	int8_t temp;
-
-	one = (struct mirror_st **) a;
-	two = (struct mirror_st **) b;
 
 	/* list the USA mirrors first, it will subsort correctly */
 	temp = !strncmp("USA", (*one)->label, 3);
@@ -120,6 +111,7 @@ label_cmp(const void *a, const void *b)
 static void
 manpage(char a[])
 {
+	printf("%s\n", a);
 	printf("[-c (find \"current\" snapshot package mirrors]\n");
 
 	printf("[-f (don't write to file even if run as root)]\n");
@@ -133,21 +125,17 @@ manpage(char a[])
 	printf("[-u (no USA mirrors...to comply ");
 	printf("with USA encryption export laws)]\n");
 
-	printf("%s\n[-v (recognizes up to 2 additional levels", a);
-	printf(" of verbosity)]\n");
-
+	printf("[-v (recognizes up to 2 additional levels  of verbosity)]\n");
 }
 
 int
 main(int argc, char *argv[])
 {
-	int8_t f = (getuid() == 0) ? 1 : 0;
-	
 	double s, S;
 	pid_t ftp_pid, sed_pid, write_pid;
 	int kq, i, pos, c, n, array_max, array_length, tag_len;
 	int parent_to_write[2], ftp_to_sed[2], sed_to_parent[2], block_pipe[2];
-	int8_t num, current, insecure, u, verbose;
+	int8_t num, current, insecure, u, verbose, f = (getuid() == 0) ? 1 : 0;
 	char *tag;
 	FILE *input, *pkg_write;
 	struct utsname name;
