@@ -27,6 +27,8 @@ deduplicated. http/ftp mirrors are faster than the https mirror selections, howe
 or if timed out, or download error, alphabetically and print a line that you can copy and paste into a root terminal to
 install that mirror. A second 'v' will make it print out the information of the mirrors in real time, as well.
 
+-V will stop all output except error messages. It overrides all -v .
+
 It will shorten the timeout period to the download time of the fastest mirror throughout execution if no -v are used.
 
 cc pkg_ping.c -o pkg_ping
