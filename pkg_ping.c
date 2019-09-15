@@ -95,10 +95,9 @@ label_cmp(const void *a, const void *b)
 {
 	struct mirror_st **one = (struct mirror_st **) a;
 	struct mirror_st **two = (struct mirror_st **) b;
-	int8_t temp;
 
 	/* list the USA mirrors first, it will subsort correctly */
-	temp = !strncmp("USA", (*one)->label, 3);
+	int8_t temp = !strncmp("USA", (*one)->label, 3);
 	if (temp != !strncmp("USA", (*two)->label, 3)) {
 		if (temp)
 			return -1;
@@ -125,7 +124,9 @@ manpage(char a[])
 	printf("[-u (no USA mirrors...to comply ");
 	printf("with USA encryption export laws)]\n");
 
-	printf("[-v (recognizes up to 2 additional levels  of verbosity)]\n");
+	printf("[-v (recognizes up to 3 of these)]\n");
+	
+	printf("[-V (no output but error messages)]\n");
 }
 
 int
@@ -176,7 +177,7 @@ main(int argc, char *argv[])
 	if (uname(&name) == -1)
 		err(EXIT_FAILURE, "uname line: %d", __LINE__);
 
-	while ((c = getopt(argc, argv, "cfhis:uv")) != -1) {
+	while ((c = getopt(argc, argv, "cfhis:uvV")) != -1) {
 		switch (c) {
 		case 'c':
 			current = 1;
@@ -230,8 +231,13 @@ main(int argc, char *argv[])
 			u = 1;
 			break;
 		case 'v':
-			if (++verbose > 2)
-				verbose = 2;
+			if (verbose == -1)
+				break;
+			if (++verbose > 3)
+				verbose = 3;
+			break;
+		case 'V':
+			verbose = -1;
 			break;
 		default:
 			manpage(argv[0]);
@@ -274,37 +280,40 @@ main(int argc, char *argv[])
 		if (write_pid == (pid_t) 0) {
 
 			if (pledge("stdio cpath rpath wpath", NULL) == -1) {
-				printf("pledge line: %d\n", __LINE__);
+				fprintf(stderr, "pledge line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
 			
 			close(parent_to_write[STDOUT_FILENO]);
 			
+			if (verbose < 0)
+				fclose(stdout);
+			
 			kq = kqueue();
 			if (kq == -1) {
-				printf("kq! line: %d\n", __LINE__);
+				fprintf(stderr, "kq! line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
 			
 			EV_SET(&ke, parent_to_write[STDIN_FILENO], EVFILT_READ,
 				EV_ADD | EV_ONESHOT, 0, 0, NULL);
 			if (kevent(kq, &ke, 1, &ke, 1, NULL) == -1) {
-				printf("parent_to_write ");
-				printf("kevent register fail.\n");
+				fprintf(stderr, "parent_to_write ");
+				fprintf(stderr, "kevent register fail.\n");
 				_exit(EXIT_FAILURE);
 			}
 			
 			if (ke.data == 0) {
-				printf("/etc/installurl not written.\n");
+				fprintf(stderr, "/etc/installurl not ");
+				fprintf(stderr, "written.\n");
 				_exit(EXIT_FAILURE);
 			}
 			
 			input = fdopen(parent_to_write[STDIN_FILENO], "r");
 			if (input == NULL) {
-				printf("input = fdopen ");
-				printf("(parent_to_write[STDIN_FILENO],");
-				printf(" \"r\") ");
-				printf("failed.\n");
+				fprintf(stderr, "input = fdopen ");
+				fprintf(stderr, "(parent_to_write[STDIN");
+				fprintf(stderr, "_FILENO], \"r\failed.\n");
 				_exit(EXIT_FAILURE);
 			}
 			
@@ -314,11 +323,12 @@ main(int argc, char *argv[])
 			printf("/etc/installurl: ");
 			while ((c = getc(input)) != EOF) {
 				if (i >= 300) {
-					printf("\nmirror ");
-					printf("length became too long.\n");
+					fprintf(stderr, "\nmirror ");
+					fprintf(stderr, "length became");
+					fprintf(stderr, " too long.\n");
 					
-					printf("/etc/installurl");
-					printf(" not written.\n");
+					fprintf(stderr, "/etc/installurl");
+					fprintf(stderr, " not written.\n");
 					_exit(EXIT_FAILURE);
 				}
 				printf("%c", c);
@@ -329,7 +339,7 @@ main(int argc, char *argv[])
 			pkg_write = fopen("/etc/installurl", "w");
 
 			if (pledge("stdio", NULL) == -1) {
-				printf("pledge line: %d\n", __LINE__);
+				fprintf(stderr, "pledge line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
 			
@@ -337,7 +347,8 @@ main(int argc, char *argv[])
 				fwrite(tag, i, sizeof(char), pkg_write);
 				fclose(pkg_write);
 			} else {
-				printf("/etc/installurl not written.\n");
+				fprintf(stderr, "/etc/installurl ");
+				fprintf(stderr, "not written.\n");
 				_exit(EXIT_FAILURE);
 			}
 			_exit(EXIT_SUCCESS);
@@ -368,19 +379,19 @@ main(int argc, char *argv[])
 	if (ftp_pid == (pid_t) 0) {
 
 		if (pledge("stdio exec", NULL) == -1) {
-			printf("ftp pledge 1 line: %d\n", __LINE__);
+			fprintf(stderr, "ftp pledge 1 line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 		close(ftp_to_sed[STDIN_FILENO]);
 
 		if (dup2(ftp_to_sed[STDOUT_FILENO], STDOUT_FILENO) == -1) {
-			printf("ftp STDOUT dup2 line: %d\n", __LINE__);
+			fprintf(stderr, "ftp STDOUT dup2 line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
-		if (verbose == 2) {
+		if (verbose >= 2) {
 			fprintf(stderr,
 			    "fetching https://www.openbsd.org/ftp.html\n");
-			execl("/usr/bin/ftp", "ftp", "-Vmo", "-",
+			execl("/usr/bin/ftp", "ftp", "-vmo", "-",
 			    "https://www.openbsd.org/ftp.html", NULL);
 		} else {
 			execl("/usr/bin/ftp", "ftp", "-VMo", "-",
@@ -415,11 +426,11 @@ main(int argc, char *argv[])
 		close(sed_to_parent[STDIN_FILENO]);
 
 		if (dup2(ftp_to_sed[STDIN_FILENO], STDIN_FILENO) == -1) {
-			printf("sed STDIN dup2 line: %d\n", __LINE__);
+			fprintf(stderr, "sed STDIN dup2 line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 		if (dup2(sed_to_parent[STDOUT_FILENO], STDOUT_FILENO) == -1) {
-			printf("sed STDOUT dup2 line: %d\n", __LINE__);
+			fprintf(stderr, "sed STDOUT dup2 line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 		execl("/usr/bin/sed", "sed", "-n",
@@ -450,14 +461,15 @@ main(int argc, char *argv[])
 	if (i == -1) {
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
-		printf("kevent, timeout0 ");
-		printf("may be too large. line: %d\n", __LINE__);
+		fprintf(stderr, "kevent, timeout0 ");
+		fprintf(stderr, "may be too large. line: %d\n", __LINE__);
 		manpage(argv[0]);
 	}
 	if (i == 0) {
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
-		printf("timed out fetching https://www.openbsd.org/ftp.html\n");
+		fprintf(stderr, "timed out fetching: ");
+		fprintf(stderr, "https://www.openbsd.org/ftp.html\n");
 		manpage(argv[0]);
 	}
 	input = fdopen(sed_to_parent[STDIN_FILENO], "r");
@@ -639,7 +651,9 @@ main(int argc, char *argv[])
 	S = s;
 
 	for (c = 0; c < array_length; ++c) {
-		if (verbose == 2) {
+		if (verbose >= 2) {
+			if (verbose == 3)
+				printf("\n");
 			if (array_length >= 1000) {
 				printf("\n%4d : %s  :  %s\n", array_length - c,
 				    array[c]->label, array[c]->ftp_file);
@@ -650,7 +664,7 @@ main(int argc, char *argv[])
 				printf("\n%2d : %s  :  %s\n", array_length - c,
 				    array[c]->label, array[c]->ftp_file);
 			}
-		} else {
+		} else if (verbose >=0) {
 			i = array_length - c;
 			if (c > 0) {
 				if ((i == 9) || (i == 99) || (i == 999))
@@ -672,15 +686,15 @@ main(int argc, char *argv[])
 		if (ftp_pid == (pid_t) 0) {
 
 			if (pledge("stdio exec", NULL) == -1) {
-				printf("ftp pledge 3 line: %d\n", __LINE__);
+				fprintf(stderr, "ftp pledge 3 line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
 			close(block_pipe[STDOUT_FILENO]);
 			read(block_pipe[STDIN_FILENO], &n, sizeof(int));
 			close(block_pipe[STDIN_FILENO]);
 
-			if (verbose == 2) {
-				execl("/usr/bin/ftp", "ftp", "-Vmo",
+			if (verbose == 3) {
+				execl("/usr/bin/ftp", "ftp", "-vmo",
 				    "/dev/null", array[c]->ftp_file, NULL);
 			} else {
 				i = open("/dev/null", O_WRONLY);
@@ -691,10 +705,10 @@ main(int argc, char *argv[])
 			}
 
 			if (pledge("stdio", NULL) == -1) {
-				printf("ftp pledge 4 line: %d\n", __LINE__);
+				fprintf(stderr, "ftp pledge 4 line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
-			printf("ftp execl() failed line: %d\n", __LINE__);
+			fprintf(stderr, "ftp execl() failed line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 		if (ftp_pid == -1)
@@ -730,9 +744,9 @@ main(int argc, char *argv[])
 				err(EXIT_FAILURE, "kevent line: %d", __LINE__);
 			}
 			if (i == 0) {
-				if (verbose == 2) {
+				if (verbose >= 2) {
 					n = 1;
-					printf("\nTimeout\n");
+					printf("Timeout\n");
 				}
 				kill(ftp_pid, SIGKILL);
 				array[c]->diff = s;
@@ -750,13 +764,13 @@ main(int argc, char *argv[])
 			    
 			if (array[c]->diff > s) 
 				array[c]->diff = s;
-			if (verbose == 2) {
+			if (verbose >= 2) {
 				if (array[c]->diff == s) {
 					if (n == 0)
 						printf("Timeout\n");
 				} else
 					printf("%f\n", array[c]->diff);
-			} else if (verbose == 0) {
+			} else if (verbose <= 0) {
 				S = array[c]->diff;
 				timeout.tv_sec = (time_t) S;
 				timeout.tv_nsec =
@@ -765,18 +779,20 @@ main(int argc, char *argv[])
 			}
 		} else if (array[c]->diff == 0) {
 			array[c]->diff = s + 1;
-			if (verbose == 2)
+			if (verbose >= 2)
 				printf("Download Error\n");
 		}
 		waitpid(ftp_pid, NULL, 0);
 	}
+
 	if (pledge("stdio", NULL) == -1)
 		err(EXIT_FAILURE, "pledge line: %d", __LINE__);
 
-	if (verbose < 2) {
+	if (verbose > -1 && verbose < 2) {
 		printf("\b \b");
 		fflush(stdout);
 	}
+
 	qsort(array, array_length, sizeof(struct mirror_st *), diff_cmp);
 
 	if (verbose >= 1) {
@@ -858,10 +874,11 @@ main(int argc, char *argv[])
 	}
 	
 	if (f) {
-			
 		if (dup2(parent_to_write[STDOUT_FILENO], STDOUT_FILENO) == -1) {
-			printf("dup2(parent_to_write[STDOUT_FILENO], ");
-			printf("STDOUT_FILENO) failed, line: %d\n\n", __LINE__);
+			fprintf(stderr, "dup2 line: %d\n", __LINE__);
+			
+			if (verbose < 0)
+				return EXIT_FAILURE;
 			
 			printf("(file not written)\n");
 			printf("Since this process is root, type:\n");
@@ -878,6 +895,9 @@ main(int argc, char *argv[])
 
 		return i;
 	}
+	
+	if (verbose < 0)
+		return 0;
 	
 	if (getuid() == 0) {
 		printf("Since this process is root, type:\n");
