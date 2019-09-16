@@ -57,6 +57,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/event.h>
+#include <sys/sysctl.h>
+#include <sys/types.h>
 #include <sys/utsname.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -111,8 +113,6 @@ static void
 manpage(char a[])
 {
 	printf("%s\n", a);
-	printf("[-c (find \"current\" snapshot package mirrors]\n");
-
 	printf("[-f (don't write to file even if run as root)]\n");
 
 	printf("[-h (print this message and exit)]\n");
@@ -161,7 +161,6 @@ main(int argc, char *argv[])
 	} else if (pledge("stdio proc exec", NULL) == -1)
 		err(EXIT_FAILURE, "pledge line: %d", __LINE__);
 
-
 	array_max = 300;
 
 	array = calloc(array_max, sizeof(struct mirror_st *));
@@ -177,11 +176,8 @@ main(int argc, char *argv[])
 	if (uname(&name) == -1)
 		err(EXIT_FAILURE, "uname line: %d", __LINE__);
 
-	while ((c = getopt(argc, argv, "cfhis:uvV")) != -1) {
+	while ((c = getopt(argc, argv, "fhis:uvV")) != -1) {
 		switch (c) {
-		case 'c':
-			current = 1;
-			break;
 		case 'f':
 			if (f == 1) {
 				if (pledge("stdio proc exec", NULL) == -1) {
@@ -249,6 +245,31 @@ main(int argc, char *argv[])
 		errx(EXIT_FAILURE, "non-option ARGV-element: %s", argv[optind]);
 	}
 
+
+	int mib[2];
+	char *version;
+	size_t len = 300;
+	version = calloc(len, sizeof(char));
+	if (version == NULL)
+		err(EXIT_FAILURE, "calloc line: %d\n", __LINE__);
+
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_VERSION;
+	if (sysctl(mib, 2, version, &len, NULL, 0) == -1)
+                   err(EXIT_FAILURE, "sysctl");
+	
+	/* Discovers if the kernel is not a release version */
+	if (strstr(version, "release") == NULL)
+		current = 1;
+		
+	free(version);
+
+	if (verbose > 1) {
+		if (current == 0)
+			printf("This is a release.\n\n");
+		else
+			printf("This is a snapshot!\n\n");
+	}
 
 	if (current == 0) {
 		tag_len = strlen("/") + strlen(name.release) + strlen("/") +
