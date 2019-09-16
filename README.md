@@ -5,12 +5,12 @@ as root, will write it to disk unless the -f flag is used.
 Compiler optimization for speed is not necessary as the calls using ftp will take up the vast majority of the run-time. 
 pledge() is updated throughout, while because of how unveil() is designed, creates all of the unveil() limits up front and
 immediately takes away the possibility to unveil() any further.
+
+It automatically discovers whether you are running a release or -current
  
 This program should work on OpenBSD versions 6.4+ (Up to 6.6-beta as of this writing) and won't compile for earlier versions.
 
 It uses several commandline options:
-
--c will check "current" for snapshots.
 
 -f prohibits a fork()ed process from writing the fastest mirror to file even if it has the power to do so as root.
 
@@ -37,4 +37,4 @@ cc pkg_ping.c -o pkg_ping
 
 eg. ./pkg_ping -vs1.5 -ivu
 
-eg. ./pkg_ping -vivcs 1.5
+eg. ./pkg_ping -vivs 1.5
