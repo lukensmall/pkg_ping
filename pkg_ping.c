@@ -45,7 +45,6 @@
 /*
 	indent pkg_ping.c -bap -br -ce -ci4 -cli0 -d0 -di0 -i8 \
 	-ip -l79 -nbc -ncdb -ndj -ei -nfc1 -nlp -npcs -psl -sc -sob
-
 	cc pkg_ping.c -pipe -o pkg_ping
  */
 
@@ -259,7 +258,9 @@ main(int argc, char *argv[])
                    err(EXIT_FAILURE, "sysctl");
 	
 	/* Discovers if the kernel is not a release version */
-	if (strstr(version, "release") == NULL)
+	if (strstr(version, "beta"))
+		current = 1;
+	else if (strstr(version, "current"))
 		current = 1;
 		
 	free(version);
