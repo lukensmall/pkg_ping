@@ -302,7 +302,7 @@ main(int argc, char *argv[])
 		if (write_pid == (pid_t) 0) {
 
 			if (pledge("stdio cpath rpath wpath", NULL) == -1) {
-				fprintf(stderr, "pledge line: %d\n", __LINE__);
+				printf("pledge line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
 			
@@ -401,13 +401,13 @@ main(int argc, char *argv[])
 	if (ftp_pid == (pid_t) 0) {
 
 		if (pledge("stdio exec", NULL) == -1) {
-			fprintf(stderr, "ftp pledge 1 line: %d\n", __LINE__);
+			printf("ftp pledge 1 line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 		close(ftp_to_sed[STDIN_FILENO]);
 
 		if (dup2(ftp_to_sed[STDOUT_FILENO], STDOUT_FILENO) == -1) {
-			fprintf(stderr, "ftp STDOUT dup2 line: %d\n", __LINE__);
+			printf("ftp STDOUT dup2 line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 		if (verbose >= 2) {
@@ -448,11 +448,11 @@ main(int argc, char *argv[])
 		close(sed_to_parent[STDIN_FILENO]);
 
 		if (dup2(ftp_to_sed[STDIN_FILENO], STDIN_FILENO) == -1) {
-			fprintf(stderr, "sed STDIN dup2 line: %d\n", __LINE__);
+			printf("sed STDIN dup2 line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 		if (dup2(sed_to_parent[STDOUT_FILENO], STDOUT_FILENO) == -1) {
-			fprintf(stderr, "sed STDOUT dup2 line: %d\n", __LINE__);
+			printf("sed STDOUT dup2 line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 		execl("/usr/bin/sed", "sed", "-n",
@@ -483,15 +483,15 @@ main(int argc, char *argv[])
 	if (i == -1) {
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
-		fprintf(stderr, "kevent, timeout0 ");
-		fprintf(stderr, "may be too large. line: %d\n", __LINE__);
+		printf("kevent, timeout0 ");
+		printf("may be too large. line: %d\n", __LINE__);
 		manpage(argv[0]);
 	}
 	if (i == 0) {
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
-		fprintf(stderr, "timed out fetching: ");
-		fprintf(stderr, "https://www.openbsd.org/ftp.html\n");
+		printf("timed out fetching: ");
+		printf("https://www.openbsd.org/ftp.html\n");
 		manpage(argv[0]);
 	}
 	input = fdopen(sed_to_parent[STDIN_FILENO], "r");
@@ -708,7 +708,7 @@ main(int argc, char *argv[])
 		if (ftp_pid == (pid_t) 0) {
 
 			if (pledge("stdio exec", NULL) == -1) {
-				fprintf(stderr, "ftp pledge 3 line: %d\n", __LINE__);
+				printf("ftp pledge 3 line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
 			close(block_pipe[STDOUT_FILENO]);
@@ -727,10 +727,10 @@ main(int argc, char *argv[])
 			}
 
 			if (pledge("stdio", NULL) == -1) {
-				fprintf(stderr, "ftp pledge 4 line: %d\n", __LINE__);
+				printf("ftp pledge 4 line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
-			fprintf(stderr, "ftp execl() failed line: %d\n", __LINE__);
+			printf("ftp execl() failed line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 		if (ftp_pid == -1)
@@ -887,17 +887,17 @@ main(int argc, char *argv[])
 		array[0]->ftp_file[strlen(array[0]->ftp_file) - tag_len] = '\0';
 
 	if (array[0]->diff >= s) {
-		if (current == 0) {
-			printf("\n\n");
-			errx(EXIT_FAILURE,
-			    "No mirrors. IF THIS IS -CURRENT, use -c\n");
-		} else
+		//~ if (current == 0) {
+			//~ printf("\n\n");
+			//~ errx(EXIT_FAILURE,
+			    //~ "No mirrors. IF THIS IS -CURRENT, use -c\n");
+		//~ } else
 			errx(EXIT_FAILURE, "No mirrors found.");
 	}
 	
 	if (f) {
 		if (dup2(parent_to_write[STDOUT_FILENO], STDOUT_FILENO) == -1) {
-			fprintf(stderr, "dup2 line: %d\n", __LINE__);
+			printf("dup2 line: %d\n", __LINE__);
 			
 			if (verbose < 0)
 				return EXIT_FAILURE;
