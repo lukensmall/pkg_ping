@@ -116,7 +116,7 @@ manpage(char a[])
 
 	printf("[-h (print this message and exit)]\n");
 
-	printf("[-i (insecure mirrors too)]\n");
+	printf("[-i (“insecure” mirrors too. Integrity is preserved.)]\n");
 
 	printf("[-s floating-point timeout in seconds (eg. -s 2.3)]\n");
 
