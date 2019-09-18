@@ -6,7 +6,7 @@ Compiler optimization for speed is not necessary as the calls using ftp will tak
 pledge() is updated throughout, while because of how unveil() is designed, creates all of the unveil() limits up front and
 immediately takes away the possibility to unveil() any further.
 
-It automatically discovers whether you are running a release or -current
+It automatically discovers whether you are running a release vs a current or beta snapshot!
  
 This program should work on OpenBSD versions 6.4+ (Up to 6.6-beta as of this writing) and won't compile for earlier versions.
 
