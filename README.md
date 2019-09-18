@@ -16,8 +16,9 @@ It uses several commandline options:
 
 -h will print the options with -h. these options can be mixed and matched as well.
 
--i (insecure) option will also choose http and ftp mirrors, where the ftp mirrors are turned into http mirror listings and
-deduplicated. http/ftp mirrors are faster than the https mirror selections, however they pass over the internet insecurely.
+-i (“insecret”) option will also choose http and ftp mirrors, where the ftp mirrors are turned into http mirror listings and
+deduplicated. http/ftp mirrors are faster than the https mirror selections, however they pass over the internet without encryption.
+Integrity is preserved using -i, but secrecy is not.
 
 -s will accept floating-point timeout like 1.5 seconds using strtod() and handrolled validation, eg. "-s 1.5", default 5.
 
