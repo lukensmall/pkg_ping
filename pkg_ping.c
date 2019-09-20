@@ -338,7 +338,7 @@ main(int argc, char *argv[])
 				_exit(EXIT_FAILURE);
 			}
 			
-			/* add an extra char to always null terminate */
+			/* add an extra '\0' to ALWAYS null terminate */
 			tag2 = calloc(300 + 1, sizeof(char));
 			if (tag2 == NULL) {
 				printf("calloc line: %d\n", __LINE__);
@@ -913,8 +913,10 @@ main(int argc, char *argv[])
 			    array[0]->ftp_file);
 			return EXIT_FAILURE;
 		}
+		
+		/* sends the fastest mirror to the 'write' process */
 		printf("%s\n", array[0]->ftp_file);
-		fflush(stdout);
+		
 		close(parent_to_write[STDOUT_FILENO]);
 		close(STDOUT_FILENO);
 
