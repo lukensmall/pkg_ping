@@ -38,6 +38,6 @@ It will shorten the timeout period to the download time of the fastest mirror th
 
 cc pkg_ping.c -o pkg_ping
 
-eg. ./pkg_ping -vs1.5 -ivu
+eg. ./pkg_ping -vs1.5 -vvu
 
-eg. ./pkg_ping -vivs 1.5
+eg. ./pkg_ping -vSvs 2
