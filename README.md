@@ -18,11 +18,9 @@ It uses several commandline options:
 
 -s will accept floating-point timeout like 1.5 seconds using strtod() and handrolled validation, eg. "-s 1.5", default 5.
 
--S (“Secure only”) option will only choose https mirrors. Otherwise, http and ftp mirrors, where the ftp mirrors are turned
-into http mirror listings and deduplicated. http/ftp mirrors are faster than most https mirror selections, however they pass
-over the internet without encryption. Integrity is still preserved by SHA256.sig files which are public signatures, verified 
-by public keys inside your OS and signed by the OpenBSD project. not using -S will still provide integrity, but will not 
-provide secrecy.
+-S (“Secure only”) option will only choose https mirrors. Otherwise, http and ftp mirrors will also be chosen. The ftp mirrors
+are turned into http mirror listings and deduplicated. http/ftp mirrors are faster than most https mirror selections, however 
+they pass over the internet without encryption. Integrity is still preserved by not using -S, but it will not provide secrecy.
 
 -u will make it search for only non-USA mirrors for export encryption compliance if you are searching from outside of the USA.
 
