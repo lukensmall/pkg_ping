@@ -45,6 +45,7 @@
 /*
 	indent pkg_ping.c -bap -br -ce -ci4 -cli0 -d0 -di0 -i8 \
 	-ip -l79 -nbc -ncdb -ndj -ei -nfc1 -nlp -npcs -psl -sc -sob
+
 	cc pkg_ping.c -pipe -o pkg_ping
  */
 
@@ -174,9 +175,6 @@ main(int argc, char *argv[])
 	also_insecure = 1;
 	current = 0;
 
-	if (uname(&name) == -1)
-		err(EXIT_FAILURE, "uname line: %d", __LINE__);
-
 	while ((c = getopt(argc, argv, "fhSs:uvV")) != -1) {
 		switch (c) {
 		case 'f':
@@ -246,6 +244,9 @@ main(int argc, char *argv[])
 		errx(EXIT_FAILURE, "non-option ARGV-element: %s", argv[optind]);
 	}
 
+
+	if (uname(&name) == -1)
+		err(EXIT_FAILURE, "uname line: %d", __LINE__);
 
 	int mib[2];
 	char *version;
@@ -815,7 +816,7 @@ main(int argc, char *argv[])
 	if (pledge("stdio", NULL) == -1)
 		err(EXIT_FAILURE, "pledge line: %d", __LINE__);
 
-	if (verbose > -1 && verbose < 2) {
+	if (verbose == 0 || verbose == 1) {
 		printf("\b \b");
 		fflush(stdout);
 	}
@@ -897,7 +898,7 @@ main(int argc, char *argv[])
 			//~ errx(EXIT_FAILURE,
 			    //~ "No mirrors. IF THIS IS -CURRENT, use -c\n");
 		//~ } else
-			errx(EXIT_FAILURE, "No mirrors found.");
+			errx(EXIT_FAILURE, "No successful mirrors found.");
 	}
 	
 	if (f) {
