@@ -116,9 +116,11 @@ manpage(char a[])
 
 	printf("[-h (print this message and exit)]\n");
 
-	printf("[-i (“insecure” mirrors too. Integrity is preserved.)]\n");
-
 	printf("[-s floating-point timeout in seconds (eg. -s 2.3)]\n");
+
+	printf("[-S (\"Secure\" https mirrors only. Secrecy is preserved ");
+	printf("at the price of performance.");
+	printf(" \"insecure\" mirrors still preserve file integrity!)]\n");
 
 	printf("[-u (no USA mirrors...to comply ");
 	printf("with USA encryption export laws)]\n");
@@ -131,12 +133,12 @@ manpage(char a[])
 int
 main(int argc, char *argv[])
 {
+	int8_t num, current, insecure, u, verbose, f = (getuid() == 0) ? 1 : 0;
 	double s, S;
 	pid_t ftp_pid, sed_pid, write_pid;
 	int kq, i, pos, c, n, array_max, array_length, tag_len;
 	int parent_to_write[2], ftp_to_sed[2], sed_to_parent[2], block_pipe[2];
-	int8_t num, current, insecure, u, verbose, f = (getuid() == 0) ? 1 : 0;
-	char *tag;
+	char *tag, *tag2;
 	FILE *input, *pkg_write;
 	struct utsname name;
 	struct mirror_st **array;
@@ -169,13 +171,13 @@ main(int argc, char *argv[])
 	s = 5;
 	u = 0;
 	verbose = 0;
-	insecure = 0;
+	insecure = 1;
 	current = 0;
 
 	if (uname(&name) == -1)
 		err(EXIT_FAILURE, "uname line: %d", __LINE__);
 
-	while ((c = getopt(argc, argv, "fhis:uvV")) != -1) {
+	while ((c = getopt(argc, argv, "fhSs:uvV")) != -1) {
 		switch (c) {
 		case 'f':
 			if (f == 1) {
@@ -189,8 +191,8 @@ main(int argc, char *argv[])
 		case 'h':
 			manpage(argv[0]);
 			return 0;
-		case 'i':
-			insecure = 1;
+		case 'S':
+			insecure = 0;
 			break;
 		case 's':
 			c = -1;
@@ -282,7 +284,7 @@ main(int argc, char *argv[])
 
 	tag = calloc(tag_len - 1 + 1, sizeof(char));
 	if (tag == NULL)
-		err(EXIT_FAILURE, "calloc line: %d\n", __LINE__);
+		err(EXIT_FAILURE, "calloc line: %d", __LINE__);
 
 	if (current == 0)
 		strlcpy(tag, name.release, tag_len);
@@ -307,70 +309,73 @@ main(int argc, char *argv[])
 			}
 			
 			close(parent_to_write[STDOUT_FILENO]);
-			
-			if (verbose < 0)
-				fclose(stdout);
-			
+						
 			kq = kqueue();
 			if (kq == -1) {
-				fprintf(stderr, "kq! line: %d\n", __LINE__);
+				printf("kq! line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
 			
 			EV_SET(&ke, parent_to_write[STDIN_FILENO], EVFILT_READ,
 				EV_ADD | EV_ONESHOT, 0, 0, NULL);
 			if (kevent(kq, &ke, 1, &ke, 1, NULL) == -1) {
-				fprintf(stderr, "parent_to_write ");
-				fprintf(stderr, "kevent register fail.\n");
+				printf("parent_to_write ");
+				printf("kevent register fail.\n");
 				_exit(EXIT_FAILURE);
 			}
 			
 			if (ke.data == 0) {
-				fprintf(stderr, "/etc/installurl not ");
-				fprintf(stderr, "written.\n");
+				printf("/etc/installurl not ");
+				printf("written.\n");
 				_exit(EXIT_FAILURE);
 			}
 			
 			input = fdopen(parent_to_write[STDIN_FILENO], "r");
 			if (input == NULL) {
-				fprintf(stderr, "input = fdopen ");
-				fprintf(stderr, "(parent_to_write[STDIN");
-				fprintf(stderr, "_FILENO], \"r\failed.\n");
+				printf("input = fdopen ");
+				printf("(parent_to_write[STDIN");
+				printf("_FILENO], \"r\failed.\n");
 				_exit(EXIT_FAILURE);
 			}
 			
+			/* add an extra char to always null terminate */
+			tag2 = calloc(300 + 1, sizeof(char));
+			if (tag2 == NULL) {
+				printf("calloc line: %d\n", __LINE__);
+				_exit(EXIT_FAILURE);
+			}
+				
 			i = 0;
 			if (verbose >= 1)
 				printf("\n");
-			printf("/etc/installurl: ");
 			while ((c = getc(input)) != EOF) {
 				if (i >= 300) {
-					fprintf(stderr, "\nmirror ");
-					fprintf(stderr, "length became");
-					fprintf(stderr, " too long.\n");
+					printf("\nmirror ");
+					printf("length became");
+					printf(" too long.\n");
 					
-					fprintf(stderr, "/etc/installurl");
-					fprintf(stderr, " not written.\n");
+					printf("/etc/installurl");
+					printf(" not written.\n");
 					_exit(EXIT_FAILURE);
 				}
-				printf("%c", c);
-				tag[i++] = c;
+				tag2[i++] = c;
 			}
 			fclose(input);
 
 			pkg_write = fopen("/etc/installurl", "w");
 
 			if (pledge("stdio", NULL) == -1) {
-				fprintf(stderr, "pledge line: %d\n", __LINE__);
+				printf("pledge line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
 			
 			if (pkg_write != NULL) {
-				fwrite(tag, i, sizeof(char), pkg_write);
+				fwrite(tag2, i, sizeof(char), pkg_write);
 				fclose(pkg_write);
+				if (verbose >= 0)
+					printf("/etc/installurl: %s", tag2);
 			} else {
-				fprintf(stderr, "/etc/installurl ");
-				fprintf(stderr, "not written.\n");
+				printf("/etc/installurl not written.\n");
 				_exit(EXIT_FAILURE);
 			}
 			_exit(EXIT_SUCCESS);
