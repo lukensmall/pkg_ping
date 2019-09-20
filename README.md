@@ -14,7 +14,7 @@ It uses several commandline options:
 
 -f prohibits a fork()ed process from writing the fastest mirror to file even if it has the power to do so as root.
 
--h will print the options with -h. these options can be mixed and matched as well.
+-h will print the "help" options.
 
 -s will accept floating-point timeout like 1.5 seconds using strtod() and handrolled validation, eg. "-s 1.5", default 5.
 
