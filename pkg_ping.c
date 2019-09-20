@@ -119,8 +119,8 @@ manpage(char a[])
 	printf("[-s floating-point timeout in seconds (eg. -s 2.3)]\n");
 
 	printf("[-S (\"Secure\" https mirrors only. Secrecy is preserved ");
-	printf("at the price of performance.");
-	printf(" \"insecure\" mirrors still preserve file integrity!)]\n");
+	printf("at the price of performance. \"insecure\" ");
+	printf("mirrors still preserve file integrity!)]\n");
 
 	printf("[-u (no USA mirrors...to comply ");
 	printf("with USA encryption export laws)]\n");
@@ -133,7 +133,7 @@ manpage(char a[])
 int
 main(int argc, char *argv[])
 {
-	int8_t num, current, insecure, u, verbose, f = (getuid() == 0) ? 1 : 0;
+	int8_t num, current, also_insecure, u, verbose, f = (getuid() == 0) ? 1 : 0;
 	double s, S;
 	pid_t ftp_pid, sed_pid, write_pid;
 	int kq, i, pos, c, n, array_max, array_length, tag_len;
@@ -171,7 +171,7 @@ main(int argc, char *argv[])
 	s = 5;
 	u = 0;
 	verbose = 0;
-	insecure = 1;
+	also_insecure = 1;
 	current = 0;
 
 	if (uname(&name) == -1)
@@ -185,14 +185,14 @@ main(int argc, char *argv[])
 					err(EXIT_FAILURE, "pledge line: %d",
 					    __LINE__);
 				}
+				f = 0;
 			}
-			f = 0;
 			break;
 		case 'h':
 			manpage(argv[0]);
 			return 0;
 		case 'S':
-			insecure = 0;
+			also_insecure = 0;
 			break;
 		case 's':
 			c = -1;
@@ -570,7 +570,7 @@ main(int argc, char *argv[])
 			if (pos == 0) {
 				if ((c != 'h') && (c != 'f') && (c != 'r'))
 					continue;
-				else if (insecure) {
+				else if (also_insecure) {
 					if (c == 'r')
 						break;
 					if (c == 'f') {
@@ -580,7 +580,7 @@ main(int argc, char *argv[])
 				} else if (c != 'h')
 					break;
 			}
-			if (pos == 5 && !insecure) {
+			if (pos == 5 && !also_insecure) {
 				if (strncmp(line, "https", 5))
 					break;
 			}
@@ -657,7 +657,7 @@ main(int argc, char *argv[])
 
 
 
-	if (insecure) {
+	if (also_insecure) {
 		qsort(array, array_length, sizeof(struct mirror_st *), ftp_cmp);
 		c = 1;
 		while (c < array_length) {
