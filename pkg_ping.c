@@ -134,7 +134,8 @@ manpage(char a[])
 int
 main(int argc, char *argv[])
 {
-	int8_t num, current, also_insecure, u, verbose, f = (getuid() == 0) ? 1 : 0;
+	int8_t f = (getuid() == 0) ? 1 : 0;
+	int8_t num, current, also_insecure, u, verbose;
 	double s, S;
 	pid_t ftp_pid, sed_pid, write_pid;
 	int kq, i, pos, c, n, array_max, array_length, tag_len;
@@ -255,6 +256,7 @@ main(int argc, char *argv[])
 	if (version == NULL)
 		err(EXIT_FAILURE, "calloc line: %d\n", __LINE__);
 
+	/* same as calling "sysctl kern.version" */
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_VERSION;
 	if (sysctl(mib, 2, version, &len, NULL, 0) == -1)
@@ -351,9 +353,8 @@ main(int argc, char *argv[])
 				printf("\n");
 			while ((c = getc(input)) != EOF) {
 				if (i >= 300) {
-					printf("\nmirror ");
-					printf("length became");
-					printf(" too long.\n");
+					printf("\nmirror length ");
+					printf("became too long.\n");
 					
 					printf("/etc/installurl");
 					printf(" not written.\n");
@@ -541,11 +542,9 @@ main(int argc, char *argv[])
 			line[pos++] = '\0';
 			if (u && pos >= 3) {
 				if (!strncmp("USA", line, 3)) {
-					c = getc(input);
-					while (c != EOF) {
+					while ((c = getc(input)) != EOF) {
 						if (c == '\n')
 							break;
-						c = getc(input);
 					}
 					if (c == EOF)
 						break;
@@ -603,11 +602,9 @@ main(int argc, char *argv[])
 				err(EXIT_FAILURE,
 				    "malloc line: %d", __LINE__);
 			}
-			strlcpy(array[array_length]->ftp_file,
-			    line, pos);
-
-			strlcat(array[array_length]->ftp_file,
-			    tag, pos);
+			
+			strlcpy(array[array_length]->ftp_file, line, pos);
+			strlcat(array[array_length]->ftp_file, tag, pos);
 
 			if (++array_length > array_max) {
 				array_max += 100;
@@ -623,8 +620,7 @@ main(int argc, char *argv[])
 					    "reallocarray line: %d", __LINE__);
 				}
 			}
-			array[array_length]
-			    = malloc(sizeof(struct mirror_st));
+			array[array_length] = malloc(sizeof(struct mirror_st));
 
 			if (array[array_length] == NULL) {
 				n = errno;
