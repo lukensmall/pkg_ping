@@ -120,13 +120,13 @@ manpage(char a[])
 	printf("[-s floating-point timeout in seconds (eg. -s 2.3)]\n");
 
 	printf("[-S (\"Secure\" https mirrors only. Secrecy is preserved ");
-	printf("at the price of performance. \"insecure\" ");
+	printf("at the price of performance.\n\t\"insecure\" ");
 	printf("mirrors still preserve file integrity!)]\n");
 
 	printf("[-u (no USA mirrors...to comply ");
 	printf("with USA encryption export laws)]\n");
 
-	printf("[-v (recognizes up to 3 of these)]\n");
+	printf("[-v (increase verbosity. Recognizes up to 3 of these)]\n");
 	
 	printf("[-V (no output but error messages)]\n");
 }
@@ -249,16 +249,14 @@ main(int argc, char *argv[])
 	if (uname(&name) == -1)
 		err(EXIT_FAILURE, "uname line: %d", __LINE__);
 
-	int mib[2];
 	char *version;
 	size_t len = 300;
 	version = calloc(len, sizeof(char));
 	if (version == NULL)
 		err(EXIT_FAILURE, "calloc line: %d\n", __LINE__);
 
-	/* same as calling "sysctl kern.version" */
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_VERSION;
+	/* stores results of "sysctl kern.version" into 'version' */
+	const int mib[2] = { CTL_KERN, KERN_VERSION };
 	if (sysctl(mib, 2, version, &len, NULL, 0) == -1)
                    err(EXIT_FAILURE, "sysctl");
 	
