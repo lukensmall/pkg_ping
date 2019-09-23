@@ -490,14 +490,14 @@ main(int argc, char *argv[])
 		kill(sed_pid, SIGKILL);
 		printf("kevent, timeout0 ");
 		printf("may be too large. line: %d\n", __LINE__);
-		manpage(argv[0]);
+		return 1;
 	}
 	if (i == 0) {
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
 		printf("timed out fetching: ");
 		printf("https://www.openbsd.org/ftp.html\n");
-		manpage(argv[0]);
+		return 1;
 	}
 	input = fdopen(sed_to_parent[STDIN_FILENO], "r");
 	if (input == NULL) {
@@ -506,7 +506,7 @@ main(int argc, char *argv[])
 		kill(sed_pid, SIGKILL);
 		errno = n;
 		err(EXIT_FAILURE,
-		    "input = fdopen(sed_to_parent[STDIN_FILENO], \"r\") fail.");
+		    "fdopen(sed_to_parent[STDIN_FILENO]...) line %d", __LINE__);
 	}
 	/* if the index for line[] exceeds 299, it will error out */
 	char *line;
@@ -604,7 +604,7 @@ main(int argc, char *argv[])
 			strlcpy(array[array_length]->ftp_file, line, pos);
 			strlcat(array[array_length]->ftp_file, tag, pos);
 
-			if (++array_length > array_max - 1) {
+			if (++array_length >= array_max) {
 				array_max += 50;
 				array = reallocarray(array, array_max,
 				    sizeof(struct mirror_st *));
@@ -898,11 +898,11 @@ main(int argc, char *argv[])
 	if (f) {
 		if (dup2(parent_to_write[STDOUT_FILENO], STDOUT_FILENO) == -1) {
 			printf("dup2 line: %d\n", __LINE__);
+			printf("(file not written)\n");
 			
 			if (verbose < 0)
 				return EXIT_FAILURE;
 			
-			printf("(file not written)\n");
 			printf("Since this process is root, type:\n");
 			printf("echo \"%s\" > /etc/installurl\n",
 			    array[0]->ftp_file);
