@@ -164,7 +164,7 @@ main(int argc, char *argv[])
 	} else if (pledge("stdio proc exec", NULL) == -1)
 		err(EXIT_FAILURE, "pledge line: %d", __LINE__);
 
-	array_max = 300;
+	array_max = 200;
 
 	array = calloc(array_max, sizeof(struct mirror_st *));
 	if (array == NULL)
@@ -604,10 +604,10 @@ main(int argc, char *argv[])
 			strlcpy(array[array_length]->ftp_file, line, pos);
 			strlcat(array[array_length]->ftp_file, tag, pos);
 
-			if (++array_length > array_max) {
-				array_max += 100;
+			if (++array_length > array_max - 1) {
+				array_max += 50;
 				array = reallocarray(array, array_max,
-				    sizeof(struct mirror_st));
+				    sizeof(struct mirror_st *));
 
 				if (array == NULL) {
 					n = errno;
