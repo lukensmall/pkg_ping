@@ -409,12 +409,14 @@ main(int argc, char *argv[])
 			printf("ftp pledge 1 line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
+		
 		close(ftp_to_sed[STDIN_FILENO]);
 
 		if (dup2(ftp_to_sed[STDOUT_FILENO], STDOUT_FILENO) == -1) {
 			printf("ftp STDOUT dup2 line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
+		
 		if (verbose >= 2) {
 			fprintf(stderr,
 			    "fetching https://www.openbsd.org/ftp.html\n");
@@ -578,13 +580,13 @@ main(int argc, char *argv[])
 				} else if (c != 'h')
 					break;
 			}
-			if (pos == 5 && !also_insecure) {
-				if (strncmp(line, "https", 5))
-					break;
-			}
 			if (c != '\n') {
 				line[pos++] = c;
 				continue;
+			}
+			if (pos >= 5 && !also_insecure) {
+				if (strncmp(line, "https", 5))
+					break;
 			}
 			line[pos++] = '\0';
 
@@ -650,6 +652,9 @@ main(int argc, char *argv[])
 		free(array[array_length]->label);
 	free(array[array_length]);
 
+	array = reallocarray(array, array_length, sizeof(struct mirror_st *));
+	if (array == NULL) 
+		err(EXIT_FAILURE, "reallocarray line: %d", __LINE__);
 
 
 	if (also_insecure) {
@@ -686,7 +691,7 @@ main(int argc, char *argv[])
 				printf("\n%2d : %s  :  %s\n", array_length - c,
 				    array[c]->label, array[c]->ftp_file);
 			}
-		} else if (verbose >=0) {
+		} else if (verbose >= 0) {
 			i = array_length - c;
 			if (c > 0) {
 				if ((i == 9) || (i == 99) || (i == 999))
