@@ -117,11 +117,15 @@ manpage(char a[])
 
 	printf("[-h (print this message and exit)]\n");
 
-	printf("[-s floating-point timeout in seconds (eg. -s 2.3)]\n");
+	printf("[-O (if your kernel is a snapshot, it will Override it and ");
+	printf("search for release kernel mirrors.\n\t It Could be used to ");
+	printf("determine whether the release is present.)]\n");
 
 	printf("[-S (\"Secure\" https mirrors only. Secrecy is preserved ");
 	printf("at the price of performance.\n\t\"insecure\" ");
 	printf("mirrors still preserve file integrity!)]\n");
+
+	printf("[-s floating-point timeout in seconds (eg. -s 2.3)]\n");
 
 	printf("[-u (no USA mirrors...to comply ");
 	printf("with USA encryption export laws)]\n");
@@ -135,7 +139,7 @@ int
 main(int argc, char *argv[])
 {
 	int8_t f = (getuid() == 0) ? 1 : 0;
-	int8_t num, current, also_insecure, u, verbose;
+	int8_t num, current, also_insecure, u, verbose, o;
 	double s, S;
 	pid_t ftp_pid, sed_pid, write_pid;
 	int kq, i, pos, c, n, array_max, array_length, tag_len;
@@ -175,8 +179,28 @@ main(int argc, char *argv[])
 	verbose = 0;
 	also_insecure = 1;
 	current = 0;
+	o = 0;
 
-	while ((c = getopt(argc, argv, "fhSs:uvV")) != -1) {
+	char *version;
+	size_t len = 300;
+	version = calloc(len, sizeof(char));
+	if (version == NULL)
+		err(EXIT_FAILURE, "calloc line: %d\n", __LINE__);
+
+	/* stores results of "sysctl kern.version" into 'version' */
+	const int mib[2] = { CTL_KERN, KERN_VERSION };
+	if (sysctl(mib, 2, version, &len, NULL, 0) == -1)
+                   err(EXIT_FAILURE, "sysctl");
+	
+	/* Discovers if the kernel is not a release version */
+	if (strstr(version, "beta"))
+		current = 1;
+	else if (strstr(version, "current"))
+		current = 1;
+		
+	free(version);
+
+	while ((c = getopt(argc, argv, "fhOSs:uvV")) != -1) {
 		switch (c) {
 		case 'f':
 			if (f == 1) {
@@ -190,6 +214,14 @@ main(int argc, char *argv[])
 		case 'h':
 			manpage(argv[0]);
 			return 0;
+		case 'O':
+			o = 1;
+			if (current == 0) {
+				manpage(argv[0]);
+				errx(EXIT_FAILURE,
+				    "-O not compatible with release.");
+			}
+			break;
 		case 'S':
 			also_insecure = 0;
 			break;
@@ -249,31 +281,22 @@ main(int argc, char *argv[])
 	if (uname(&name) == -1)
 		err(EXIT_FAILURE, "uname line: %d", __LINE__);
 
-	char *version;
-	size_t len = 300;
-	version = calloc(len, sizeof(char));
-	if (version == NULL)
-		err(EXIT_FAILURE, "calloc line: %d\n", __LINE__);
-
-	/* stores results of "sysctl kern.version" into 'version' */
-	const int mib[2] = { CTL_KERN, KERN_VERSION };
-	if (sysctl(mib, 2, version, &len, NULL, 0) == -1)
-                   err(EXIT_FAILURE, "sysctl");
-	
-	/* Discovers if the kernel is not a release version */
-	if (strstr(version, "beta"))
-		current = 1;
-	else if (strstr(version, "current"))
-		current = 1;
-		
-	free(version);
 
 	if (verbose > 1) {
-		if (current == 0)
+		if (current == 1) {
+			if (o == 0)
+				printf("This is a snapshot!\n\n");
+			else {
+				printf("This is a snapshot, ");
+				printf("but it has been overridden ");
+				printf("to show release mirrors!\n\n");
+			}
+		} else
 			printf("This is a release.\n\n");
-		else
-			printf("This is a snapshot!\n\n");
 	}
+	
+	if (o)
+		current = 0;
 
 	if (current == 0) {
 		tag_len = strlen("/") + strlen(name.release) + strlen("/") +
@@ -892,11 +915,13 @@ main(int argc, char *argv[])
 		array[0]->ftp_file[strlen(array[0]->ftp_file) - tag_len] = '\0';
 
 	if (array[0]->diff >= s) {
-		//~ if (current == 0) {
-			//~ printf("\n\n");
-			//~ errx(EXIT_FAILURE,
-			    //~ "No mirrors. IF THIS IS -CURRENT, use -c\n");
-		//~ } else
+		if (o == 1) {
+			printf("\n\n");
+			printf("No mirrors. It doesn't appear that the ");
+			printf("%s release is present yet. ", name.release);
+			printf("Try again without the -O or increase -s\n");
+			return -1;
+		} else
 			errx(EXIT_FAILURE, "No successful mirrors found.");
 	}
 	
