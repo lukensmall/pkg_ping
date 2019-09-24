@@ -943,8 +943,7 @@ main(int argc, char *argv[])
 		/* sends the fastest mirror to the 'write' process */
 		printf("%s\n", array[0]->ftp_file);
 		
-		close(parent_to_write[STDOUT_FILENO]);
-		close(STDOUT_FILENO);
+		fclose(stdout);
 
 		waitpid(write_pid, &i, 0);
 
