@@ -113,33 +113,35 @@ static void
 manpage(char a[])
 {
 	printf("%s\n", a);
-	printf("[-f (don't write to file even if run as root)]\n");
+	printf("[-f (don't write to File even if run as root)]\n");
 
-	printf("[-h (print this message and exit)]\n");
+	printf("[-h (print this Help message and exit)]\n");
 
 	printf("[-O (if your kernel is a snapshot, it will Override it and ");
-	printf("search for release kernel mirrors.\n\t It Could be used to ");
-	printf("determine whether the release is present.)]\n");
+	printf("search for release kernel mirrors.\n");
+	printf("\tIt Could be used to determine whether the release is ");
+	printf("present\n");
+	printf("\tor to upgrade packages prior to downloading a release)]\n");
 
 	printf("[-S (\"Secure\" https mirrors only. Secrecy is preserved ");
-	printf("at the price of performance.\n\t\"insecure\" ");
-	printf("mirrors still preserve file integrity!)]\n");
+	printf("at the price of performance.\n");
+	printf("\t\"insecure\" mirrors still preserve file integrity!)]\n");
 
-	printf("[-s floating-point timeout in seconds (eg. -s 2.3)]\n");
+	printf("[-s floating-point timeout in Seconds (eg. -s 2.3)]\n");
 
-	printf("[-u (no USA mirrors...to comply ");
+	printf("[-u (no USA mirrors to comply ");
 	printf("with USA encryption export laws)]\n");
 
-	printf("[-v (increase verbosity. Recognizes up to 3 of these)]\n");
+	printf("[-v (increase Verbosity. It recognizes up to 3 of these)]\n");
 	
-	printf("[-V (no output but error messages)]\n");
+	printf("[-V (anti-Verbose output. No output but error messages)]\n");
 }
 
 int
 main(int argc, char *argv[])
 {
 	int8_t f = (getuid() == 0) ? 1 : 0;
-	int8_t num, current, also_insecure, u, verbose, o;
+	int8_t num, current, also_insecure, u, verbose, override;
 	double s, S;
 	pid_t ftp_pid, sed_pid, write_pid;
 	int kq, i, pos, c, n, array_max, array_length, tag_len;
@@ -179,7 +181,7 @@ main(int argc, char *argv[])
 	verbose = 0;
 	also_insecure = 1;
 	current = 0;
-	o = 0;
+	override = 0;
 
 	char *version;
 	size_t len = 300;
@@ -215,7 +217,7 @@ main(int argc, char *argv[])
 			manpage(argv[0]);
 			return 0;
 		case 'O':
-			o = 1;
+			override = 1;
 			if (current == 0) {
 				manpage(argv[0]);
 				errx(EXIT_FAILURE,
@@ -284,7 +286,7 @@ main(int argc, char *argv[])
 
 	if (verbose > 1) {
 		if (current == 1) {
-			if (o == 0)
+			if (override == 0)
 				printf("This is a snapshot!\n\n");
 			else {
 				printf("This is a snapshot, ");
@@ -295,10 +297,7 @@ main(int argc, char *argv[])
 			printf("This is a release.\n\n");
 	}
 	
-	if (o)
-		current = 0;
-
-	if (current == 0) {
+	if (current == 0 || override) {
 		tag_len = strlen("/") + strlen(name.release) + strlen("/") +
 		    strlen(name.machine) + strlen("/SHA256");
 	} else {
@@ -310,7 +309,7 @@ main(int argc, char *argv[])
 	if (tag == NULL)
 		err(EXIT_FAILURE, "calloc line: %d", __LINE__);
 
-	if (current == 0)
+	if (current == 0 || override)
 		strlcpy(tag, name.release, tag_len);
 	else
 		strlcpy(tag, "snapshots", tag_len);
@@ -704,10 +703,7 @@ main(int argc, char *argv[])
 		if (verbose >= 2) {
 			if (verbose == 3)
 				printf("\n");
-			if (array_length >= 1000) {
-				printf("\n%4d : %s  :  %s\n", array_length - c,
-				    array[c]->label, array[c]->ftp_file);
-			} else if (array_length >= 100) {
+			if (array_length >= 100) {
 				printf("\n%3d : %s  :  %s\n", array_length - c,
 				    array[c]->label, array[c]->ftp_file);
 			} else {
@@ -717,7 +713,7 @@ main(int argc, char *argv[])
 		} else if (verbose >= 0) {
 			i = array_length - c;
 			if (c > 0) {
-				if ((i == 9) || (i == 99) || (i == 999))
+				if ((i == 9) || (i == 99))
 					printf("\b \b");
 				n = i;
 				while (n > 0) {
@@ -890,7 +886,12 @@ main(int argc, char *argv[])
 			array[c]->ftp_file[strlen(array[c]->ftp_file) - tag_len]
 			    = '\0';
 			    
-			printf("%d : %s:\n\techo ", c + 1, array[c]->label);
+			if (array_length >= 100)
+				printf("%3d", c + 1);
+			else
+				printf("%2d", c + 1);
+			
+			printf(" : %s:\n\techo ", array[c]->label);
 			printf("\"%s\" > /etc/installurl",
 			    array[c]->ftp_file);
 
@@ -915,7 +916,7 @@ main(int argc, char *argv[])
 		array[0]->ftp_file[strlen(array[0]->ftp_file) - tag_len] = '\0';
 
 	if (array[0]->diff >= s) {
-		if (o == 1) {
+		if (override == 1) {
 			printf("\n\n");
 			printf("No mirrors. It doesn't appear that the ");
 			printf("%s release is present yet. ", name.release);
