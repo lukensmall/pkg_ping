@@ -16,7 +16,7 @@ It uses several commandline options:
 
 -h will print the "help" options.
 
--O will override searching for snapshot mirrors and search for a release mirror. It will throw an error if it is a release
+-O will override searching for snapshot mirrors and search for release mirrors. It will throw an error if it is a release
    kernel.
 
 -s will accept floating-point timeout like 1.5 seconds using strtod() and handrolled validation, eg. "-s 1.5", default 5.
