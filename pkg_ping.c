@@ -943,6 +943,7 @@ main(int argc, char *argv[])
 		printf("%s\n", array[0]->ftp_file);
 		
 		fclose(stdout);
+		close(parent_to_write[STDOUT_FILENO]);
 
 		waitpid(write_pid, &i, 0);
 
