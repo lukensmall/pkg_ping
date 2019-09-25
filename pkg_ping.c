@@ -120,8 +120,7 @@ manpage(char a[])
 	printf("[-O (if your kernel is a snapshot, it will Override it and ");
 	printf("search for release kernel mirrors.\n");
 	printf("\tIt Could be used to determine whether the release is ");
-	printf("present\n");
-	printf("\tor to upgrade packages prior to downloading a release)]\n");
+	printf("present.");
 
 	printf("[-S (\"Secure\" https mirrors only. Secrecy is preserved ");
 	printf("at the price of performance.\n");
