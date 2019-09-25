@@ -379,7 +379,10 @@ main(int argc, char *argv[])
 					printf(" not written.\n");
 					_exit(EXIT_FAILURE);
 				}
+
 				tag2[i++] = c;
+				if (c == '\n')
+					break;
 			}
 			fclose(input);
 
@@ -390,16 +393,16 @@ main(int argc, char *argv[])
 				_exit(EXIT_FAILURE);
 			}
 			
-			if (pkg_write != NULL) {
+			if (pkg_write != NULL && c == '\n') {
 				fwrite(tag2, i, sizeof(char), pkg_write);
 				fclose(pkg_write);
 				if (verbose >= 0)
 					printf("/etc/installurl: %s", tag2);
-			} else {
-				printf("/etc/installurl not written.\n");
-				_exit(EXIT_FAILURE);
+				_exit(EXIT_SUCCESS);
 			}
-			_exit(EXIT_SUCCESS);
+			
+			printf("/etc/installurl not written.\n");
+			_exit(EXIT_FAILURE);
 		}
 		if (write_pid == -1)
 			err(EXIT_FAILURE, "fork line: %d", __LINE__);
@@ -499,7 +502,7 @@ main(int argc, char *argv[])
 		n = errno;
 		kill(ftp_pid, SIGKILL);
 		errno = n;
-		err(EXIT_FAILURE, "fork line: %d", __LINE__);
+		err(EXIT_FAILURE, "sed fork line: %d", __LINE__);
 	}
 
 	close(ftp_to_sed[STDIN_FILENO]);
@@ -941,9 +944,6 @@ main(int argc, char *argv[])
 		
 		/* sends the fastest mirror to the 'write' process */
 		printf("%s\n", array[0]->ftp_file);
-		
-		fclose(stdout);
-		close(parent_to_write[STDOUT_FILENO]);
 
 		waitpid(write_pid, &i, 0);
 
