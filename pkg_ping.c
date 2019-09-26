@@ -120,9 +120,9 @@ manpage(char a[])
 	printf("[-O (if your kernel is a snapshot, it will Override it and ");
 	printf("search for release kernel mirrors.\n");
 	printf("\tIt Could be used to determine whether the release is ");
-	printf("present.");
+	printf("present.\n");
 
-	printf("[-S (\"Secure\" https mirrors only. Secrecy is preserved ");
+	printf("[-S (\"Secure\" https mirrors instead. Secrecy is preserved ");
 	printf("at the price of performance.\n");
 	printf("\t\"insecure\" mirrors still preserve file integrity!)]\n");
 
@@ -140,7 +140,7 @@ int
 main(int argc, char *argv[])
 {
 	int8_t f = (getuid() == 0) ? 1 : 0;
-	int8_t num, current, also_insecure, u, verbose, override;
+	int8_t num, current, insecure, u, verbose, override;
 	double s, S;
 	pid_t ftp_pid, sed_pid, write_pid;
 	int kq, i, pos, c, n, array_max, array_length, tag_len;
@@ -176,7 +176,7 @@ main(int argc, char *argv[])
 	s = 5;
 	u = 0;
 	verbose = 0;
-	also_insecure = 1;
+	insecure = 1;
 	current = 0;
 	override = 0;
 
@@ -221,7 +221,7 @@ main(int argc, char *argv[])
 			}
 			break;
 		case 'S':
-			also_insecure = 0;
+			insecure = 0;
 			break;
 		case 's':
 			c = -1;
@@ -581,7 +581,7 @@ main(int argc, char *argv[])
 				continue;
 			}
 			line[pos++] = '\0';
-			if (u && pos >= 3) {
+			if (u) {
 				if (!strncmp("USA", line, 3)) {
 					while ((c = getc(input)) != EOF) {
 						if (c == '\n')
@@ -611,7 +611,7 @@ main(int argc, char *argv[])
 			if (pos == 0) {
 				if ((c != 'h') && (c != 'f') && (c != 'r'))
 					continue;
-				else if (also_insecure) {
+				else if (insecure) {
 					if (c == 'r')
 						break;
 					if (c == 'f') {
@@ -625,9 +625,13 @@ main(int argc, char *argv[])
 				line[pos++] = c;
 				continue;
 			}
-			if (pos >= 5 && !also_insecure) {
+			if (!insecure) {
 				if (strncmp(line, "https", 5))
 					break;
+			} else if (!strncmp(line, "https", 5)) {
+				free(array[array_length]->label);
+				num = pos = 0;
+				continue;
 			}
 			line[pos++] = '\0';
 
@@ -694,11 +698,11 @@ main(int argc, char *argv[])
 	free(array[array_length]);
 
 	array = reallocarray(array, array_length, sizeof(struct mirror_st *));
-	if (array == NULL) 
-		err(EXIT_FAILURE, "reallocarray line: %d", __LINE__);
+	if (array == NULL) err(EXIT_FAILURE, "reallocarray line: %d", __LINE__);
 
-
-	if (also_insecure) {
+	
+	if (insecure) {
+		
 		qsort(array, array_length, sizeof(struct mirror_st *), ftp_cmp);
 		c = 1;
 		while (c < array_length) {
@@ -713,7 +717,14 @@ main(int argc, char *argv[])
 			} else
 				++c;
 		}
+		
+		array = reallocarray(array, array_length,
+		    sizeof(struct mirror_st *));
+		    
+		if (array == NULL)
+			err(EXIT_FAILURE, "reallocarray line: %d", __LINE__);
 	}
+		
 	qsort(array, array_length, sizeof(struct mirror_st *), label_cmp);
 	
 	S = s;
