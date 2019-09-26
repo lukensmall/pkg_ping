@@ -147,7 +147,6 @@ main(int argc, char *argv[])
 	int parent_to_write[2], ftp_to_sed[2], sed_to_parent[2], block_pipe[2];
 	char *tag, *tag2;
 	FILE *input, *pkg_write;
-	struct utsname name;
 	struct mirror_st **array;
 	struct kevent ke;
 	struct timeval tv_start, tv_end;
@@ -169,11 +168,10 @@ main(int argc, char *argv[])
 	} else if (pledge("stdio proc exec", NULL) == -1)
 		err(EXIT_FAILURE, "pledge line: %d", __LINE__);
 
-	array_max = 200;
+	array_max = 100;
 
 	array = calloc(array_max, sizeof(struct mirror_st *));
-	if (array == NULL)
-		err(EXIT_FAILURE, "calloc line: %d", __LINE__);
+	if (array == NULL) err(EXIT_FAILURE, "calloc line: %d", __LINE__);
 
 	s = 5;
 	u = 0;
@@ -185,13 +183,12 @@ main(int argc, char *argv[])
 	char *version;
 	size_t len = 300;
 	version = calloc(len, sizeof(char));
-	if (version == NULL)
-		err(EXIT_FAILURE, "calloc line: %d\n", __LINE__);
+	if (version == NULL) err(EXIT_FAILURE, "calloc line: %d\n", __LINE__);
 
 	/* stores results of "sysctl kern.version" into 'version' */
 	const int mib[2] = { CTL_KERN, KERN_VERSION };
 	if (sysctl(mib, 2, version, &len, NULL, 0) == -1)
-                   err(EXIT_FAILURE, "sysctl");
+                   err(EXIT_FAILURE, "sysctl line: %d", __LINE__);
 	
 	/* Discovers if the kernel is not a release version */
 	if (strstr(version, "beta"))
@@ -206,8 +203,8 @@ main(int argc, char *argv[])
 		case 'f':
 			if (f == 1) {
 				if (pledge("stdio proc exec", NULL) == -1) {
-					err(EXIT_FAILURE, "pledge line: %d",
-					    __LINE__);
+					err(EXIT_FAILURE,
+					    "pledge line: %d", __LINE__);
 				}
 				f = 0;
 			}
@@ -279,9 +276,6 @@ main(int argc, char *argv[])
 	}
 
 
-	if (uname(&name) == -1)
-		err(EXIT_FAILURE, "uname line: %d", __LINE__);
-
 
 	if (verbose > 1) {
 		if (current == 1) {
@@ -296,12 +290,22 @@ main(int argc, char *argv[])
 			printf("This is a release.\n\n");
 	}
 	
+
+	struct utsname *name = malloc(sizeof(struct utsname));
+	if (name == NULL)
+		err(EXIT_FAILURE, "malloc line: %d", __LINE__);
+	if (uname(name) == -1)
+		err(EXIT_FAILURE, "uname line: %d", __LINE__);
+	
+	char release[4 + 1];
+	strlcpy(release, name->release, 4 + 1);
+
 	if (current == 0 || override) {
-		tag_len = strlen("/") + strlen(name.release) + strlen("/") +
-		    strlen(name.machine) + strlen("/SHA256");
+		tag_len = strlen("/") + strlen(release) + strlen("/") +
+		    strlen(name->machine) + strlen("/SHA256");
 	} else {
 		tag_len = strlen("/") + strlen("snapshots") + strlen("/") +
-		    strlen(name.machine) + strlen("/SHA256");
+		    strlen(name->machine) + strlen("/SHA256");
 	}
 
 	tag = calloc(tag_len - 1 + 1, sizeof(char));
@@ -309,13 +313,15 @@ main(int argc, char *argv[])
 		err(EXIT_FAILURE, "calloc line: %d", __LINE__);
 
 	if (current == 0 || override)
-		strlcpy(tag, name.release, tag_len);
+		strlcpy(tag, release, tag_len);
 	else
 		strlcpy(tag, "snapshots", tag_len);
 
 	strlcat(tag, "/", tag_len);
-	strlcat(tag, name.machine, tag_len);
+	strlcat(tag, name->machine, tag_len);
 	strlcat(tag, "/SHA256", tag_len);
+
+	free(name);
 
 	if (f) {
 		
@@ -345,10 +351,11 @@ main(int argc, char *argv[])
 				printf("kevent register fail.\n");
 				_exit(EXIT_FAILURE);
 			}
+			close(kq);
 			
+			/* no data sent through pipe */
 			if (ke.data == 0) {
-				printf("/etc/installurl not ");
-				printf("written.\n");
+				printf("/etc/installurl not written.\n");
 				_exit(EXIT_FAILURE);
 			}
 			
@@ -356,14 +363,14 @@ main(int argc, char *argv[])
 			if (input == NULL) {
 				printf("input = fdopen ");
 				printf("(parent_to_write[STDIN");
-				printf("_FILENO], \"r\failed.\n");
+				printf("_FILENO], \"r\") line %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
 			
-			/* add an extra '\0' to ALWAYS null terminate */
-			tag2 = calloc(300 + 1, sizeof(char));
+			/* provide an extra space to ALWAYS null terminate */
+			tag2 = malloc(300 + 1);
 			if (tag2 == NULL) {
-				printf("calloc line: %d\n", __LINE__);
+				printf("malloc line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
 				
@@ -385,6 +392,13 @@ main(int argc, char *argv[])
 					break;
 			}
 			fclose(input);
+			tag2[i] = '\0';
+			
+			tag2 = realloc(tag2, i + 1);
+			if (tag2 == NULL) {
+				printf("realloc line: %d", __LINE__);
+				_exit(EXIT_FAILURE);
+			}
 
 			pkg_write = fopen("/etc/installurl", "w");
 
@@ -396,6 +410,10 @@ main(int argc, char *argv[])
 			if (pkg_write != NULL && c == '\n') {
 				fwrite(tag2, i, sizeof(char), pkg_write);
 				fclose(pkg_write);
+				if (verbose >= 0 && override) {
+					printf("Perhaps it's time to ");
+					printf("get the release!\n");
+				}
 				if (verbose >= 0)
 					printf("/etc/installurl: %s", tag2);
 				_exit(EXIT_SUCCESS);
@@ -405,7 +423,7 @@ main(int argc, char *argv[])
 			_exit(EXIT_FAILURE);
 		}
 		if (write_pid == -1)
-			err(EXIT_FAILURE, "fork line: %d", __LINE__);
+			err(EXIT_FAILURE, "write fork line: %d", __LINE__);
 			
 		if (pledge("stdio proc exec", NULL) == -1)
 			err(EXIT_FAILURE, "pledge line: %d", __LINE__);
@@ -459,7 +477,7 @@ main(int argc, char *argv[])
 		_exit(EXIT_FAILURE);
 	}
 	if (ftp_pid == -1)
-		err(EXIT_FAILURE, "fork line: %d", __LINE__);
+		err(EXIT_FAILURE, "ftp 1 fork line: %d", __LINE__);
 
 	close(ftp_to_sed[STDOUT_FILENO]);
 
@@ -523,7 +541,7 @@ main(int argc, char *argv[])
 		kill(sed_pid, SIGKILL);
 		printf("timed out fetching: ");
 		printf("https://www.openbsd.org/ftp.html\n");
-		return 1;
+		return EXIT_FAILURE;
 	}
 	input = fdopen(sed_to_parent[STDIN_FILENO], "r");
 	if (input == NULL) {
@@ -535,8 +553,7 @@ main(int argc, char *argv[])
 		    "fdopen(sed_to_parent[STDIN_FILENO]...) line %d", __LINE__);
 	}
 	/* if the index for line[] exceeds 299, it will error out */
-	char *line;
-	line = calloc(300, sizeof(char));
+	char *line = calloc(300, sizeof(char));
 	if (line == NULL)
 		err(EXIT_FAILURE, "calloc line: %d", __LINE__);
 
@@ -631,7 +648,7 @@ main(int argc, char *argv[])
 			strlcat(array[array_length]->ftp_file, tag, pos);
 
 			if (++array_length >= array_max) {
-				array_max += 50;
+				array_max += 20;
 				array = reallocarray(array, array_max,
 				    sizeof(struct mirror_st *));
 
@@ -737,6 +754,7 @@ main(int argc, char *argv[])
 				printf("ftp pledge 3 line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
+			
 			close(block_pipe[STDOUT_FILENO]);
 			read(block_pipe[STDIN_FILENO], &n, sizeof(int));
 			close(block_pipe[STDIN_FILENO]);
@@ -760,7 +778,7 @@ main(int argc, char *argv[])
 			_exit(EXIT_FAILURE);
 		}
 		if (ftp_pid == -1)
-			err(EXIT_FAILURE, "fork line: %d", __LINE__);
+			err(EXIT_FAILURE, "ftp 2 fork line: %d", __LINE__);
 
 
 		close(block_pipe[STDIN_FILENO]);
@@ -774,10 +792,20 @@ main(int argc, char *argv[])
 			err(EXIT_FAILURE,
 			    "kevent register fail line: %d", __LINE__);
 		}
-		array[c]->diff = 0;
 		gettimeofday(&tv_start, NULL);
 
 		close(block_pipe[STDOUT_FILENO]);
+
+
+		/* While we're waiting... */
+		array[c]->diff = 0;
+		n = strlen(array[c]->ftp_file) - tag_len;
+		array[c]->ftp_file[n] = '\0';
+		array[c]->ftp_file = realloc(array[c]->ftp_file, n + 1);
+		if (array[c]->ftp_file == NULL) {
+			kill(ftp_pid, SIGKILL);
+			err(EXIT_FAILURE, "realloc line: %d", __LINE__);
+		}
 
 
 		n = 0;
@@ -830,11 +858,14 @@ main(int argc, char *argv[])
 			if (verbose >= 2)
 				printf("Download Error\n");
 		}
+		
 		waitpid(ftp_pid, NULL, 0);
 	}
 
 	if (pledge("stdio", NULL) == -1)
 		err(EXIT_FAILURE, "pledge line: %d", __LINE__);
+		
+	close(kq);
 
 	if (verbose == 0 || verbose == 1) {
 		printf("\b \b");
@@ -885,8 +916,6 @@ main(int argc, char *argv[])
 			printf("\n\nDOWNLOAD ERROR MIRRORS:\n\n\n");
 
 		for (; c >= 0; --c) {
-			array[c]->ftp_file[strlen(array[c]->ftp_file) - tag_len]
-			    = '\0';
 			    
 			if (array_length >= 100)
 				printf("%3d", c + 1);
@@ -914,16 +943,16 @@ main(int argc, char *argv[])
 			}
 			    
 		}
-	} else
-		array[0]->ftp_file[strlen(array[0]->ftp_file) - tag_len] = '\0';
+	}
 
 	if (array[0]->diff >= s) {
 		if (override == 1) {
 			printf("\n\n");
 			printf("No mirrors. It doesn't appear that the ");
-			printf("%s release is present yet. ", name.release);
-			printf("Try again without the -O or increase -s\n");
-			return -1;
+			printf("%s release is present yet.\n", release);
+			printf("Try again without -O or ");
+			printf("increase the -s value\n");
+			return EXIT_FAILURE;
 		} else
 			errx(EXIT_FAILURE, "No successful mirrors found.");
 	}
@@ -931,7 +960,6 @@ main(int argc, char *argv[])
 	if (f) {
 		if (dup2(parent_to_write[STDOUT_FILENO], STDOUT_FILENO) == -1) {
 			printf("dup2 line: %d\n", __LINE__);
-			printf("(file not written)\n");
 			
 			if (verbose < 0)
 				return EXIT_FAILURE;
@@ -940,6 +968,12 @@ main(int argc, char *argv[])
 			printf("echo \"%s\" > /etc/installurl\n",
 			    array[0]->ftp_file);
 			return EXIT_FAILURE;
+		}
+		
+		for (c = 1; c < array_length; ++c) {
+			free(array[c]->ftp_file);
+			free(array[c]->label);
+			free(array[c]);
 		}
 		
 		/* sends the fastest mirror to the 'write' process */
@@ -951,10 +985,10 @@ main(int argc, char *argv[])
 	}
 	
 	if (verbose < 0)
-		return 0;
+		return EXIT_SUCCESS;
 	
 	if (getuid() == 0) {
-		printf("Since this process is root, type:\n");
+		printf("If you are still root, type:\n");
 		printf("echo \"%s\" > /etc/installurl\n",
 		    array[0]->ftp_file);
 	} else {
@@ -962,5 +996,5 @@ main(int argc, char *argv[])
 		    array[0]->ftp_file);
 	}
 
-	return 0;
+	return EXIT_SUCCESS;
 }
