@@ -133,7 +133,7 @@ manpage(char a[])
 
 	printf("[-v (increase Verbosity. It recognizes up to 3 of these)]\n");
 	
-	printf("[-V (anti-Verbose output. No output but error messages)]\n");
+	printf("[-V (no Verbose output. No output but error messages)]\n");
 }
 
 int
@@ -292,10 +292,8 @@ main(int argc, char *argv[])
 	
 
 	struct utsname *name = malloc(sizeof(struct utsname));
-	if (name == NULL)
-		err(EXIT_FAILURE, "malloc line: %d", __LINE__);
-	if (uname(name) == -1)
-		err(EXIT_FAILURE, "uname line: %d", __LINE__);
+	if (name == NULL) err(EXIT_FAILURE, "malloc line: %d", __LINE__);
+	if (uname(name) == -1) err(EXIT_FAILURE, "uname line: %d", __LINE__);
 	
 	char release[4 + 1];
 	strlcpy(release, name->release, 4 + 1);
@@ -557,9 +555,8 @@ main(int argc, char *argv[])
 	if (line == NULL)
 		err(EXIT_FAILURE, "calloc line: %d", __LINE__);
 
-	num = 0;
-	pos = 0;
-	array_length = 0;
+
+	num = pos = array_length = 0;
 	array[0] = malloc(sizeof(struct mirror_st));
 	if (array[0] == NULL) {
 		n = errno;
@@ -675,8 +672,7 @@ main(int argc, char *argv[])
 				err(EXIT_FAILURE,
 				    "malloc line: %d", __LINE__);
 			}
-			pos = 0;
-			num = 0;
+			pos = num = 0;
 		}
 	}
 	fclose(input);
@@ -697,9 +693,6 @@ main(int argc, char *argv[])
 		free(array[array_length]->label);
 	free(array[array_length]);
 
-	array = reallocarray(array, array_length, sizeof(struct mirror_st *));
-	if (array == NULL) err(EXIT_FAILURE, "reallocarray line: %d", __LINE__);
-
 	
 	if (insecure) {
 		
@@ -717,13 +710,10 @@ main(int argc, char *argv[])
 			} else
 				++c;
 		}
-		
-		array = reallocarray(array, array_length,
-		    sizeof(struct mirror_st *));
-		    
-		if (array == NULL)
-			err(EXIT_FAILURE, "reallocarray line: %d", __LINE__);
 	}
+
+	array = reallocarray(array, array_length, sizeof(struct mirror_st *));
+	if (array == NULL) err(EXIT_FAILURE, "reallocarray line: %d", __LINE__);
 		
 	qsort(array, array_length, sizeof(struct mirror_st *), label_cmp);
 	
@@ -746,17 +736,17 @@ main(int argc, char *argv[])
 				if ((i == 9) || (i == 99))
 					printf("\b \b");
 				n = i;
-				while (n > 0) {
+				do {
 					printf("\b");
 					n /= 10;
-				}
+				} while (n > 0);
 			}
 			printf("%d", i);
 			fflush(stdout);
 		}
 
 		if (pipe(block_pipe) == -1)
-			err(EXIT_FAILURE, "pipe! line: %d", __LINE__);
+			err(EXIT_FAILURE, "pipe line: %d", __LINE__);
 
 		ftp_pid = fork();
 		if (ftp_pid == (pid_t) 0) {
@@ -814,7 +804,9 @@ main(int argc, char *argv[])
 		array[c]->ftp_file[n] = '\0';
 		array[c]->ftp_file = realloc(array[c]->ftp_file, n + 1);
 		if (array[c]->ftp_file == NULL) {
+			n = errno;
 			kill(ftp_pid, SIGKILL);
+			errno = n;
 			err(EXIT_FAILURE, "realloc line: %d", __LINE__);
 		}
 
@@ -840,24 +832,28 @@ main(int argc, char *argv[])
 			} else
 				break;
 		}
-
+		
+		/* return value of ftp() */
 		if (ke.data == 0) {
 			gettimeofday(&tv_end, NULL);
-			
-			array[c]->diff =
+
+			double dt =
 			    (double)(tv_end.tv_sec - tv_start.tv_sec) +
 			    (double)(tv_end.tv_usec - tv_start.tv_usec) /
 			    1000000.0;
-			    
-			if (array[c]->diff > s) 
-				array[c]->diff = s;
+
+			if (array[c]->diff == 0)
+				array[c]->diff = dt;
+
+			if (array[c]->diff > S) 
+				array[c]->diff = S;
 			if (verbose >= 2) {
 				if (array[c]->diff == s) {
 					if (n == 0)
 						printf("Timeout\n");
 				} else
 					printf("%f\n", array[c]->diff);
-			} else if (verbose <= 0) {
+			} else if (verbose <= 0 && S > array[c]->diff) {
 				S = array[c]->diff;
 				timeout.tv_sec = (time_t) S;
 				timeout.tv_nsec =
@@ -869,7 +865,6 @@ main(int argc, char *argv[])
 			if (verbose >= 2)
 				printf("Download Error\n");
 		}
-		
 		waitpid(ftp_pid, NULL, 0);
 	}
 
@@ -940,12 +935,12 @@ main(int argc, char *argv[])
 			if (array[c]->diff < s)
 				printf(" : %f\n\n", array[c]->diff);
 			else if (array[c]->diff == s) {
-				//~ printf("Timeout");
+				//~ printf(" Timeout");
 				printf("\n\n");
 				if (c == ts && ss != -1)
 					printf("\nSUCCESSFUL MIRRORS:\n\n\n");
 			} else {
-				//~ printf("Download Error");
+				//~ printf(" Download Error");
 				printf("\n\n");
 				if (c == ds && ts != -1)
 					printf("\nTIMEOUT MIRRORS:\n\n\n");
