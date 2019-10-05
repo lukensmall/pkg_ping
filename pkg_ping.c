@@ -119,7 +119,7 @@ manpage(char a[])
 
 	printf("[-O (if your kernel is a snapshot, it will Override it and ");
 	printf("search for release kernel mirrors.\n");
-	printf("\tIt Could be used to determine whether the release is ");
+	printf("\tIt could be used to determine whether the release is ");
 	printf("present.\n");
 
 	printf("[-S (\"Secure\" https mirrors instead. Secrecy is preserved ");
@@ -182,8 +182,8 @@ main(int argc, char *argv[])
 
 	char *version;
 	size_t len = 300;
-	version = calloc(len, sizeof(char));
-	if (version == NULL) err(EXIT_FAILURE, "calloc line: %d\n", __LINE__);
+	version = malloc(len);
+	if (version == NULL) err(EXIT_FAILURE, "malloc line: %d\n", __LINE__);
 
 	/* stores results of "sysctl kern.version" into 'version' */
 	const int mib[2] = { CTL_KERN, KERN_VERSION };
@@ -214,11 +214,6 @@ main(int argc, char *argv[])
 			return 0;
 		case 'O':
 			override = 1;
-			if (current == 0) {
-				manpage(argv[0]);
-				errx(EXIT_FAILURE,
-				    "-O not compatible with release.");
-			}
 			break;
 		case 'S':
 			insecure = 0;
@@ -275,7 +270,7 @@ main(int argc, char *argv[])
 		errx(EXIT_FAILURE, "non-option ARGV-element: %s", argv[optind]);
 	}
 
-
+	
 
 	if (verbose > 1) {
 		if (current == 1) {
@@ -285,9 +280,18 @@ main(int argc, char *argv[])
 				printf("This is a snapshot, ");
 				printf("but it has been overridden ");
 				printf("to show release mirrors!\n\n");
+				current = 0;
 			}
-		} else
-			printf("This is a release.\n\n");
+		} else {
+			if (override == 0)
+				printf("This is a release.\n\n");
+			else {
+				printf("This is a release, ");
+				printf("but it has been overridden ");
+				printf("to show snapshot mirrors!\n\n");
+				current = 1;
+			}
+		}
 	}
 	
 
@@ -298,7 +302,7 @@ main(int argc, char *argv[])
 	char release[4 + 1];
 	strlcpy(release, name->release, 4 + 1);
 
-	if (current == 0 || override) {
+	if (current == 0) {
 		tag_len = strlen("/") + strlen(release) + strlen("/") +
 		    strlen(name->machine) + strlen("/SHA256");
 	} else {
@@ -310,7 +314,7 @@ main(int argc, char *argv[])
 	if (tag == NULL)
 		err(EXIT_FAILURE, "calloc line: %d", __LINE__);
 
-	if (current == 0 || override)
+	if (current == 0)
 		strlcpy(tag, release, tag_len);
 	else
 		strlcpy(tag, "snapshots", tag_len);
@@ -408,7 +412,7 @@ main(int argc, char *argv[])
 			if (pkg_write != NULL && c == '\n') {
 				fwrite(tag2, i, sizeof(char), pkg_write);
 				fclose(pkg_write);
-				if (verbose >= 0 && override) {
+				if (verbose >= 0 && current == 1) {
 					printf("Perhaps it's time to ");
 					printf("get the release!\n");
 				}
@@ -952,7 +956,7 @@ main(int argc, char *argv[])
 	}
 
 	if (array[0]->diff >= s) {
-		if (override == 1) {
+		if (current == 0) {
 			printf("\n\n");
 			printf("No mirrors. It doesn't appear that the ");
 			printf("%s release is present yet.\n", release);
