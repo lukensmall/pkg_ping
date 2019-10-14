@@ -556,8 +556,7 @@ main(int argc, char *argv[])
 	}
 	/* if the index for line[] exceeds 299, it will error out */
 	char *line = calloc(300, sizeof(char));
-	if (line == NULL)
-		err(EXIT_FAILURE, "calloc line: %d", __LINE__);
+	if (line == NULL) err(EXIT_FAILURE, "calloc line: %d", __LINE__);
 
 
 	num = pos = array_length = 0;
@@ -960,8 +959,6 @@ main(int argc, char *argv[])
 			printf("\n\n");
 			printf("No mirrors. It doesn't appear that the ");
 			printf("%s release is present yet.\n", release);
-			printf("Try again without -O or ");
-			printf("increase the -s value\n");
 			return EXIT_FAILURE;
 		} else
 			errx(EXIT_FAILURE, "No successful mirrors found.");
