@@ -222,8 +222,7 @@ main(int argc, char *argv[])
 			c = -1;
 			i = n = 0;
 			while (optarg[++c] != '\0') {
-				if (optarg[c] >= '0' && optarg[c] <= '9')
-				{
+				if (optarg[c] >= '0' && optarg[c] <= '9') {
 					n = 1;
 					continue;
 				}
@@ -837,7 +836,7 @@ main(int argc, char *argv[])
 				break;
 		}
 		
-		/* return value of ftp() */
+		/* return exit value of ftp() */
 		if (ke.data == 0) {
 			gettimeofday(&tv_end, NULL);
 
