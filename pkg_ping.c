@@ -119,7 +119,7 @@ manpage(char a[])
 
 	printf("[-O (if your kernel is a snapshot, it will Override it and ");
 	printf("search for release kernel mirrors.\n");
-	printf("if your kernel is a release, it will Override it and ");
+	printf("\tif your kernel is a release, it will Override it and ");
 	printf("search for snapshot kernel mirrors.)\n");
 
 	printf("[-S (\"Secure\" https mirrors instead. Secrecy is preserved ");
