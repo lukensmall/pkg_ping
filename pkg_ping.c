@@ -119,8 +119,8 @@ manpage(char a[])
 
 	printf("[-O (if your kernel is a snapshot, it will Override it and ");
 	printf("search for release kernel mirrors.\n");
-	printf("\tIt could be used to determine whether the release is ");
-	printf("present.\n");
+	printf("if your kernel is a release, it will Override it and ");
+	printf("search for snapshot kernel mirrors.)\n");
 
 	printf("[-S (\"Secure\" https mirrors instead. Secrecy is preserved ");
 	printf("at the price of performance.\n");
@@ -355,7 +355,7 @@ main(int argc, char *argv[])
 			}
 			close(kq);
 			
-			/* no data sent through pipe */
+			/* no data sent through pipe before pipe closure */
 			if (ke.data == 0) {
 				printf("/etc/installurl not written.\n");
 				_exit(EXIT_FAILURE);
@@ -412,10 +412,6 @@ main(int argc, char *argv[])
 			if (pkg_write != NULL && c == '\n') {
 				fwrite(tag2, i, sizeof(char), pkg_write);
 				fclose(pkg_write);
-				if (verbose >= 0 && current == 1) {
-					printf("Perhaps it's time to ");
-					printf("get the release!\n");
-				}
 				if (verbose >= 0)
 					printf("/etc/installurl: %s", tag2);
 				_exit(EXIT_SUCCESS);
@@ -625,6 +621,8 @@ main(int argc, char *argv[])
 				line[pos++] = c;
 				continue;
 			}
+			line[pos++] = '\0';
+			
 			if (!insecure) {
 				if (strncmp(line, "https", 5))
 					break;
@@ -633,7 +631,6 @@ main(int argc, char *argv[])
 				num = pos = 0;
 				continue;
 			}
-			line[pos++] = '\0';
 
 			pos += tag_len - 1;
 
@@ -836,7 +833,7 @@ main(int argc, char *argv[])
 				break;
 		}
 		
-		/* return exit value of ftp() */
+		/* return value of ftp() */
 		if (ke.data == 0) {
 			gettimeofday(&tv_end, NULL);
 
@@ -848,7 +845,7 @@ main(int argc, char *argv[])
 			if (array[c]->diff == 0)
 				array[c]->diff = dt;
 
-			if (array[c]->diff > S) 
+			if (array[c]->diff > S)
 				array[c]->diff = S;
 			if (verbose >= 2) {
 				if (array[c]->diff == s) {
@@ -856,7 +853,7 @@ main(int argc, char *argv[])
 						printf("Timeout\n");
 				} else
 					printf("%f\n", array[c]->diff);
-			} else if (verbose <= 0 && S > array[c]->diff) {
+			} else if (verbose <= 0 && array[c]->diff < S) {
 				S = array[c]->diff;
 				timeout.tv_sec = (time_t) S;
 				timeout.tv_nsec =
