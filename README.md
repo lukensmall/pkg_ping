@@ -16,12 +16,11 @@ It uses several commandline options:
 
 -h will print the "help" options.
 
--O will override searching for snapshot and search for release. It will override searching for release mirrors and search for 
-snapshot if it is a release.
+-O will override and search for release mirrors if it a snapshot. It will search for snapshot mirrors if it is a release.
 
 -s will accept floating-point timeout like 1.5 seconds using strtod() and handrolled validation, eg. "-s 1.5", default 5.
 
--S (“Secure only”) option will only choose https mirrors. Otherwise, http and ftp mirrors will also be chosen. The ftp mirrors
+-S (“Secure only”) option will only choose https mirrors. Otherwise, http and ftp mirrors will be chosen. The ftp mirrors
    are turned into http mirror listings and deduplicated. http/ftp mirrors are faster than most https mirror selections, however 
    they pass over the internet without encryption. Integrity is still preserved by not using -S, but it will not provide
    secrecy.
