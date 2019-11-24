@@ -108,6 +108,12 @@ label_cmp(const void *a, const void *b)
 	return strcmp((*one)->label, (*two)->label);
 }
 
+static int
+label_rev_cmp(const void *a, const void *b)
+{
+	return label_cmp(b, a);
+}
+
 
 static void
 manpage(char a[])
@@ -904,12 +910,12 @@ main(int argc, char *argv[])
 		
 		if (ts != -1) {
 			qsort(array + ts, 1 + te - ts, 
-			    sizeof(struct mirror_st *), label_cmp);
+			    sizeof(struct mirror_st *), label_rev_cmp);
 		}
 		
 		if (ds != -1) {
 			qsort(array + ds, 1 + de - ds,
-			    sizeof(struct mirror_st *), label_cmp);
+			    sizeof(struct mirror_st *), label_rev_cmp);
 		}
 		
 		c = array_length - 1;
@@ -983,6 +989,7 @@ main(int argc, char *argv[])
 		
 		/* sends the fastest mirror to the 'write' process */
 		printf("%s\n", array[0]->ftp_file);
+		fflush(stdout);
 
 		waitpid(write_pid, &i, 0);
 
