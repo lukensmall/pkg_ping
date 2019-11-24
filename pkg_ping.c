@@ -201,13 +201,11 @@ main(int argc, char *argv[])
 	while ((c = getopt(argc, argv, "fhOSs:uvV")) != -1) {
 		switch (c) {
 		case 'f':
-			if (f == 1) {
-				if (pledge("stdio proc exec", NULL) == -1) {
-					err(EXIT_FAILURE,
-					    "pledge line: %d", __LINE__);
-				}
-				f = 0;
-			}
+			if (f == 0)
+				break;
+			if (pledge("stdio proc exec", NULL) == -1)
+				err(EXIT_FAILURE, "pledge line: %d", __LINE__);
+			f = 0;
 			break;
 		case 'h':
 			manpage(argv[0]);
@@ -373,6 +371,7 @@ main(int argc, char *argv[])
 			tag2 = malloc(300 + 1);
 			if (tag2 == NULL) {
 				printf("malloc line: %d\n", __LINE__);
+				fclose(input);
 				_exit(EXIT_FAILURE);
 			}
 				
@@ -386,6 +385,7 @@ main(int argc, char *argv[])
 					
 					printf("/etc/installurl");
 					printf(" not written.\n");
+					fclose(input);
 					_exit(EXIT_FAILURE);
 				}
 
@@ -409,7 +409,7 @@ main(int argc, char *argv[])
 				_exit(EXIT_FAILURE);
 			}
 			
-			if (pkg_write != NULL && c == '\n') {
+			if (pkg_write != NULL) {
 				fwrite(tag2, i, sizeof(char), pkg_write);
 				fclose(pkg_write);
 				if (verbose >= 0)
@@ -417,7 +417,7 @@ main(int argc, char *argv[])
 				_exit(EXIT_SUCCESS);
 			}
 			
-			printf("/etc/installurl not written.\n");
+			printf("/etc/installurl truncated. Run again.\n");
 			_exit(EXIT_FAILURE);
 		}
 		if (write_pid == -1)
@@ -882,11 +882,11 @@ main(int argc, char *argv[])
 
 	if (verbose >= 1) {
 		
-		int ts = -1, te = -1,   ds = -1, de = -1,   ss = -1;
+		int ts = -1, te = -1,   ds = -1, de = -1,   se = -1;
 		
 		for (c = array_length - 1; c >= 0; --c) {
 			if (array[c]->diff < s) {
-				ss = 0;
+				se = c;
 				break;
 			}
 			else if (array[c]->diff == s) {
@@ -914,9 +914,9 @@ main(int argc, char *argv[])
 		
 		c = array_length - 1;
 		
-		if (array[c]->diff < s)
+		if (se == c)
 			printf("\n\nSUCCESSFUL MIRRORS:\n\n\n");
-		else if (array[c]->diff == s)
+		else if (te == c)
 			printf("\n\nTIMEOUT MIRRORS:\n\n\n");
 		else
 			printf("\n\nDOWNLOAD ERROR MIRRORS:\n\n\n");
@@ -937,14 +937,14 @@ main(int argc, char *argv[])
 			else if (array[c]->diff == s) {
 				//~ printf(" Timeout");
 				printf("\n\n");
-				if (c == ts && ss != -1)
+				if (c == ts && se != -1)
 					printf("\nSUCCESSFUL MIRRORS:\n\n\n");
 			} else {
 				//~ printf(" Download Error");
 				printf("\n\n");
 				if (c == ds && ts != -1)
 					printf("\nTIMEOUT MIRRORS:\n\n\n");
-				else if (c == ds && ss != -1)
+				else if (c == ds && se != -1)
 					printf("\nSUCCESSFUL MIRRORS:\n\n\n");
 			}
 			    
@@ -974,6 +974,7 @@ main(int argc, char *argv[])
 			return EXIT_FAILURE;
 		}
 		
+		/* remove superfluous dynamic array memory before writing */
 		for (c = 1; c < array_length; ++c) {
 			free(array[c]->ftp_file);
 			free(array[c]->label);
