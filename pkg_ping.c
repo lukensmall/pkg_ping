@@ -107,11 +107,20 @@ label_cmp(const void *a, const void *b)
 	}
 	return strcmp((*one)->label, (*two)->label);
 }
-
 static int
 label_rev_cmp(const void *a, const void *b)
 {
-	return label_cmp(b, a);
+	struct mirror_st **one = (struct mirror_st **) a;
+	struct mirror_st **two = (struct mirror_st **) b;
+
+	/* list the USA mirrors first, and will reverse subsort */
+	int8_t temp = !strncmp("USA", (*one)->label, 3);
+	if (temp != !strncmp("USA", (*two)->label, 3)) {
+		if (temp)
+			return -1;
+		return 1;
+	}
+	return strcmp((*two)->label, (*one)->label);
 }
 
 
@@ -151,7 +160,6 @@ main(int argc, char *argv[])
 	pid_t ftp_pid, sed_pid, write_pid;
 	int kq, i, pos, c, n, array_max, array_length, tag_len;
 	int parent_to_write[2], ftp_to_sed[2], sed_to_parent[2], block_pipe[2];
-	char *tag, *tag2;
 	FILE *input, *pkg_write;
 	struct mirror_st **array;
 	struct kevent ke;
@@ -166,19 +174,15 @@ main(int argc, char *argv[])
 
 	if (f) {
 
-		if (unveil("/etc/installurl", "crw") == -1)
+		if (unveil("/etc/installurl", "cw") == -1)
 			err(EXIT_FAILURE, "unveil line: %d", __LINE__);
 
-		if (pledge("stdio proc exec cpath rpath wpath", NULL) == -1)
+		if (pledge("stdio proc exec cpath wpath", NULL) == -1)
 			err(EXIT_FAILURE, "pledge line: %d", __LINE__);
 	} else if (pledge("stdio proc exec", NULL) == -1)
 		err(EXIT_FAILURE, "pledge line: %d", __LINE__);
 
-	array_max = 100;
-
-	array = calloc(array_max, sizeof(struct mirror_st *));
-	if (array == NULL) err(EXIT_FAILURE, "calloc line: %d", __LINE__);
-
+	
 	s = 5;
 	u = 0;
 	verbose = 0;
@@ -273,7 +277,6 @@ main(int argc, char *argv[])
 		errx(EXIT_FAILURE, "non-option ARGV-element: %s", argv[optind]);
 	}
 
-	
 
 	if (verbose > 1) {
 		if (current == 1) {
@@ -283,6 +286,7 @@ main(int argc, char *argv[])
 				printf("This is a snapshot, ");
 				printf("but it has been overridden ");
 				printf("to show release mirrors!\n\n");
+				current = 0;
 			}
 		} else {
 			if (override == 0)
@@ -291,43 +295,11 @@ main(int argc, char *argv[])
 				printf("This is a release, ");
 				printf("but it has been overridden ");
 				printf("to show snapshot mirrors!\n\n");
+				current = 1;
 			}
 		}
 	}
-	
-	if (override)
-		current = !current;
-	
 
-	struct utsname *name = malloc(sizeof(struct utsname));
-	if (name == NULL) err(EXIT_FAILURE, "malloc line: %d", __LINE__);
-	if (uname(name) == -1) err(EXIT_FAILURE, "uname line: %d", __LINE__);
-	
-	char release[4 + 1];
-	strlcpy(release, name->release, 4 + 1);
-
-	if (current == 0) {
-		tag_len = strlen("/") + strlen(release) + strlen("/") +
-		    strlen(name->machine) + strlen("/SHA256");
-	} else {
-		tag_len = strlen("/") + strlen("snapshots") + strlen("/") +
-		    strlen(name->machine) + strlen("/SHA256");
-	}
-
-	tag = calloc(tag_len - 1 + 1, sizeof(char));
-	if (tag == NULL)
-		err(EXIT_FAILURE, "calloc line: %d", __LINE__);
-
-	if (current == 0)
-		strlcpy(tag, release, tag_len);
-	else
-		strlcpy(tag, "snapshots", tag_len);
-
-	strlcat(tag, "/", tag_len);
-	strlcat(tag, name->machine, tag_len);
-	strlcat(tag, "/SHA256", tag_len);
-
-	free(name);
 
 	if (f) {
 		
@@ -336,8 +308,10 @@ main(int argc, char *argv[])
 
 		write_pid = fork();
 		if (write_pid == (pid_t) 0) {
-
-			if (pledge("stdio cpath rpath wpath", NULL) == -1) {
+			
+			char *tag_w;
+			
+			if (pledge("stdio cpath wpath", NULL) == -1) {
 				printf("pledge line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
@@ -353,77 +327,67 @@ main(int argc, char *argv[])
 			EV_SET(&ke, parent_to_write[STDIN_FILENO], EVFILT_READ,
 				EV_ADD | EV_ONESHOT, 0, 0, NULL);
 			if (kevent(kq, &ke, 1, &ke, 1, NULL) == -1) {
-				printf("parent_to_write ");
-				printf("kevent register fail.\n");
+				printf("write_pid kevent register fail");
+				printf(" line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
 			close(kq);
 			
-			/* no data sent through pipe before pipe closure */
+			/* parent exited before sending data */
 			if (ke.data == 0) {
 				printf("/etc/installurl not written.\n");
 				_exit(EXIT_FAILURE);
 			}
 			
-			input = fdopen(parent_to_write[STDIN_FILENO], "r");
-			if (input == NULL) {
-				printf("input = fdopen ");
-				printf("(parent_to_write[STDIN");
-				printf("_FILENO], \"r\") line %d\n", __LINE__);
+			if (dup2(parent_to_write[STDIN_FILENO],
+			    STDIN_FILENO) == -1) {
+				printf("write_pid dup2 line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
 			
-			/* provide an extra space to ALWAYS null terminate */
-			tag2 = malloc(300 + 1);
-			if (tag2 == NULL) {
+			tag_w = malloc(300 + 1);
+			if (tag_w == NULL) {
 				printf("malloc line: %d\n", __LINE__);
-				fclose(input);
 				_exit(EXIT_FAILURE);
 			}
 				
 			i = 0;
 			if (verbose >= 1)
 				printf("\n");
-			while ((c = getc(input)) != EOF) {
+			while ((c = getchar()) != EOF) {
 				if (i >= 300) {
 					printf("\nmirror length ");
 					printf("became too long.\n");
 					
 					printf("/etc/installurl");
 					printf(" not written.\n");
-					fclose(input);
 					_exit(EXIT_FAILURE);
 				}
 
-				tag2[i++] = c;
+				tag_w[i++] = c;
 				if (c == '\n')
 					break;
 			}
-			fclose(input);
-			tag2[i] = '\0';
+			tag_w[i] = '\0';			
 			
-			tag2 = realloc(tag2, i + 1);
-			if (tag2 == NULL) {
-				printf("realloc line: %d", __LINE__);
-				_exit(EXIT_FAILURE);
-			}
-
+			/* fopen(... "w") truncates the file */
 			pkg_write = fopen("/etc/installurl", "w");
 
 			if (pledge("stdio", NULL) == -1) {
+				printf("/etc/installurl truncated.\n");
 				printf("pledge line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
 			
 			if (pkg_write != NULL) {
-				fwrite(tag2, i, sizeof(char), pkg_write);
+				fwrite(tag_w, sizeof(char), i, pkg_write);
 				fclose(pkg_write);
 				if (verbose >= 0)
-					printf("/etc/installurl: %s", tag2);
+					printf("/etc/installurl: %s", tag_w);
 				_exit(EXIT_SUCCESS);
 			}
 			
-			printf("/etc/installurl truncated. Run again.\n");
+			printf("/etc/installurl truncated.\n");
 			_exit(EXIT_FAILURE);
 		}
 		if (write_pid == -1)
@@ -436,13 +400,6 @@ main(int argc, char *argv[])
 	}
 
 
-	timeout.tv_sec = (time_t) s;
-	timeout.tv_nsec =
-	    (long) ((s - (double) timeout.tv_sec) * 1000000000.0);
-
-	kq = kqueue();
-	if (kq == -1)
-		err(EXIT_FAILURE, "kq! line: %d", __LINE__);
 
 
 	if (pipe(ftp_to_sed) == -1)
@@ -495,7 +452,7 @@ main(int argc, char *argv[])
 	if (sed_pid == (pid_t) 0) {
 
 		if (pledge("stdio exec", NULL) == -1) {
-			printf("sed pledge 2 line: %d\n", __LINE__);
+			printf("sed pledge 1 line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 		close(sed_to_parent[STDIN_FILENO]);
@@ -514,10 +471,10 @@ main(int argc, char *argv[])
 		    "-e", "s:^\\(\t[hfr].*\\):\\1:p", NULL);
 
 		if (pledge("stdio", NULL) == -1) {
-			fprintf(stderr, "sed pledge 3 line: %d\n", __LINE__);
+			fprintf(stderr, "sed pledge 2 line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
-		fprintf(stderr, "sed execl() line: %d\n", __LINE__);
+		fprintf(stderr, "sed execl line: %d\n", __LINE__);
 		_exit(EXIT_FAILURE);
 	}
 	if (sed_pid == -1) {
@@ -530,22 +487,88 @@ main(int argc, char *argv[])
 	close(ftp_to_sed[STDIN_FILENO]);
 	close(sed_to_parent[STDOUT_FILENO]);
 
+
+	struct utsname *name = malloc(sizeof(struct utsname));
+	if (name == NULL) {
+		kill(ftp_pid, SIGKILL);
+		kill(sed_pid, SIGKILL);
+		errno = ENOMEM;
+		err(EXIT_FAILURE, "malloc line: %d", __LINE__);
+	}
+	
+	if (uname(name) == -1) {
+		n = errno;
+		kill(ftp_pid, SIGKILL);
+		kill(sed_pid, SIGKILL);
+		errno = n;
+		err(EXIT_FAILURE, "uname line: %d", __LINE__);
+	}
+	
+	char *release = malloc(4 + 1);
+	if (release == NULL) {
+		kill(ftp_pid, SIGKILL);
+		kill(sed_pid, SIGKILL);
+		errno = ENOMEM;
+		err(EXIT_FAILURE, "malloc line: %d", __LINE__);
+	}
+	strlcpy(release, name->release, 4 + 1);
+
+	if (current == 0) {
+		tag_len = strlen("/") + strlen(release) + strlen("/") +
+		    strlen(name->machine) + strlen("/SHA256");
+	} else {
+		tag_len = strlen("/") + strlen("snapshots") + strlen("/") +
+		    strlen(name->machine) + strlen("/SHA256");
+	}
+
+	char *tag = calloc(tag_len + 1, sizeof(char));
+	if (tag == NULL) {
+		kill(ftp_pid, SIGKILL);
+		kill(sed_pid, SIGKILL);
+		errno = ENOMEM;
+		err(EXIT_FAILURE, "calloc line: %d", __LINE__);
+	}
+
+	n = strlcpy(tag, "/", tag_len + 1);	
+
+	if (current == 0)
+		n += strlcpy(tag + n, release, tag_len + 1 - n);
+	else
+		n += strlcpy(tag + n, "snapshots", tag_len + 1 - n);
+
+	n += strlcpy(tag + n, "/", tag_len + 1 - n);
+	n += strlcpy(tag + n, name->machine, tag_len + 1 - n);
+	n += strlcpy(tag + n, "/SHA256", tag_len + 1 - n);
+
+	free(name);
+
+
+
+	kq = kqueue();
+	if (kq == -1) {
+		n = errno;
+		kill(ftp_pid, SIGKILL);
+		kill(sed_pid, SIGKILL);
+		errno = n;
+		err(EXIT_FAILURE, "kq! line: %d", __LINE__);
+	}
+
 	EV_SET(&ke, sed_to_parent[STDIN_FILENO], EVFILT_READ,
 	    EV_ADD | EV_ONESHOT, 0, 0, NULL);
 	i = kevent(kq, &ke, 1, &ke, 1, &timeout0);
 	if (i == -1) {
+		n = errno;
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
-		printf("kevent, timeout0 ");
-		printf("may be too large. line: %d\n", __LINE__);
-		return 1;
+		errno = n;
+		err(EXIT_FAILURE,
+		    "kevent, timeout0 may be too large. line: %d\n", __LINE__);
 	}
 	if (i == 0) {
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
-		printf("timed out fetching: ");
-		printf("https://www.openbsd.org/ftp.html\n");
-		return EXIT_FAILURE;
+		errx(EXIT_FAILURE,
+		    "timed out fetching: https://www.openbsd.org/ftp.html\n");
 	}
 	input = fdopen(sed_to_parent[STDIN_FILENO], "r");
 	if (input == NULL) {
@@ -556,20 +579,37 @@ main(int argc, char *argv[])
 		err(EXIT_FAILURE,
 		    "fdopen(sed_to_parent[STDIN_FILENO]...) line %d", __LINE__);
 	}
+
 	/* if the index for line[] exceeds 299, it will error out */
 	char *line = calloc(300, sizeof(char));
-	if (line == NULL) err(EXIT_FAILURE, "calloc line: %d", __LINE__);
+	if (line == NULL) {
+		kill(ftp_pid, SIGKILL);
+		kill(sed_pid, SIGKILL);
+		errno = ENOMEM;
+		err(EXIT_FAILURE, "calloc line: %d", __LINE__);
+	}	
+
+	array_max = 100;
+	array = calloc(array_max, sizeof(struct mirror_st *));
+	if (array == NULL) {
+		kill(ftp_pid, SIGKILL);
+		kill(sed_pid, SIGKILL);
+		errno = ENOMEM;
+		err(EXIT_FAILURE, "calloc line: %d", __LINE__);
+	}
 
 
 	num = pos = array_length = 0;
 	array[0] = malloc(sizeof(struct mirror_st));
 	if (array[0] == NULL) {
-		n = errno;
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
-		errno = n;
+		errno = ENOMEM;
 		err(EXIT_FAILURE, "malloc line: %d", __LINE__);
 	}
+
+	int pos_max = 0;
+	
 	while ((c = getc(input)) != EOF) {
 		if (pos >= 300) {
 			kill(ftp_pid, SIGKILL);
@@ -595,13 +635,11 @@ main(int argc, char *argv[])
 					continue;
 				}
 			}
-			array[array_length]->label = 
-			    malloc(pos);
+			array[array_length]->label = malloc(pos);
 			if (array[array_length]->label == NULL) {
-				n = errno;
 				kill(ftp_pid, SIGKILL);
 				kill(sed_pid, SIGKILL);
-				errno = n;
+				errno = ENOMEM;
 				err(EXIT_FAILURE,
 				    "malloc line: %d", __LINE__);
 			}
@@ -627,8 +665,19 @@ main(int argc, char *argv[])
 				line[pos++] = c;
 				continue;
 			}
-			line[pos++] = '\0';
-			
+
+			if (pos == 0) {
+				kill (ftp_pid, SIGKILL);
+				kill(sed_pid, SIGKILL);
+				errx(EXIT_FAILURE,
+				    "pos == 0, line: %d", __LINE__);
+			}
+
+			line[pos - 1] = '\0';
+
+			if (pos_max < pos)
+				pos_max = pos;
+
 			if (!insecure) {
 				if (strncmp(line, "https", 5))
 					break;
@@ -637,22 +686,19 @@ main(int argc, char *argv[])
 				num = pos = 0;
 				continue;
 			}
-
-			pos += tag_len - 1;
+			
 
 			array[array_length]->ftp_file = malloc(pos);
 			    
 			if (array[array_length]->ftp_file == NULL) {
-				n = errno;
 				kill(ftp_pid, SIGKILL);
 				kill(sed_pid, SIGKILL);
-				errno = n;
+				errno = ENOMEM;
 				err(EXIT_FAILURE,
 				    "malloc line: %d", __LINE__);
 			}
 			
 			strlcpy(array[array_length]->ftp_file, line, pos);
-			strlcat(array[array_length]->ftp_file, tag, pos);
 
 			if (++array_length >= array_max) {
 				array_max += 20;
@@ -660,10 +706,9 @@ main(int argc, char *argv[])
 				    sizeof(struct mirror_st *));
 
 				if (array == NULL) {
-					n = errno;
 					kill(ftp_pid, SIGKILL);
 					kill(sed_pid, SIGKILL);
-					errno = n;
+					errno = ENOMEM;
 					err(EXIT_FAILURE,
 					    "reallocarray line: %d", __LINE__);
 				}
@@ -675,15 +720,17 @@ main(int argc, char *argv[])
 				kill(ftp_pid, SIGKILL);
 				kill(sed_pid, SIGKILL);
 				errno = n;
-				err(EXIT_FAILURE,
-				    "malloc line: %d", __LINE__);
+				err(EXIT_FAILURE, "malloc line: %d", __LINE__);
 			}
 			pos = num = 0;
 		}
 	}
 	fclose(input);
-	free(tag);
 	free(line);
+
+	pos_max += tag_len;
+	line = malloc(pos_max);
+	if (line == NULL) err(EXIT_FAILURE, "malloc line: %d", __LINE__);
 
 	close(sed_to_parent[STDIN_FILENO]);
 
@@ -725,16 +772,24 @@ main(int argc, char *argv[])
 	
 	S = s;
 
+	timeout.tv_sec = (time_t) s;
+	timeout.tv_nsec =
+	    (long) ((s - (double) timeout.tv_sec) * 1000000000.0);
+
 	for (c = 0; c < array_length; ++c) {
+
+		n = strlcpy(line, array[c]->ftp_file, pos_max);
+		strlcpy(line + n, tag, pos_max - n);
+
 		if (verbose >= 2) {
 			if (verbose == 3)
 				printf("\n");
 			if (array_length >= 100) {
 				printf("\n%3d : %s  :  %s\n", array_length - c,
-				    array[c]->label, array[c]->ftp_file);
+				    array[c]->label, line);
 			} else {
 				printf("\n%2d : %s  :  %s\n", array_length - c,
-				    array[c]->label, array[c]->ftp_file);
+				    array[c]->label, line);
 			}
 		} else if (verbose >= 0) {
 			i = array_length - c;
@@ -768,13 +823,13 @@ main(int argc, char *argv[])
 
 			if (verbose == 3) {
 				execl("/usr/bin/ftp", "ftp", "-vmo",
-				    "/dev/null", array[c]->ftp_file, NULL);
+				    "/dev/null", line, NULL);
 			} else {
 				i = open("/dev/null", O_WRONLY);
 				if (i != -1)
 					dup2(i, STDERR_FILENO);
 				execl("/usr/bin/ftp", "ftp", "-VMo",
-				    "/dev/null", array[c]->ftp_file, NULL);
+				    "/dev/null", line, NULL);
 			}
 
 			if (pledge("stdio", NULL) == -1) {
@@ -804,79 +859,66 @@ main(int argc, char *argv[])
 		close(block_pipe[STDOUT_FILENO]);
 
 
-		/* While we're waiting... */
-		array[c]->diff = 0;
-		n = strlen(array[c]->ftp_file) - tag_len;
-		array[c]->ftp_file[n] = '\0';
-		array[c]->ftp_file = realloc(array[c]->ftp_file, n + 1);
-		if (array[c]->ftp_file == NULL) {
+		i = kevent(kq, NULL, 0, &ke, 1, &timeout);
+		if (i == -1) {
 			n = errno;
 			kill(ftp_pid, SIGKILL);
 			errno = n;
-			err(EXIT_FAILURE, "realloc line: %d", __LINE__);
-		}
-
-
-		n = 0;
-
-		/* Loop until ftp() is dead and 'ke' is populated */
-		for (;;) {
-			i = kevent(kq, NULL, 0, &ke, 1, &timeout);
-			if (i == -1) {
-				n = errno;
-				kill(ftp_pid, SIGKILL);
-				errno = n;
-				err(EXIT_FAILURE, "kevent line: %d", __LINE__);
-			}
-			if (i == 0) {
-				if (verbose >= 2) {
-					n = 1;
-					printf("Timeout\n");
-				}
-				kill(ftp_pid, SIGKILL);
-				array[c]->diff = s;
-			} else
-				break;
+			err(EXIT_FAILURE, "kevent line: %d", __LINE__);
 		}
 		
-		/* return value of ftp() */
-		if (ke.data == 0) {
-			gettimeofday(&tv_end, NULL);
-
-			double dt =
-			    (double)(tv_end.tv_sec - tv_start.tv_sec) +
-			    (double)(tv_end.tv_usec - tv_start.tv_usec) /
-			    1000000.0;
-
-			if (array[c]->diff == 0)
-				array[c]->diff = dt;
-
-			if (array[c]->diff > S)
-				array[c]->diff = S;
-			if (verbose >= 2) {
-				if (array[c]->diff == s) {
-					if (n == 0)
-						printf("Timeout\n");
-				} else
-					printf("%f\n", array[c]->diff);
-			} else if (verbose <= 0 && array[c]->diff < S) {
-				S = array[c]->diff;
-				timeout.tv_sec = (time_t) S;
-				timeout.tv_nsec =
-				    (long) ((S - (double) timeout.tv_sec)
-				    * 1000000000.0);
-			}
-		} else if (array[c]->diff == 0) {
+		/* timeout occured before ftp() exit received */
+		if (i == 0) {
+			kill(ftp_pid, SIGKILL);
+			
+			/* reap event */
+			if (kevent(kq, NULL, 0, &ke, 1, NULL) == -1)
+				err(EXIT_FAILURE, "kevent line: %d", __LINE__);
+			waitpid(ftp_pid, NULL, 0);
+			if (verbose >= 2)
+				printf("Timeout\n");
+			array[c]->diff = s;
+			continue;
+		}
+		
+		waitpid(ftp_pid, &n, 0);
+		
+		if (n != 0) {
 			array[c]->diff = s + 1;
 			if (verbose >= 2)
 				printf("Download Error\n");
+			continue;
 		}
-		waitpid(ftp_pid, NULL, 0);
+
+		gettimeofday(&tv_end, NULL);
+
+		array[c]->diff =
+		    (double)(tv_end.tv_sec - tv_start.tv_sec) +
+		    (double)(tv_end.tv_usec - tv_start.tv_usec) /
+		    1000000.0;
+			
+		if (verbose >= 2) {
+			if (array[c]->diff >= s) {
+				array[c]->diff = s;
+				printf("Timeout\n");
+			} else
+				printf("%f\n", array[c]->diff);
+		} else if (verbose <= 0 && array[c]->diff < S) {
+			S = array[c]->diff;
+			timeout.tv_sec = (time_t) S;
+			timeout.tv_nsec =
+			    (long) ((S - (double) timeout.tv_sec)
+			    * 1000000000.0);
+		} else if (array[c]->diff > s)
+			array[c]->diff = s;
 	}
+
 
 	if (pledge("stdio", NULL) == -1)
 		err(EXIT_FAILURE, "pledge line: %d", __LINE__);
-		
+
+	free(line);
+	free(tag);		
 	close(kq);
 
 	if (verbose == 0 || verbose == 1) {
@@ -908,12 +950,12 @@ main(int argc, char *argv[])
 			}
 		}
 		
-		if (ts != -1) {
+		if (te > ts) {
 			qsort(array + ts, 1 + te - ts, 
 			    sizeof(struct mirror_st *), label_rev_cmp);
 		}
 		
-		if (ds != -1) {
+		if (de > ds) {
 			qsort(array + ds, 1 + de - ds,
 			    sizeof(struct mirror_st *), label_rev_cmp);
 		}
@@ -953,14 +995,12 @@ main(int argc, char *argv[])
 				else if (c == ds && se != -1)
 					printf("\nSUCCESSFUL MIRRORS:\n\n\n");
 			}
-			    
 		}
 	}
 
 	if (array[0]->diff >= s) {
-		if (current == 0) {
-			printf("\n\n");
-			printf("No mirrors. It doesn't appear that the ");
+		if (current == 0 && override == 1) {
+			printf("\n\nNo mirrors. It doesn't appear that the ");
 			printf("%s release is present yet.\n", release);
 			return EXIT_FAILURE;
 		} else
@@ -987,7 +1027,7 @@ main(int argc, char *argv[])
 			free(array[c]);
 		}
 		
-		/* sends the fastest mirror to the 'write' process */
+		/* sends the fastest mirror to write_pid process */
 		printf("%s\n", array[0]->ftp_file);
 		fflush(stdout);
 
@@ -996,14 +1036,7 @@ main(int argc, char *argv[])
 		return i;
 	}
 	
-	if (verbose < 0)
-		return EXIT_SUCCESS;
-	
-	if (getuid() == 0) {
-		printf("If you are still root, type:\n");
-		printf("echo \"%s\" > /etc/installurl\n",
-		    array[0]->ftp_file);
-	} else {
+	if (verbose >= 0) {
 		printf("As root, type:\necho \"%s\" > /etc/installurl\n",
 		    array[0]->ftp_file);
 	}
