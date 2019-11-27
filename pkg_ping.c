@@ -123,7 +123,6 @@ label_rev_cmp(const void *a, const void *b)
 	return strcmp((*two)->label, (*one)->label);
 }
 
-
 static void
 manpage(char a[])
 {
@@ -281,7 +280,7 @@ main(int argc, char *argv[])
 	if (verbose > 1) {
 		if (current == 1) {
 			if (override == 0)
-				printf("This is a snapshot!\n\n");
+				printf("This is a snapshot.\n\n");
 			else {
 				printf("This is a snapshot, ");
 				printf("but it has been overridden ");
@@ -380,8 +379,12 @@ main(int argc, char *argv[])
 			}
 			
 			if (pkg_write != NULL) {
-				fwrite(tag_w, sizeof(char), i, pkg_write);
+				n = fwrite(tag_w, sizeof(char), i, pkg_write);
 				fclose(pkg_write);
+				if (n < i && verbose >= 0)
+					printf("write error occurred.\n");
+				if (n < i)
+					_exit(EXIT_FAILURE);
 				if (verbose >= 0)
 					printf("/etc/installurl: %s", tag_w);
 				_exit(EXIT_SUCCESS);
@@ -521,24 +524,24 @@ main(int argc, char *argv[])
 		    strlen(name->machine) + strlen("/SHA256");
 	}
 
-	char *tag = calloc(tag_len + 1, sizeof(char));
+	char *tag = malloc(tag_len + 1);
 	if (tag == NULL) {
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
 		errno = ENOMEM;
-		err(EXIT_FAILURE, "calloc line: %d", __LINE__);
+		err(EXIT_FAILURE, "malloc line: %d", __LINE__);
 	}
 
-	n = strlcpy(tag, "/", tag_len + 1);	
+	strlcpy(tag,           "/", tag_len + 1);	
 
 	if (current == 0)
-		n += strlcpy(tag + n, release, tag_len + 1 - n);
+		strlcat(tag,     release, tag_len + 1);
 	else
-		n += strlcpy(tag + n, "snapshots", tag_len + 1 - n);
+		strlcat(tag, "snapshots", tag_len + 1);
 
-	n += strlcpy(tag + n, "/", tag_len + 1 - n);
-	n += strlcpy(tag + n, name->machine, tag_len + 1 - n);
-	n += strlcpy(tag + n, "/SHA256", tag_len + 1 - n);
+	strlcat(tag,           "/", tag_len + 1);
+	strlcat(tag, name->machine, tag_len + 1);
+	strlcat(tag,     "/SHA256", tag_len + 1);
 
 	free(name);
 
@@ -581,12 +584,12 @@ main(int argc, char *argv[])
 	}
 
 	/* if the index for line[] exceeds 299, it will error out */
-	char *line = calloc(300, sizeof(char));
+	char *line = malloc(300);
 	if (line == NULL) {
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
 		errno = ENOMEM;
-		err(EXIT_FAILURE, "calloc line: %d", __LINE__);
+		err(EXIT_FAILURE, "malloc line: %d", __LINE__);
 	}	
 
 	array_max = 100;
@@ -1014,7 +1017,7 @@ main(int argc, char *argv[])
 			if (verbose < 0)
 				return EXIT_FAILURE;
 			
-			printf("Since this process is root, type:\n");
+			printf("As root, type:\n");
 			printf("echo \"%s\" > /etc/installurl\n",
 			    array[0]->ftp_file);
 			return EXIT_FAILURE;
