@@ -91,7 +91,6 @@ ftp_cmp(const void *a, const void *b)
 	return strcmp((*one)->ftp_file, (*two)->ftp_file);
 }
 
-
 static int
 label_cmp(const void *a, const void *b)
 {
@@ -107,6 +106,7 @@ label_cmp(const void *a, const void *b)
 	}
 	return strcmp((*one)->label, (*two)->label);
 }
+
 static int
 label_rev_cmp(const void *a, const void *b)
 {
