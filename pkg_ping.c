@@ -675,7 +675,8 @@ main(int argc, char *argv[])
 				errx(EXIT_FAILURE,
 				    "pos == 0, line: %d", __LINE__);
 			}
-
+			
+			/* excise the final unnecessary '/' in line[] */
 			line[pos - 1] = '\0';
 
 			if (pos_max < pos)
@@ -1032,6 +1033,8 @@ main(int argc, char *argv[])
 		
 		/* sends the fastest mirror to write_pid process */
 		printf("%s\n", array[0]->ftp_file);
+		
+		/* needed for verbose == -1 */
 		fflush(stdout);
 
 		waitpid(write_pid, &i, 0);
