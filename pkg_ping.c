@@ -667,14 +667,8 @@ main(int argc, char *argv[])
 				line[pos++] = c;
 				continue;
 			}
-
-			if (pos == 0) {
-				kill (ftp_pid, SIGKILL);
-				kill(sed_pid, SIGKILL);
-				errx(EXIT_FAILURE,
-				    "pos == 0, line: %d", __LINE__);
-			}
 			
+			/* pos > 0 to get here */
 			/* excise the final unnecessary '/' in line[] */
 			line[pos - 1] = '\0';
 
