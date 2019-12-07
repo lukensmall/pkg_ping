@@ -45,7 +45,6 @@
 /*
 	indent pkg_ping.c -bap -br -ce -ci4 -cli0 -d0 -di0 -i8 \
 	-ip -l79 -nbc -ncdb -ndj -ei -nfc1 -nlp -npcs -psl -sc -sob
-
 	cc pkg_ping.c -pipe -o pkg_ping
  */
 
@@ -984,9 +983,9 @@ main(int argc, char *argv[])
 			printf("\"%s\" > /etc/installurl",
 			    array[c]->ftp_file);
 
-			if (array[c]->diff < s)
+			if (c <= se)
 				printf(" : %f\n\n", array[c]->diff);
-			else if (array[c]->diff == s) {
+			else if (c <= te) {
 				//~ printf(" Timeout");
 				printf("\n\n");
 				if (c == ts && se != -1)
