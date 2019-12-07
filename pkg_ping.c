@@ -713,10 +713,9 @@ main(int argc, char *argv[])
 			array[array_length] = malloc(sizeof(struct mirror_st));
 
 			if (array[array_length] == NULL) {
-				n = errno;
 				kill(ftp_pid, SIGKILL);
 				kill(sed_pid, SIGKILL);
-				errno = n;
+				errno = ENOMEM;
 				err(EXIT_FAILURE, "malloc line: %d", __LINE__);
 			}
 			pos = num = 0;
