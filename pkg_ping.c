@@ -932,8 +932,7 @@ main(int argc, char *argv[])
 			if (array[c]->diff < s) {
 				se = c;
 				break;
-			}
-			else if (array[c]->diff == s) {
+			} else if (array[c]->diff == s) {
 				if (ts == -1) 
 					ts = te = c;
 				else
