@@ -372,7 +372,6 @@ main(int argc, char *argv[])
 			pkg_write = fopen("/etc/installurl", "w");
 
 			if (pledge("stdio", NULL) == -1) {
-				printf("/etc/installurl truncated.\n");
 				printf("pledge line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
@@ -389,7 +388,7 @@ main(int argc, char *argv[])
 				_exit(EXIT_SUCCESS);
 			}
 			
-			printf("/etc/installurl truncated.\n");
+			printf("/etc/installurl not opened.\n");
 			_exit(EXIT_FAILURE);
 		}
 		if (write_pid == -1)
