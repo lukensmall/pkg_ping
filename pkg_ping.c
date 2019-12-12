@@ -337,9 +337,9 @@ main(int argc, char *argv[])
 				_exit(EXIT_FAILURE);
 			}
 			
-			if (dup2(parent_to_write[STDIN_FILENO],
-			    STDIN_FILENO) == -1) {
-				printf("write_pid dup2 line: %d\n", __LINE__);
+			input = fdopen(parent_to_write[STDIN_FILENO], "r");
+			if (input == NULL) {
+				printf("write_pid fdopen line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
 			
@@ -352,7 +352,7 @@ main(int argc, char *argv[])
 			i = 0;
 			if (verbose >= 1)
 				printf("\n");
-			while ((c = getchar()) != EOF) {
+			while ((c = getc(input)) != EOF) {
 				if (i >= 300) {
 					printf("\nmirror length ");
 					printf("became too long.\n");
@@ -366,6 +366,7 @@ main(int argc, char *argv[])
 				if (c == '\n')
 					break;
 			}
+			fclose(input);
 			tag_w[i] = '\0';			
 			
 			/* fopen(... "w") truncates the file */
@@ -431,10 +432,6 @@ main(int argc, char *argv[])
 			    "https://www.openbsd.org/ftp.html", NULL);
 		}
 
-		if (pledge("stdio", NULL) == -1) {
-			fprintf(stderr, "ftp pledge 2 line: %d\n", __LINE__);
-			_exit(EXIT_FAILURE);
-		}
 		fprintf(stderr, "ftp execl() failed line: %d\n", __LINE__);
 		_exit(EXIT_FAILURE);
 	}
@@ -471,10 +468,6 @@ main(int argc, char *argv[])
 		    "-e", "s:\t<strong>\\([^<]*\\)<.*:\\1:p",
 		    "-e", "s:^\\(\t[hfr].*\\):\\1:p", NULL);
 
-		if (pledge("stdio", NULL) == -1) {
-			fprintf(stderr, "sed pledge 2 line: %d\n", __LINE__);
-			_exit(EXIT_FAILURE);
-		}
 		fprintf(stderr, "sed execl line: %d\n", __LINE__);
 		_exit(EXIT_FAILURE);
 	}
@@ -641,8 +634,7 @@ main(int argc, char *argv[])
 				kill(ftp_pid, SIGKILL);
 				kill(sed_pid, SIGKILL);
 				errno = ENOMEM;
-				err(EXIT_FAILURE,
-				    "malloc line: %d", __LINE__);
+				err(EXIT_FAILURE, "malloc line: %d", __LINE__);
 			}
 			strlcpy(array[array_length]->label, line, pos);
 
@@ -667,8 +659,8 @@ main(int argc, char *argv[])
 				continue;
 			}
 			
-			/* pos > 0 to get here */
-			/* excise the final unnecessary '/' in line[] */
+			/* pos >= 1 to get here */
+			/* excise the final unnecessary '/' */
 			line[pos - 1] = '\0';
 
 			if (pos_max < pos)
@@ -690,8 +682,7 @@ main(int argc, char *argv[])
 				kill(ftp_pid, SIGKILL);
 				kill(sed_pid, SIGKILL);
 				errno = ENOMEM;
-				err(EXIT_FAILURE,
-				    "malloc line: %d", __LINE__);
+				err(EXIT_FAILURE, "malloc line: %d", __LINE__);
 			}
 			
 			strlcpy(array[array_length]->ftp_file, line, pos);
@@ -827,10 +818,6 @@ main(int argc, char *argv[])
 				    "/dev/null", line, NULL);
 			}
 
-			if (pledge("stdio", NULL) == -1) {
-				printf("ftp pledge 4 line: %d\n", __LINE__);
-				_exit(EXIT_FAILURE);
-			}
 			printf("ftp execl() failed line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
