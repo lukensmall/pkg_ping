@@ -287,7 +287,6 @@ main(int argc, char *argv[])
 				printf("This is a snapshot, ");
 				printf("but it has been overridden ");
 				printf("to show release mirrors!\n\n");
-				current = 0;
 			}
 		} else {
 			if (override == 0)
@@ -296,11 +295,12 @@ main(int argc, char *argv[])
 				printf("This is a release, ");
 				printf("but it has been overridden ");
 				printf("to show snapshot mirrors!\n\n");
-				current = 1;
 			}
 		}
 	}
-
+	
+	if (override == 1)
+		current = !current;
 
 	if (f) {
 		
