@@ -991,9 +991,7 @@ main(int argc, char *argv[])
 			errx(EXIT_FAILURE, "No successful mirrors found.");
 	}
 	
-	if (argc == 1)
-		printf("For options, type:\n\t%s -h\n", argv[0]);
-
+	
 	if (f) {		
 		
 		if (dup2(parent_to_write[STDOUT_FILENO], STDOUT_FILENO) == -1) {
