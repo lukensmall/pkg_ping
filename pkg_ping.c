@@ -164,10 +164,13 @@ main(int argc, char *argv[])
 	struct timeval tv_start, tv_end;
 	struct timespec timeout, timeout0 = { 20, 0 };
 	
-	if (unveil("/usr/bin/ftp", "x") == -1)
-		err(EXIT_FAILURE, "unveil line: %d", __LINE__);
+	if (pledge("stdio proc exec cpath wpath unveil", NULL) == -1)
+		err(EXIT_FAILURE, "pledge line: %d", __LINE__);
 
 	if (unveil("/usr/bin/sed", "x") == -1)
+		err(EXIT_FAILURE, "unveil line: %d", __LINE__);
+	
+	if (unveil("/usr/bin/ftp", "x") == -1)
 		err(EXIT_FAILURE, "unveil line: %d", __LINE__);
 
 	if (f) {
@@ -236,8 +239,7 @@ main(int argc, char *argv[])
 					continue;
 
 				if (optarg[c] == '-')
-					errx(EXIT_FAILURE,
-					    "No negative sign.");
+					errx(EXIT_FAILURE, "No negative sign.");
 				errx(EXIT_FAILURE,
 				    "Bad floating point format.");
 			}
@@ -924,7 +926,7 @@ main(int argc, char *argv[])
 				else
 					ts = c;
 			} else {
-				if(ds == -1) 
+				if (ds == -1) 
 					ds = de = c;
 				else
 					ds = c;
@@ -995,8 +997,12 @@ main(int argc, char *argv[])
 			if (verbose < 0)
 				return EXIT_FAILURE;
 			
+			if (argc == 1) {
+				printf("For options, type:\n\t%s", argv[0]);
+				printf(" -h\n");
+			}
 			printf("As root, type:\n");
-			printf("echo \"%s\" > /etc/installurl\n",
+			printf("\techo \"%s\" > /etc/installurl\n",
 			    array[0]->ftp_file);
 			return EXIT_FAILURE;
 		}
@@ -1008,6 +1014,9 @@ main(int argc, char *argv[])
 			free(array[c]);
 		}
 		
+		if (argc == 1)
+			fprintf(stderr, "For options, type:\n\t%s -h\n", argv[0]);
+
 		/* sends the fastest mirror to write_pid process */
 		printf("%s\n", array[0]->ftp_file);
 		
@@ -1019,8 +1028,11 @@ main(int argc, char *argv[])
 		return i;
 	}
 	
+	if (argc == 1)
+		printf("For options, type:\n\t%s -h\n", argv[0]);
+
 	if (verbose >= 0) {
-		printf("As root, type:\necho \"%s\" > /etc/installurl\n",
+		printf("As root, type:\n\techo \"%s\" > /etc/installurl\n",
 		    array[0]->ftp_file);
 	}
 
