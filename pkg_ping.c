@@ -45,6 +45,7 @@
 /*
 	indent pkg_ping.c -bap -br -ce -ci4 -cli0 -d0 -di0 -i8 \
 	-ip -l79 -nbc -ncdb -ndj -ei -nfc1 -nlp -npcs -psl -sc -sob
+	
 	cc pkg_ping.c -pipe -o pkg_ping
  */
 
@@ -990,17 +991,17 @@ main(int argc, char *argv[])
 			errx(EXIT_FAILURE, "No successful mirrors found.");
 	}
 	
-	if (f) {
+	if (argc == 1)
+		printf("For options, type:\n\t%s -h\n", argv[0]);
+
+	if (f) {		
+		
 		if (dup2(parent_to_write[STDOUT_FILENO], STDOUT_FILENO) == -1) {
 			printf("dup2 line: %d\n", __LINE__);
 			
 			if (verbose < 0)
 				return EXIT_FAILURE;
 			
-			if (argc == 1) {
-				printf("For options, type:\n\t%s", argv[0]);
-				printf(" -h\n");
-			}
 			printf("As root, type:\n");
 			printf("\techo \"%s\" > /etc/installurl\n",
 			    array[0]->ftp_file);
@@ -1014,9 +1015,6 @@ main(int argc, char *argv[])
 			free(array[c]);
 		}
 		
-		if (argc == 1)
-			fprintf(stderr, "For options, type:\n\t%s -h\n", argv[0]);
-
 		/* sends the fastest mirror to write_pid process */
 		printf("%s\n", array[0]->ftp_file);
 		
@@ -1027,9 +1025,6 @@ main(int argc, char *argv[])
 
 		return i;
 	}
-	
-	if (argc == 1)
-		printf("For options, type:\n\t%s -h\n", argv[0]);
 
 	if (verbose >= 0) {
 		printf("As root, type:\n\techo \"%s\" > /etc/installurl\n",
