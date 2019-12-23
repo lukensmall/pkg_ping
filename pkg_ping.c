@@ -414,7 +414,7 @@ main(int argc, char *argv[])
 	if (ftp_pid == (pid_t) 0) {
 
 		if (pledge("stdio exec", NULL) == -1) {
-			printf("ftp pledge 1 line: %d\n", __LINE__);
+			printf("ftp 1 pledge line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 		
@@ -435,7 +435,7 @@ main(int argc, char *argv[])
 			    "https://www.openbsd.org/ftp.html", NULL);
 		}
 
-		fprintf(stderr, "ftp execl() failed line: %d\n", __LINE__);
+		fprintf(stderr, "ftp 1 execl() failed line: %d\n", __LINE__);
 		_exit(EXIT_FAILURE);
 	}
 	if (ftp_pid == -1)
@@ -453,7 +453,7 @@ main(int argc, char *argv[])
 	if (sed_pid == (pid_t) 0) {
 
 		if (pledge("stdio exec", NULL) == -1) {
-			printf("sed pledge 1 line: %d\n", __LINE__);
+			printf("sed pledge line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 		close(sed_to_parent[STDIN_FILENO]);
@@ -802,7 +802,7 @@ main(int argc, char *argv[])
 		if (ftp_pid == (pid_t) 0) {
 
 			if (pledge("stdio exec", NULL) == -1) {
-				printf("ftp pledge 3 line: %d\n", __LINE__);
+				printf("ftp 2 pledge line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
 			
@@ -821,7 +821,7 @@ main(int argc, char *argv[])
 				    "/dev/null", line, NULL);
 			}
 
-			printf("ftp execl() failed line: %d\n", __LINE__);
+			printf("ftp 2 execl() failed line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 		if (ftp_pid == -1)
