@@ -174,13 +174,7 @@ main(int argc, char *argv[])
 	if (unveil("/usr/bin/ftp", "x") == -1)
 		err(EXIT_FAILURE, "unveil line: %d", __LINE__);
 
-	if (unveil("/usr/sbin/unbound-host", "x") == -1)
-		err(EXIT_FAILURE, "unveil line: %d", __LINE__);
-
-	if (unveil("/usr/sbin/host", "x") == -1)
-		err(EXIT_FAILURE, "unveil line: %d", __LINE__);
-
-	if (unveil("/usr/sbin/rcctl", "x") == -1)
+	if (unveil("/usr/sbin/dig", "x") == -1)
 		err(EXIT_FAILURE, "unveil line: %d", __LINE__);
 
 
@@ -413,49 +407,6 @@ main(int argc, char *argv[])
 
 		close(parent_to_write[STDIN_FILENO]);
 	}
-
-
-
-
-
-
-	pid_t rcctl_pid;
-	
-	rcctl_pid = fork();
-	if (rcctl_pid == (pid_t) 0) {
-
-		if (pledge("stdio exec", NULL) == -1) {
-			printf("rcctl pledge line: %d\n", __LINE__);
-			_exit(EXIT_FAILURE);
-		}
-		
-		if (verbose >= 2)
-			printf("Running \"rcctl get unbound status\"\n");
-		
-		execl("/usr/sbin/rcctl", "rcctl", "get",
-		    "unbound", "status", NULL);
-
-		printf("rcctl execl() failed line: %d\n", __LINE__);
-		_exit(EXIT_FAILURE);
-	}
-	if (rcctl_pid == -1)
-		err(EXIT_FAILURE, "rcctl fork line: %d", __LINE__);
-
-	waitpid(rcctl_pid, &i, 0);
-	
-	int8_t running_unbound = (i == 0) ? 1 : 0;
-
-	
-	if (verbose >= 2) {
-		if (running_unbound == 1)
-			printf("Running unbound\n\n");
-		else
-			printf("Not running unbound\n\n");
-	}
-
-
-
-
 
 
 	if (pipe(ftp_to_sed) == -1)
@@ -823,7 +774,7 @@ main(int argc, char *argv[])
 
 		if (verbose >= 2) {
 			if (verbose == 3)
-				printf("\n");
+				printf("\n\n\n");
 			if (array_length >= 100) {
 				printf("\n%3d : %s  :  %s\n", array_length - c,
 				    array[c]->label, line);
@@ -875,58 +826,27 @@ main(int argc, char *argv[])
 			
 			*temp2 = '\0';
 			
-			if (running_unbound) {
-				if (verbose >= 2) {
-					printf("Running \"unbound-host %s\"\n",
-					    temp1);
-					if (verbose == 3) {
-						execl("/usr/sbin/unbound-host",
-						    "unbound-host",
-						    "-v", temp1, NULL);
-					} else {
-						execl("/usr/sbin/unbound-host",
-						    "unbound-host",
-						    temp1, NULL);
-					}
-				} else {
-					i = open("/dev/null", O_WRONLY);
-					if (i != -1)
-						dup2(i, STDOUT_FILENO);
-					
-					execl("/usr/sbin/unbound-host",
-					    "unbound-host", "-C",
-					    "/var/unbound/etc/unbound.conf",
-					    temp1, NULL);
-				}
-				printf("unbound-host execl() failed line: %d\n",
-				    __LINE__);
-			} else {
-				if (verbose >= 2) {
-					printf("Running \"host %s\"\n", temp1);
-					if (verbose == 3) {
-						execl("/usr/sbin/host", "host",
-						    "-v", temp1, NULL);
-					} else {
-						execl("/usr/sbin/host", "host",
-						    temp1, NULL);
-					}
-				} else {
-					i = open("/dev/null", O_WRONLY);
-					if (i != -1)
-						dup2(i, STDOUT_FILENO);
-					execl("/usr/sbin/host", "host", temp1,
-					    NULL);
-				}
-				printf("host execl() failed line: %d\n",
-				    __LINE__);
+			if (verbose >= 2) {
+				printf("Running \"dig %s\"\n",
+					temp1);
 			}
+			
+			if (verbose <= 2) {
+				i = open("/dev/null", O_WRONLY);
+				if (i != -1)
+					dup2(i, STDOUT_FILENO);
+			}
+			execl("/usr/sbin/dig", "dig", temp1, "A", NULL);
+			printf("dig execl() failed line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 		if (host_pid == -1)
 			err(EXIT_FAILURE, "host fork line: %d", __LINE__);
 
-		waitpid(host_pid, NULL, 0);
+		waitpid(host_pid, &i, 0);
 
+		if (i == EXIT_FAILURE)
+			return EXIT_FAILURE;
 
 
 
@@ -949,6 +869,13 @@ main(int argc, char *argv[])
 
 			if (verbose == 3) {
 				execl("/usr/bin/ftp", "ftp", "-vmo",
+				    "/dev/null", line, NULL);
+			} else if (verbose == 2) {
+				printf("dig finished\n");
+				i = open("/dev/null", O_WRONLY);
+				if (i != -1)
+					dup2(i, STDERR_FILENO);
+				execl("/usr/bin/ftp", "ftp", "-VMo",
 				    "/dev/null", line, NULL);
 			} else {
 				i = open("/dev/null", O_WRONLY);
