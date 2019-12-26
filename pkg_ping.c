@@ -818,7 +818,7 @@ main(int argc, char *argv[])
 			
 			temp1 = strstr(line, "://");
 			if (temp1 == NULL) {
-				printf("error: strstr(%s, \"://\")", line);
+				printf("strstr(%s, \"://\") == NULL", line);
 				_exit(EXIT_FAILURE);
 			}
 				
@@ -826,7 +826,7 @@ main(int argc, char *argv[])
 				
 			temp2 = strstr( temp1, "/");
 			if (temp2 == NULL) {
-				printf("error: strstr(%s, \"/\")", temp1);
+				printf("strstr(%s, \"/\") == NULL", temp1);
 				_exit(EXIT_FAILURE);
 			}
 			
@@ -850,11 +850,13 @@ main(int argc, char *argv[])
 		waitpid(dig_pid, &i, 0);
 
 		if (i == EXIT_FAILURE)
-			return EXIT_FAILURE;
-
+			errx(EXIT_FAILURE, "dig returned an error.");
 
 		if (verbose >= 2)
 			printf("dig finished\n");
+
+
+
 
 
 
@@ -1060,17 +1062,8 @@ main(int argc, char *argv[])
 	
 	if (f) {		
 		
-		if (dup2(parent_to_write[STDOUT_FILENO], STDOUT_FILENO) == -1) {
-			printf("dup2 line: %d\n", __LINE__);
-			
-			if (verbose < 0)
-				return EXIT_FAILURE;
-			
-			printf("As root, type:\n");
-			printf("echo \"%s\" > /etc/installurl\n",
-			    array[0]->ftp_file);
-			return EXIT_FAILURE;
-		}
+		if (dup2(parent_to_write[STDOUT_FILENO], STDOUT_FILENO) == -1)
+			err(EXIT_FAILURE, "dup2 line: %d\n", __LINE__);
 		
 		/* remove superfluous dynamic array memory before writing */
 		for (c = 1; c < array_length; ++c) {
