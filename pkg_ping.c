@@ -43,10 +43,10 @@
  */
 
 /*
-	indent pkg_ping.c -bap -br -ce -ci4 -cli0 -d0 -di0 -i8 \
-	-ip -l79 -nbc -ncdb -ndj -ei -nfc1 -nlp -npcs -psl -sc -sob
-	
-	cc pkg_ping.c -pipe -o pkg_ping
+ *	indent pkg_ping.c -bap -br -ce -ci4 -cli0 -d0 -di0 -i8 \
+ *	-ip -l79 -nbc -ncdb -ndj -ei -nfc1 -nlp -npcs -psl -sc -sob
+ *	
+ *	cc pkg_ping.c -pipe -o pkg_ping
  */
 
 #include <err.h>
@@ -166,27 +166,27 @@ main(int argc, char *argv[])
 	struct timespec timeout, timeout0 = { 20, 0 };
 	
 	if (pledge("stdio proc exec cpath wpath unveil", NULL) == -1)
-		err(EXIT_FAILURE, "pledge line: %d", __LINE__);
+		err(EXIT_FAILURE, "pledge, line: %d", __LINE__);
 
 	if (unveil("/usr/bin/ftp", "x") == -1)
-		err(EXIT_FAILURE, "unveil line: %d", __LINE__);
+		err(EXIT_FAILURE, "unveil, line: %d", __LINE__);
 
 	if (unveil("/usr/bin/sed", "x") == -1)
-		err(EXIT_FAILURE, "unveil line: %d", __LINE__);
+		err(EXIT_FAILURE, "unveil, line: %d", __LINE__);
 
 	if (unveil("/usr/sbin/dig", "x") == -1)
-		err(EXIT_FAILURE, "unveil line: %d", __LINE__);
+		err(EXIT_FAILURE, "unveil, line: %d", __LINE__);
 	
 
 	if (f) {
 
 		if (unveil("/etc/installurl", "cw") == -1)
-			err(EXIT_FAILURE, "unveil line: %d", __LINE__);
+			err(EXIT_FAILURE, "unveil, line: %d", __LINE__);
 
 		if (pledge("stdio proc exec cpath wpath", NULL) == -1)
-			err(EXIT_FAILURE, "pledge line: %d", __LINE__);
+			err(EXIT_FAILURE, "pledge, line: %d", __LINE__);
 	} else if (pledge("stdio proc exec", NULL) == -1)
-		err(EXIT_FAILURE, "pledge line: %d", __LINE__);
+		err(EXIT_FAILURE, "pledge, line: %d", __LINE__);
 
 	
 	u = verbose = current = override = 0;
@@ -196,12 +196,12 @@ main(int argc, char *argv[])
 	char *version;
 	size_t len = 300;
 	version = malloc(len);
-	if (version == NULL) err(EXIT_FAILURE, "malloc line: %d\n", __LINE__);
+	if (version == NULL) err(EXIT_FAILURE, "malloc, line: %d\n", __LINE__);
 
 	/* stores results of "sysctl kern.version" into 'version' */
 	const int mib[2] = { CTL_KERN, KERN_VERSION };
 	if (sysctl(mib, 2, version, &len, NULL, 0) == -1)
-                   err(EXIT_FAILURE, "sysctl line: %d", __LINE__);
+                   err(EXIT_FAILURE, "sysctl, line: %d", __LINE__);
 	
 	/* Discovers if the kernel is not a release version */
 	if (strstr(version, "beta"))
@@ -217,7 +217,7 @@ main(int argc, char *argv[])
 			if (f == 0)
 				break;
 			if (pledge("stdio proc exec", NULL) == -1)
-				err(EXIT_FAILURE, "pledge line: %d", __LINE__);
+				err(EXIT_FAILURE, "pledge, line: %d", __LINE__);
 			f = 0;
 			break;
 		case 'h':
@@ -306,7 +306,7 @@ main(int argc, char *argv[])
 	if (f) {
 		
 		if (pipe(parent_to_write) == -1)
-			err(EXIT_FAILURE, "pipe line: %d", __LINE__);
+			err(EXIT_FAILURE, "pipe, line: %d", __LINE__);
 
 		write_pid = fork();
 		if (write_pid == (pid_t) 0) {
@@ -314,7 +314,7 @@ main(int argc, char *argv[])
 			char *tag_w;
 			
 			if (pledge("stdio cpath wpath", NULL) == -1) {
-				printf("pledge line: %d\n", __LINE__);
+				printf("pledge, line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
 			
@@ -322,14 +322,14 @@ main(int argc, char *argv[])
 						
 			kq = kqueue();
 			if (kq == -1) {
-				printf("kq! line: %d\n", __LINE__);
+				printf("kq! line %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
 			
 			EV_SET(&ke, parent_to_write[STDIN_FILENO], EVFILT_READ,
 				EV_ADD | EV_ONESHOT, 0, 0, NULL);
 			if (kevent(kq, &ke, 1, &ke, 1, NULL) == -1) {
-				printf("write_pid kevent register fail");
+				printf("write_pid kevent register fail,");
 				printf(" line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
@@ -343,13 +343,14 @@ main(int argc, char *argv[])
 			
 			input = fdopen(parent_to_write[STDIN_FILENO], "r");
 			if (input == NULL) {
-				printf("write_pid fdopen line: %d\n", __LINE__);
+				printf("write_pid fdopen, ");
+				printf("line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
 			
 			tag_w = malloc(300 + 1);
 			if (tag_w == NULL) {
-				printf("malloc line: %d\n", __LINE__);
+				printf("malloc, line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
 				
@@ -377,7 +378,7 @@ main(int argc, char *argv[])
 			pkg_write = fopen("/etc/installurl", "w");
 
 			if (pledge("stdio", NULL) == -1) {
-				printf("pledge line: %d\n", __LINE__);
+				printf("pledge, line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
 			
@@ -397,30 +398,30 @@ main(int argc, char *argv[])
 			_exit(EXIT_FAILURE);
 		}
 		if (write_pid == -1)
-			err(EXIT_FAILURE, "write fork line: %d", __LINE__);
+			err(EXIT_FAILURE, "write fork, line: %d", __LINE__);
 			
 		if (pledge("stdio proc exec", NULL) == -1)
-			err(EXIT_FAILURE, "pledge line: %d", __LINE__);
+			err(EXIT_FAILURE, "pledge, line: %d", __LINE__);
 
 		close(parent_to_write[STDIN_FILENO]);
 	}
 
 
 	if (pipe(ftp_to_sed) == -1)
-		err(EXIT_FAILURE, "pipe line: %d", __LINE__);
+		err(EXIT_FAILURE, "pipe, line: %d", __LINE__);
 
 	ftp_pid = fork();
 	if (ftp_pid == (pid_t) 0) {
 
 		if (pledge("stdio exec", NULL) == -1) {
-			printf("ftp 1 pledge line: %d\n", __LINE__);
+			printf("ftp 1 pledge, line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 		
 		close(ftp_to_sed[STDIN_FILENO]);
 
 		if (dup2(ftp_to_sed[STDOUT_FILENO], STDOUT_FILENO) == -1) {
-			printf("ftp STDOUT dup2 line: %d\n", __LINE__);
+			printf("ftp STDOUT dup2, line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 		
@@ -434,11 +435,11 @@ main(int argc, char *argv[])
 			    "https://www.openbsd.org/ftp.html", NULL);
 		}
 
-		fprintf(stderr, "ftp 1 execl() failed line: %d\n", __LINE__);
+		fprintf(stderr, "ftp 1 execl() failed, line: %d\n", __LINE__);
 		_exit(EXIT_FAILURE);
 	}
 	if (ftp_pid == -1)
-		err(EXIT_FAILURE, "ftp 1 fork line: %d", __LINE__);
+		err(EXIT_FAILURE, "ftp 1 fork, line: %d", __LINE__);
 
 	close(ftp_to_sed[STDOUT_FILENO]);
 
@@ -446,23 +447,23 @@ main(int argc, char *argv[])
 		n = errno;
 		kill(ftp_pid, SIGKILL);
 		errno = n;
-		err(EXIT_FAILURE, "pipe line: %d", __LINE__);
+		err(EXIT_FAILURE, "pipe, line: %d", __LINE__);
 	}
 	sed_pid = fork();
 	if (sed_pid == (pid_t) 0) {
 
 		if (pledge("stdio exec", NULL) == -1) {
-			printf("sed pledge line: %d\n", __LINE__);
+			printf("sed pledge, line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 		close(sed_to_parent[STDIN_FILENO]);
 
 		if (dup2(ftp_to_sed[STDIN_FILENO], STDIN_FILENO) == -1) {
-			printf("sed STDIN dup2 line: %d\n", __LINE__);
+			printf("sed STDIN dup2, line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 		if (dup2(sed_to_parent[STDOUT_FILENO], STDOUT_FILENO) == -1) {
-			printf("sed STDOUT dup2 line: %d\n", __LINE__);
+			printf("sed STDOUT dup2, line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 		execl("/usr/bin/sed", "sed", "-n",
@@ -470,14 +471,14 @@ main(int argc, char *argv[])
 		    "-e", "s:\t<strong>\\([^<]*\\)<.*:\\1:p",
 		    "-e", "s:^\\(\t[hfr].*\\):\\1:p", NULL);
 
-		fprintf(stderr, "sed execl line: %d\n", __LINE__);
+		fprintf(stderr, "sed execl, line: %d\n", __LINE__);
 		_exit(EXIT_FAILURE);
 	}
 	if (sed_pid == -1) {
 		n = errno;
 		kill(ftp_pid, SIGKILL);
 		errno = n;
-		err(EXIT_FAILURE, "sed fork line: %d", __LINE__);
+		err(EXIT_FAILURE, "sed fork, line: %d", __LINE__);
 	}
 
 	close(ftp_to_sed[STDIN_FILENO]);
@@ -489,7 +490,7 @@ main(int argc, char *argv[])
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
 		errno = ENOMEM;
-		err(EXIT_FAILURE, "malloc line: %d", __LINE__);
+		err(EXIT_FAILURE, "malloc, line: %d", __LINE__);
 	}
 	
 	if (uname(name) == -1) {
@@ -497,7 +498,7 @@ main(int argc, char *argv[])
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
 		errno = n;
-		err(EXIT_FAILURE, "uname line: %d", __LINE__);
+		err(EXIT_FAILURE, "uname, line: %d", __LINE__);
 	}
 	
 	char *release = malloc(4 + 1);
@@ -505,7 +506,7 @@ main(int argc, char *argv[])
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
 		errno = ENOMEM;
-		err(EXIT_FAILURE, "malloc line: %d", __LINE__);
+		err(EXIT_FAILURE, "malloc, line: %d", __LINE__);
 	}
 	strlcpy(release, name->release, 4 + 1);
 
@@ -522,7 +523,7 @@ main(int argc, char *argv[])
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
 		errno = ENOMEM;
-		err(EXIT_FAILURE, "malloc line: %d", __LINE__);
+		err(EXIT_FAILURE, "malloc, line: %d", __LINE__);
 	}
 
 	strlcpy(tag,           "/", tag_len + 1);	
@@ -582,7 +583,7 @@ main(int argc, char *argv[])
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
 		errno = ENOMEM;
-		err(EXIT_FAILURE, "malloc line: %d", __LINE__);
+		err(EXIT_FAILURE, "malloc, line: %d", __LINE__);
 	}	
 
 	array_max = 100;
@@ -591,7 +592,7 @@ main(int argc, char *argv[])
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
 		errno = ENOMEM;
-		err(EXIT_FAILURE, "calloc line: %d", __LINE__);
+		err(EXIT_FAILURE, "calloc, line: %d", __LINE__);
 	}
 
 
@@ -601,7 +602,7 @@ main(int argc, char *argv[])
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
 		errno = ENOMEM;
-		err(EXIT_FAILURE, "malloc line: %d", __LINE__);
+		err(EXIT_FAILURE, "malloc, line: %d", __LINE__);
 	}
 
 	int pos_max = 0;
@@ -636,7 +637,7 @@ main(int argc, char *argv[])
 				kill(ftp_pid, SIGKILL);
 				kill(sed_pid, SIGKILL);
 				errno = ENOMEM;
-				err(EXIT_FAILURE, "malloc line: %d", __LINE__);
+				err(EXIT_FAILURE, "malloc, line: %d", __LINE__);
 			}
 			strlcpy(array[array_length]->label, line, pos);
 
@@ -684,7 +685,7 @@ main(int argc, char *argv[])
 				kill(ftp_pid, SIGKILL);
 				kill(sed_pid, SIGKILL);
 				errno = ENOMEM;
-				err(EXIT_FAILURE, "malloc line: %d", __LINE__);
+				err(EXIT_FAILURE, "malloc, line: %d", __LINE__);
 			}
 			
 			strlcpy(array[array_length]->ftp_file, line, pos);
@@ -699,7 +700,7 @@ main(int argc, char *argv[])
 					kill(sed_pid, SIGKILL);
 					errno = ENOMEM;
 					err(EXIT_FAILURE,
-					    "reallocarray line: %d", __LINE__);
+					    "reallocarray, line: %d", __LINE__);
 				}
 			}
 			array[array_length] = malloc(sizeof(struct mirror_st));
@@ -708,7 +709,7 @@ main(int argc, char *argv[])
 				kill(ftp_pid, SIGKILL);
 				kill(sed_pid, SIGKILL);
 				errno = ENOMEM;
-				err(EXIT_FAILURE, "malloc line: %d", __LINE__);
+				err(EXIT_FAILURE, "malloc, line: %d", __LINE__);
 			}
 			pos = num = 0;
 		}
@@ -718,7 +719,7 @@ main(int argc, char *argv[])
 
 	pos_max += tag_len;
 	line = malloc(pos_max);
-	if (line == NULL) err(EXIT_FAILURE, "malloc line: %d", __LINE__);
+	if (line == NULL) err(EXIT_FAILURE, "malloc, line: %d", __LINE__);
 
 	close(sed_to_parent[STDIN_FILENO]);
 
@@ -754,7 +755,8 @@ main(int argc, char *argv[])
 	}
 
 	array = reallocarray(array, array_length, sizeof(struct mirror_st *));
-	if (array == NULL) err(EXIT_FAILURE, "reallocarray line: %d", __LINE__);
+	if (array == NULL)
+		err(EXIT_FAILURE, "reallocarray, line: %d", __LINE__);
 		
 	qsort(array, array_length, sizeof(struct mirror_st *), label_cmp);
 	
@@ -807,7 +809,7 @@ main(int argc, char *argv[])
 		if (dig_pid == (pid_t) 0) {
 
 			if (pledge("stdio exec", NULL) == -1) {
-				printf("dig pledge line: %d\n", __LINE__);
+				printf("dig pledge, line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
 			
@@ -830,7 +832,7 @@ main(int argc, char *argv[])
 			*temp2 = '\0';
 			
 			if (verbose >= 2)
-				printf("Running \"dig %s\"\n", temp1);
+				printf("Running:  dig %s\n", temp1);
 			
 			if (verbose <= 3) {
 				i = open("/dev/null", O_WRONLY);
@@ -838,11 +840,11 @@ main(int argc, char *argv[])
 					dup2(i, STDOUT_FILENO);
 			}
 			execl("/usr/sbin/dig", "dig", temp1, NULL);
-			printf("dig execl() failed line: %d\n", __LINE__);
+			printf("dig execl() failed, line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 		if (dig_pid == -1)
-			err(EXIT_FAILURE, "dig fork line: %d", __LINE__);
+			err(EXIT_FAILURE, "dig fork, line: %d", __LINE__);
 
 		waitpid(dig_pid, &i, 0);
 
@@ -858,13 +860,13 @@ main(int argc, char *argv[])
 
 
 		if (pipe(block_pipe) == -1)
-			err(EXIT_FAILURE, "pipe line: %d", __LINE__);
+			err(EXIT_FAILURE, "pipe, line: %d", __LINE__);
 
 		ftp_pid = fork();
 		if (ftp_pid == (pid_t) 0) {
 
 			if (pledge("stdio exec", NULL) == -1) {
-				printf("ftp 2 pledge line: %d\n", __LINE__);
+				printf("ftp 2 pledge, line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
 			
@@ -886,11 +888,11 @@ main(int argc, char *argv[])
 				    "/dev/null", line, NULL);
 			}
 
-			printf("ftp 2 execl() failed line: %d\n", __LINE__);
+			printf("ftp 2 execl() failed, line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 		if (ftp_pid == -1)
-			err(EXIT_FAILURE, "ftp 2 fork line: %d", __LINE__);
+			err(EXIT_FAILURE, "ftp 2 fork, line: %d", __LINE__);
 
 
 		close(block_pipe[STDIN_FILENO]);
@@ -902,7 +904,7 @@ main(int argc, char *argv[])
 			kill(ftp_pid, SIGKILL);
 			errno = n;
 			err(EXIT_FAILURE,
-			    "kevent register fail line: %d", __LINE__);
+			    "kevent register fail, line: %d", __LINE__);
 		}
 		gettimeofday(&tv_start, NULL);
 
@@ -914,7 +916,7 @@ main(int argc, char *argv[])
 			n = errno;
 			kill(ftp_pid, SIGKILL);
 			errno = n;
-			err(EXIT_FAILURE, "kevent line: %d", __LINE__);
+			err(EXIT_FAILURE, "kevent, line: %d", __LINE__);
 		}
 		
 		/* timeout occured before ftp() exit received */
@@ -923,7 +925,7 @@ main(int argc, char *argv[])
 			
 			/* reap event */
 			if (kevent(kq, NULL, 0, &ke, 1, NULL) == -1)
-				err(EXIT_FAILURE, "kevent line: %d", __LINE__);
+				err(EXIT_FAILURE, "kevent, line: %d", __LINE__);
 			waitpid(ftp_pid, NULL, 0);
 			if (verbose >= 2)
 				printf("Timeout\n");
@@ -965,7 +967,7 @@ main(int argc, char *argv[])
 
 
 	if (pledge("stdio", NULL) == -1)
-		err(EXIT_FAILURE, "pledge line: %d", __LINE__);
+		err(EXIT_FAILURE, "pledge, line: %d", __LINE__);
 
 	free(line);
 	free(tag);		
@@ -1060,7 +1062,7 @@ main(int argc, char *argv[])
 	if (f) {		
 		
 		if (dup2(parent_to_write[STDOUT_FILENO], STDOUT_FILENO) == -1)
-			err(EXIT_FAILURE, "dup2 line: %d\n", __LINE__);
+			err(EXIT_FAILURE, "dup2, line: %d\n", __LINE__);
 		
 		/* remove superfluous dynamic array memory before writing */
 		for (c = 1; c < array_length; ++c) {
