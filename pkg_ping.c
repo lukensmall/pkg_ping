@@ -430,7 +430,7 @@ main(int argc, char *argv[])
 		}
 		
 		if (verbose >= 2)
-			printf("fetching \"rcctl get unbound status\"\n");
+			printf("Running \"rcctl get unbound status\"\n");
 		
 		execl("/usr/sbin/rcctl", "rcctl", "get",
 		    "unbound", "status", NULL);
@@ -876,7 +876,7 @@ main(int argc, char *argv[])
 			
 			if (running_unbound) {
 				if (verbose >= 2) {
-					printf("fetching \"unbound-host %s\"\n",
+					printf("Running \"unbound-host %s\"\n",
 					    temp1);
 					if (verbose == 3) {
 						execl("/usr/sbin/unbound-host",
@@ -901,7 +901,7 @@ main(int argc, char *argv[])
 				    __LINE__);
 			} else {
 				if (verbose >= 2) {
-					printf("fetching \"host %s\"\n", temp1);
+					printf("Running \"host %s\"\n", temp1);
 					if (verbose == 3) {
 						execl("/usr/sbin/host", "host",
 						    "-v", temp1, NULL);
