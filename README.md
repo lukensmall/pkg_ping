@@ -8,8 +8,8 @@ immediately takes away the possibility to unveil() any further.
 
 It automatically discovers whether you are running a release vs a current or beta snapshot!
 
-It will precache your dns server by running "unbound-host" using /var/unbound/etc/unbound.conf if you are running unbound,
-or "host" if you are not. This way, there is no inconsistency between runs after your dns host is updated.
+It will precache your dns server by running "dig". This way, there is no inconsistency between runs after your dns host is 
+updated.
  
 This program should work on OpenBSD versions 6.4+ (Up to 6.6 as of this writing) and won't compile for earlier versions.
 
@@ -35,6 +35,7 @@ It uses several commandline options:
    install that mirror.
    A second 'v' will make it print out the information of the mirrors in real time, as well.
    A third ‘v’ will show verboseness in the ftp calls to mirrors.
+   A fourth 'v' will show dig output.
 
 -V will stop all output except error messages. It overrides all -v instances.
 
