@@ -828,11 +828,10 @@ main(int argc, char *argv[])
 			
 			*temp2 = '\0';
 			
-			if (verbose == 4)
+			if (verbose >= 2)
 				printf("Running \"dig %s\"\n", temp1);
 			
 			if (verbose <= 3) {
-				printf("Running \"dig %s\"\n", temp1);
 				i = open("/dev/null", O_WRONLY);
 				if (i != -1)
 					dup2(i, STDOUT_FILENO);
@@ -850,6 +849,8 @@ main(int argc, char *argv[])
 			return EXIT_FAILURE;
 
 
+		if (verbose >= 2)
+			printf("dig finished\n");
 
 
 
@@ -864,9 +865,6 @@ main(int argc, char *argv[])
 				_exit(EXIT_FAILURE);
 			}
 			
-			if (verbose >= 2)
-				printf("dig finished\n");
-				
 			if (verbose <= 2) {
 				i = open("/dev/null", O_WRONLY);
 				if (i != -1)
