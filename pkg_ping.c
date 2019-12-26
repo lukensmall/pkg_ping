@@ -168,15 +168,15 @@ main(int argc, char *argv[])
 	if (pledge("stdio proc exec cpath wpath unveil", NULL) == -1)
 		err(EXIT_FAILURE, "pledge line: %d", __LINE__);
 
-	if (unveil("/usr/bin/sed", "x") == -1)
-		err(EXIT_FAILURE, "unveil line: %d", __LINE__);
-	
 	if (unveil("/usr/bin/ftp", "x") == -1)
+		err(EXIT_FAILURE, "unveil line: %d", __LINE__);
+
+	if (unveil("/usr/bin/sed", "x") == -1)
 		err(EXIT_FAILURE, "unveil line: %d", __LINE__);
 
 	if (unveil("/usr/sbin/dig", "x") == -1)
 		err(EXIT_FAILURE, "unveil line: %d", __LINE__);
-
+	
 
 	if (f) {
 
@@ -189,12 +189,9 @@ main(int argc, char *argv[])
 		err(EXIT_FAILURE, "pledge line: %d", __LINE__);
 
 	
-	s = 5;
-	u = 0;
-	verbose = 0;
+	u = verbose = current = override = 0;
 	insecure = 1;
-	current = 0;
-	override = 0;
+	s = 5;
 
 	char *version;
 	size_t len = 300;
@@ -225,7 +222,7 @@ main(int argc, char *argv[])
 			break;
 		case 'h':
 			manpage(argv[0]);
-			return 0;
+			return EXIT_SUCCESS;
 		case 'O':
 			override = 1;
 			break;
