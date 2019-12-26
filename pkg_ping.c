@@ -436,6 +436,7 @@ main(int argc, char *argv[])
 		    "unbound", "status", NULL);
 
 		printf("rcctl execl() failed line: %d\n", __LINE__);
+		_exit(EXIT_FAILURE);
 	}
 	if (rcctl_pid == -1)
 		err(EXIT_FAILURE, "rcctl fork line: %d", __LINE__);
@@ -919,7 +920,7 @@ main(int argc, char *argv[])
 				printf("host execl() failed line: %d\n",
 				    __LINE__);
 			}
-			return EXIT_FAILURE;
+			_exit(EXIT_FAILURE);
 		}
 		if (host_pid == -1)
 			err(EXIT_FAILURE, "host fork line: %d", __LINE__);
@@ -1137,7 +1138,7 @@ main(int argc, char *argv[])
 				return EXIT_FAILURE;
 			
 			printf("As root, type:\n");
-			printf("\techo \"%s\" > /etc/installurl\n",
+			printf("echo \"%s\" > /etc/installurl\n",
 			    array[0]->ftp_file);
 			return EXIT_FAILURE;
 		}
@@ -1161,7 +1162,7 @@ main(int argc, char *argv[])
 	}
 
 	if (verbose >= 0) {
-		printf("As root, type:\n\techo \"%s\" > /etc/installurl\n",
+		printf("As root, type:\necho \"%s\" > /etc/installurl\n",
 		    array[0]->ftp_file);
 	}
 
