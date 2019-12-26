@@ -174,6 +174,16 @@ main(int argc, char *argv[])
 	if (unveil("/usr/bin/ftp", "x") == -1)
 		err(EXIT_FAILURE, "unveil line: %d", __LINE__);
 
+	if (unveil("/usr/sbin/unbound-host", "x") == -1)
+		err(EXIT_FAILURE, "unveil line: %d", __LINE__);
+
+	if (unveil("/usr/sbin/host", "x") == -1)
+		err(EXIT_FAILURE, "unveil line: %d", __LINE__);
+
+	if (unveil("/usr/sbin/rcctl", "x") == -1)
+		err(EXIT_FAILURE, "unveil line: %d", __LINE__);
+
+
 	if (f) {
 
 		if (unveil("/etc/installurl", "cw") == -1)
@@ -403,6 +413,55 @@ main(int argc, char *argv[])
 
 		close(parent_to_write[STDIN_FILENO]);
 	}
+
+
+
+
+
+
+
+
+
+
+	pid_t rcctl_pid;
+	
+	rcctl_pid = fork();
+	if (rcctl_pid == (pid_t) 0) {
+
+		if (pledge("stdio exec", NULL) == -1) {
+			printf("rcctl pledge line: %d\n", __LINE__);
+			_exit(EXIT_FAILURE);
+		}
+		
+		if (verbose >= 2)
+			printf("fetching \"rcctl get unbound status\"\n");
+		
+		execl("/usr/sbin/rcctl", "rcctl", "get",
+		    "unbound", "status", NULL);
+
+		printf("rcctl execl() failed line: %d\n", __LINE__);
+	}
+	if (rcctl_pid == -1)
+		err(EXIT_FAILURE, "rcctl fork line: %d", __LINE__);
+
+	waitpid(rcctl_pid, &i, 0);
+	
+	int8_t running_unbound = (i == 0) ? 1 : 0;
+
+	
+	if (verbose >= 2) {
+		if (running_unbound == 1)
+			printf("Running unbound\n\n");
+		else
+			printf("Not running unbound\n\n");
+	}
+
+
+
+
+
+
+
 
 
 
@@ -794,6 +853,81 @@ main(int argc, char *argv[])
 			printf("%d", i);
 			fflush(stdout);
 		}
+
+
+
+
+
+
+		pid_t host_pid;
+		
+		host_pid = fork();
+		if (host_pid == (pid_t) 0) {
+
+			if (pledge("stdio exec", NULL) == -1) {
+				printf("host pledge line: %d\n", __LINE__);
+				_exit(EXIT_FAILURE);
+			}
+			
+			char *temp1, *temp2;
+			
+			temp1 = strstr(line, "://");
+			if (temp1 == NULL)
+				return EXIT_FAILURE;
+				
+			temp1 += 3;
+				
+			temp2 = strstr( temp1, "/");
+			if (temp2 == NULL)
+				return EXIT_FAILURE;
+			
+			*temp2 = '\0';
+			
+			if (running_unbound) {
+				if (verbose >= 2) {
+					printf("fetching \"unbound-host %s\"\n",
+					    temp1);
+					execl("/usr/sbin/unbound-host",
+					    "unbound-host",
+					    "-v", temp1, NULL);
+				} else {
+					i = open("/dev/null", O_WRONLY);
+					if (i != -1)
+						dup2(i, STDOUT_FILENO);
+					
+					execl("/usr/sbin/unbound-host",
+					    "unbound-host", "-C",
+					    "/var/unbound/etc/unbound.conf",
+					    temp1, NULL);
+				}
+				printf("unbound-host execl() failed line: %d\n",
+				    __LINE__);
+			} else {
+				if (verbose >= 2) {
+					printf("fetching \"host %s\"\n", temp1);
+					execl("/usr/sbin/host", "host",
+					"-v", temp1, NULL);
+				} else {
+					i = open("/dev/null", O_WRONLY);
+					if (i != -1)
+						dup2(i, STDOUT_FILENO);
+					execl("/usr/sbin/host", "host", temp1,
+					    NULL);
+				}
+				printf("host execl() failed line: %d\n",
+				    __LINE__);
+			}
+			return EXIT_FAILURE;
+		}
+		if (host_pid == -1)
+			err(EXIT_FAILURE, "host fork line: %d", __LINE__);
+
+		waitpid(host_pid, NULL, 0);
+
+
+
+
+
 
 		if (pipe(block_pipe) == -1)
 			err(EXIT_FAILURE, "pipe line: %d", __LINE__);
