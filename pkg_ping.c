@@ -818,13 +818,13 @@ main(int argc, char *argv[])
 			
 			temp1 = strstr(line, "://");
 			if (temp1 == NULL)
-				return EXIT_FAILURE;
+				_exit(EXIT_FAILURE);
 				
 			temp1 += 3;
 				
 			temp2 = strstr( temp1, "/");
 			if (temp2 == NULL)
-				return EXIT_FAILURE;
+				_exit(EXIT_FAILURE);
 			
 			*temp2 = '\0';
 			
