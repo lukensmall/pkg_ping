@@ -419,10 +419,6 @@ main(int argc, char *argv[])
 
 
 
-
-
-
-
 	pid_t rcctl_pid;
 	
 	rcctl_pid = fork();
@@ -455,11 +451,6 @@ main(int argc, char *argv[])
 		else
 			printf("Not running unbound\n\n");
 	}
-
-
-
-
-
 
 
 
@@ -887,9 +878,15 @@ main(int argc, char *argv[])
 				if (verbose >= 2) {
 					printf("fetching \"unbound-host %s\"\n",
 					    temp1);
-					execl("/usr/sbin/unbound-host",
-					    "unbound-host",
-					    "-v", temp1, NULL);
+					if (verbose == 3) {
+						execl("/usr/sbin/unbound-host",
+						    "unbound-host",
+						    "-v", temp1, NULL);
+					} else {
+						execl("/usr/sbin/unbound-host",
+						    "unbound-host",
+						    temp1, NULL);
+					}
 				} else {
 					i = open("/dev/null", O_WRONLY);
 					if (i != -1)
@@ -905,8 +902,13 @@ main(int argc, char *argv[])
 			} else {
 				if (verbose >= 2) {
 					printf("fetching \"host %s\"\n", temp1);
-					execl("/usr/sbin/host", "host",
-					"-v", temp1, NULL);
+					if (verbose == 3) {
+						execl("/usr/sbin/host", "host",
+						    "-v", temp1, NULL);
+					} else {
+						execl("/usr/sbin/host", "host",
+						    temp1, NULL);
+					}
 				} else {
 					i = open("/dev/null", O_WRONLY);
 					if (i != -1)
