@@ -817,14 +817,18 @@ main(int argc, char *argv[])
 			char *temp1, *temp2;
 			
 			temp1 = strstr(line, "://");
-			if (temp1 == NULL)
+			if (temp1 == NULL) {
+				printf("error: strstr(%s, \"://\")", line);
 				_exit(EXIT_FAILURE);
+			}
 				
 			temp1 += 3;
 				
 			temp2 = strstr( temp1, "/");
-			if (temp2 == NULL)
+			if (temp2 == NULL) {
+				printf("error: strstr(%s, \"/\")", temp1);
 				_exit(EXIT_FAILURE);
+			}
 			
 			*temp2 = '\0';
 			
