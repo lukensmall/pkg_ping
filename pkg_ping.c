@@ -64,9 +64,9 @@
 #include <unistd.h>
 
 struct mirror_st {
-	double diff;
-	char *ftp_file;
 	char *label;
+	char *ftp_file;
+	long double diff;
 };
 
 static int
@@ -127,6 +127,8 @@ static void
 manpage(char a[])
 {
 	printf("%s\n", a);
+	printf("[-d (don't run Dig)]\n");
+
 	printf("[-f (don't write to File even if run as root)]\n");
 
 	printf("[-h (print this Help message and exit)]\n");
@@ -154,8 +156,8 @@ int
 main(int argc, char *argv[])
 {
 	int8_t f = (getuid() == 0) ? 1 : 0;
-	int8_t num, current, insecure, u, verbose, override;
-	double s, S;
+	int8_t num, current, insecure, u, verbose, override, d;
+	long double s, S;
 	pid_t ftp_pid, sed_pid, write_pid;
 	int kq, i, pos, c, n, array_max, array_length, tag_len;
 	int parent_to_write[2], ftp_to_sed[2], sed_to_parent[2], block_pipe[2];
@@ -193,7 +195,7 @@ main(int argc, char *argv[])
 
 	
 	u = verbose = current = override = 0;
-	insecure = 1;
+	insecure = d = 1;
 	s = 5;
 
 	char *version;
@@ -214,8 +216,11 @@ main(int argc, char *argv[])
 		
 	free(version);
 
-	while ((c = getopt(argc, argv, "fhOSs:uvV")) != -1) {
+	while ((c = getopt(argc, argv, "dfhOSs:uvV")) != -1) {
 		switch (c) {
+		case 'd':
+			d = 0;
+			break;
 		case 'f':
 			if (f == 0)
 				break;
@@ -252,12 +257,12 @@ main(int argc, char *argv[])
 				errx(EXIT_FAILURE,
 				    "-s needs a numeric character.");
 			errno = 0;
-			s = strtod(optarg, NULL);
+			s = strtold(optarg, NULL);
 			if (errno == ERANGE)
 				err(EXIT_FAILURE, "strtod");
-			if (s > 1000.0)
+			if (s > (long double)1000.0)
 				errx(EXIT_FAILURE, "-s should be <= 1000");
-			if (s <= 0.01)
+			if (s <= (long double)0.01)
 				errx(EXIT_FAILURE, "-s should be > 0.01");
 			break;
 		case 'u':
@@ -767,7 +772,7 @@ main(int argc, char *argv[])
 
 	timeout.tv_sec = (time_t) s;
 	timeout.tv_nsec =
-	    (long) ((s - (double) timeout.tv_sec) * 1000000000.0);
+	    (long) ((s - (long double) timeout.tv_sec) * (long double)1000000000.0);
 
 	for (c = 0; c < array_length; ++c) {
 
@@ -775,9 +780,9 @@ main(int argc, char *argv[])
 		strlcpy(line + n, tag, pos_max - n);
 
 		if (verbose >= 2) {
-			if (verbose == 4)
+			if (verbose == 4 && d)
 				printf("\n\n\n");
-			else if (verbose == 3)
+			else if (verbose >= 3)
 				printf("\n");
 			if (array_length >= 100) {
 				printf("\n%3d : %s  :  %s\n", array_length - c,
@@ -804,7 +809,7 @@ main(int argc, char *argv[])
 
 
 
-
+		if (d == 0) goto skip_dig;
 
 		pid_t dig_pid;
 		
@@ -831,7 +836,6 @@ main(int argc, char *argv[])
 				printf("strstr(%s, \"/\") == NULL", temp1);
 				_exit(EXIT_FAILURE);
 			}
-			
 			*temp2 = '\0';
 			
 			if (verbose >= 2)
@@ -854,10 +858,10 @@ main(int argc, char *argv[])
 		if (i == EXIT_FAILURE)
 			errx(EXIT_FAILURE, "dig returned an error.");
 
+		skip_dig:
 
 
-
-
+		
 
 		if (pipe(block_pipe) == -1)
 			err(EXIT_FAILURE, "pipe, line: %d", __LINE__);
@@ -869,18 +873,18 @@ main(int argc, char *argv[])
 				printf("ftp 2 pledge, line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
+
+			close(block_pipe[STDOUT_FILENO]);
+			read(block_pipe[STDIN_FILENO], &n, sizeof(int));
+			close(block_pipe[STDIN_FILENO]);
 			
 			if (verbose <= 2) {
 				i = open("/dev/null", O_WRONLY);
 				if (i != -1)
 					dup2(i, STDERR_FILENO);
 			}
-
-			close(block_pipe[STDOUT_FILENO]);
-			read(block_pipe[STDIN_FILENO], &n, sizeof(int));
-			close(block_pipe[STDIN_FILENO]);
 			
-			if (verbose >= 2)
+			if (verbose >= 2 && d)
 				printf("Running:  ftp\n");
 
 
@@ -949,22 +953,22 @@ main(int argc, char *argv[])
 		gettimeofday(&tv_end, NULL);
 
 		array[c]->diff =
-		    (double)(tv_end.tv_sec - tv_start.tv_sec) +
-		    (double)(tv_end.tv_usec - tv_start.tv_usec) /
-		    1000000.0;
+		    (long double)(tv_end.tv_sec - tv_start.tv_sec) +
+		    (long double)(tv_end.tv_usec - tv_start.tv_usec) /
+		    (long double)1000000.0;
 			
 		if (verbose >= 2) {
 			if (array[c]->diff >= s) {
 				array[c]->diff = s;
 				printf("Timeout\n");
 			} else
-				printf("%f\n", array[c]->diff);
+				printf("%Lf\n", array[c]->diff);
 		} else if (verbose <= 0 && array[c]->diff < S) {
 			S = array[c]->diff;
 			timeout.tv_sec = (time_t) S;
 			timeout.tv_nsec =
-			    (long) ((S - (double) timeout.tv_sec)
-			    * 1000000000.0);
+			    (long) ((S - (long double) timeout.tv_sec)
+			    * (long double)1000000000.0);
 		} else if (array[c]->diff > s)
 			array[c]->diff = s;
 	}
@@ -1036,7 +1040,7 @@ main(int argc, char *argv[])
 			    array[c]->ftp_file);
 
 			if (c <= se)
-				printf(" : %f\n\n", array[c]->diff);
+				printf(" : %Lf\n\n", array[c]->diff);
 			else if (c <= te) {
 				//~ printf(" Timeout");
 				printf("\n\n");
@@ -1087,7 +1091,7 @@ main(int argc, char *argv[])
 	}
 
 	if (verbose >= 0) {
-		printf("As root, type:\necho \"%s\" > /etc/installurl\n",
+		printf("As root, type: echo \"%s\" > /etc/installurl\n",
 		    array[0]->ftp_file);
 	}
 
