@@ -854,9 +854,6 @@ main(int argc, char *argv[])
 		if (i == EXIT_FAILURE)
 			errx(EXIT_FAILURE, "dig returned an error.");
 
-		if (verbose >= 2)
-			printf("dig finished\n");
-
 
 
 
@@ -882,6 +879,10 @@ main(int argc, char *argv[])
 			close(block_pipe[STDOUT_FILENO]);
 			read(block_pipe[STDIN_FILENO], &n, sizeof(int));
 			close(block_pipe[STDIN_FILENO]);
+			
+			if (verbose >= 2)
+				printf("Running:  ftp\n");
+
 
 			if (verbose >= 3) {
 				execl("/usr/bin/ftp", "ftp", "-vmo",
