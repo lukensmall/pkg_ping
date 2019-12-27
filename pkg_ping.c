@@ -582,8 +582,7 @@ main(int argc, char *argv[])
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
 		errno = n;
-		err(EXIT_FAILURE,
-		    "fdopen(sed_to_parent[STDIN_FILENO]...) line %d", __LINE__);
+		err(EXIT_FAILURE, "fdopen sed_to_parent, line: %d", __LINE__);
 	}
 
 	/* if the index for line[] exceeds 299, it will error out */
@@ -810,7 +809,12 @@ main(int argc, char *argv[])
 
 
 
-		if (d == 0) goto skip_dig;
+		if (d == 0)
+			goto skip_dig;
+		
+		n = 2;
+		
+		skip_back:
 
 		if (verbose >= 2)
 			clock_gettime(CLOCK_UPTIME, &tv_start);
@@ -866,10 +870,13 @@ main(int argc, char *argv[])
 		if (verbose >= 2) {
 			clock_gettime(CLOCK_UPTIME, &tv_end);
 			printf("%.9Lf\n",
-			    (long double) (tv_end.tv_sec - tv_start.tv_sec) +
+			    (long double)(tv_end.tv_sec - tv_start.tv_sec) +
 			    (long double)(tv_end.tv_nsec - tv_start.tv_nsec) /
 			    (long double)1000000000);
 		}
+		
+		if (--n > 0)
+			goto skip_back;
 		    
 		skip_dig:
 
@@ -940,7 +947,7 @@ main(int argc, char *argv[])
 			err(EXIT_FAILURE, "kevent, line: %d", __LINE__);
 		}
 		
-		/* timeout occured before ftp() exit received */
+		/* timeout occurred before ftp() exit received */
 		if (i == 0) {
 			kill(ftp_pid, SIGKILL);
 			
@@ -1003,7 +1010,7 @@ main(int argc, char *argv[])
 
 	if (verbose >= 1) {
 		
-		int ts = -1, te = -1,   ds = -1, de = -1,   se = -1;
+		int ds = -1, de = -1,   ts = -1, te = -1,   se = -1;
 		
 		for (c = array_length - 1; c >= 0; --c) {
 			if (array[c]->diff < s) {
@@ -1022,13 +1029,13 @@ main(int argc, char *argv[])
 			}
 		}
 		
-		if (te > ts) {
-			qsort(array + ts, 1 + te - ts, 
+		if (de > ds) {
+			qsort(array + ds, 1 + de - ds, 
 			    sizeof(struct mirror_st *), label_rev_cmp);
 		}
 		
-		if (de > ds) {
-			qsort(array + ds, 1 + de - ds,
+		if (te > ts) {
+			qsort(array + ts, 1 + te - ts,
 			    sizeof(struct mirror_st *), label_rev_cmp);
 		}
 		
@@ -1053,7 +1060,7 @@ main(int argc, char *argv[])
 			    array[c]->ftp_file);
 
 			if (c <= se)
-				printf(" : %Lf\n\n", array[c]->diff);
+				printf(" : %.9Lf\n\n", array[c]->diff);
 			else if (c <= te) {
 				//~ printf(" Timeout");
 				printf("\n\n");
