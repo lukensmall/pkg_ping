@@ -8,12 +8,14 @@ immediately takes away the possibility to unveil() any further.
 
 It automatically discovers whether you are running a release vs a current or beta snapshot!
 
-It will precache your dns server by running "dig". This way, there is no inconsistency between runs after your dns host is 
+It will precache your dns server by running "dig". This way, there is no inconsistency between runs after your dns cache is 
 updated.
  
 This program should work on OpenBSD versions 6.4+ (Up to 6.6 as of this writing) and won't compile for earlier versions.
 
 It uses several commandline options:
+
+-d causes dig to be skipped.
 
 -f prohibits a fork()ed process from writing the fastest mirror to file even if it has the power to do so as root.
 
