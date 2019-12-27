@@ -61,6 +61,7 @@
 #include <sys/types.h>
 #include <sys/utsname.h>
 #include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 
 struct mirror_st {
@@ -164,7 +165,7 @@ main(int argc, char *argv[])
 	FILE *input, *pkg_write;
 	struct mirror_st **array;
 	struct kevent ke;
-	struct timeval tv_start, tv_end;
+	struct timespec tv_start, tv_end;
 	struct timespec timeout;
 	
 	/* 20 seconds and 0 nanoseconds */
@@ -772,7 +773,7 @@ main(int argc, char *argv[])
 
 	timeout.tv_sec = (time_t) s;
 	timeout.tv_nsec =
-	    (long) ((s - (long double) timeout.tv_sec) * (long double)1000000000.0);
+	    (long) ((s - (long double) timeout.tv_sec) * (long double)1000000000);
 
 	for (c = 0; c < array_length; ++c) {
 
@@ -810,6 +811,9 @@ main(int argc, char *argv[])
 
 
 		if (d == 0) goto skip_dig;
+
+		if (verbose >= 2)
+			clock_gettime(CLOCK_UPTIME, &tv_start);
 
 		pid_t dig_pid;
 		
@@ -858,6 +862,15 @@ main(int argc, char *argv[])
 		if (i == EXIT_FAILURE)
 			errx(EXIT_FAILURE, "dig returned an error.");
 
+		
+		if (verbose >= 2) {
+			clock_gettime(CLOCK_UPTIME, &tv_end);
+			printf("%.9Lf\n",
+			    (long double) (tv_end.tv_sec - tv_start.tv_sec) +
+			    (long double)(tv_end.tv_nsec - tv_start.tv_nsec) /
+			    (long double)1000000000);
+		}
+		    
 		skip_dig:
 
 
@@ -914,7 +927,7 @@ main(int argc, char *argv[])
 			err(EXIT_FAILURE,
 			    "kevent register fail, line: %d", __LINE__);
 		}
-		gettimeofday(&tv_start, NULL);
+		clock_gettime(CLOCK_UPTIME, &tv_start);
 
 		close(block_pipe[STDOUT_FILENO]);
 
@@ -950,25 +963,25 @@ main(int argc, char *argv[])
 			continue;
 		}
 
-		gettimeofday(&tv_end, NULL);
+		clock_gettime(CLOCK_UPTIME, &tv_end);
 
 		array[c]->diff =
 		    (long double)(tv_end.tv_sec - tv_start.tv_sec) +
-		    (long double)(tv_end.tv_usec - tv_start.tv_usec) /
-		    (long double)1000000.0;
+		    (long double)(tv_end.tv_nsec - tv_start.tv_nsec) /
+		    (long double)1000000000;
 			
 		if (verbose >= 2) {
 			if (array[c]->diff >= s) {
 				array[c]->diff = s;
 				printf("Timeout\n");
 			} else
-				printf("%Lf\n", array[c]->diff);
+				printf("%.9Lf\n", array[c]->diff);
 		} else if (verbose <= 0 && array[c]->diff < S) {
 			S = array[c]->diff;
 			timeout.tv_sec = (time_t) S;
 			timeout.tv_nsec =
 			    (long) ((S - (long double) timeout.tv_sec)
-			    * (long double)1000000000.0);
+			    * (long double)1000000000);
 		} else if (array[c]->diff > s)
 			array[c]->diff = s;
 	}
