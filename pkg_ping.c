@@ -531,11 +531,11 @@ main(int argc, char *argv[])
 	}
 
 	if (current == 0) {
-		n  = strlcpy(tag,                 "/", tag_len + 1);
-		n += strlcpy(tag + n,         release, tag_len + 1 - n);
-		n += strlcpy(tag + n,             "/", tag_len + 1 - n);
+		n  = strlcpy(tag,           "/", tag_len + 1);
+		n += strlcpy(tag + n,   release, tag_len + 1 - n);
+		n += strlcpy(tag + n,       "/", tag_len + 1 - n);
 	} else
-		n  = strlcpy(tag,       "/snapshots/", tag_len + 1);
+		n  = strlcpy(tag, "/snapshots/", tag_len + 1);
 
 	n +=  strlcpy(tag + n, name->machine, tag_len + 1 - n);
 	(void)strlcpy(tag + n,     "/SHA256", tag_len + 1 - n);
