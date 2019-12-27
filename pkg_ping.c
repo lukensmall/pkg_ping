@@ -163,7 +163,10 @@ main(int argc, char *argv[])
 	struct mirror_st **array;
 	struct kevent ke;
 	struct timeval tv_start, tv_end;
-	struct timespec timeout, timeout0 = { 20, 0 };
+	struct timespec timeout;
+	
+	/* 20 seconds and 0 nanoseconds */
+	struct timespec timeout0 = { 20, 0 };
 	
 	if (pledge("stdio proc exec cpath wpath unveil", NULL) == -1)
 		err(EXIT_FAILURE, "pledge, line: %d", __LINE__);
@@ -501,20 +504,21 @@ main(int argc, char *argv[])
 		err(EXIT_FAILURE, "uname, line: %d", __LINE__);
 	}
 	
-	char *release = malloc(4 + 1);
+	i = strlen(name->release);
+	char *release = malloc(i + 1);
 	if (release == NULL) {
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
 		errno = ENOMEM;
 		err(EXIT_FAILURE, "malloc, line: %d", __LINE__);
 	}
-	strlcpy(release, name->release, 4 + 1);
+	strlcpy(release, name->release, i + 1);
 
 	if (current == 0) {
-		tag_len = strlen("/") + strlen(release) + strlen("/") +
+		tag_len = strlen("/") + i + strlen("/") +
 		    strlen(name->machine) + strlen("/SHA256");
 	} else {
-		tag_len = strlen("/") + strlen("snapshots") + strlen("/") +
+		tag_len = strlen("/snapshots/") +
 		    strlen(name->machine) + strlen("/SHA256");
 	}
 
@@ -526,16 +530,15 @@ main(int argc, char *argv[])
 		err(EXIT_FAILURE, "malloc, line: %d", __LINE__);
 	}
 
-	strlcpy(tag,           "/", tag_len + 1);	
+	if (current == 0) {
+		n  = strlcpy(tag,                 "/", tag_len + 1);
+		n += strlcpy(tag + n,         release, tag_len + 1 - n);
+		n += strlcpy(tag + n,             "/", tag_len + 1 - n);
+	} else
+		n  = strlcpy(tag,       "/snapshots/", tag_len + 1);
 
-	if (current == 0)
-		strlcat(tag,     release, tag_len + 1);
-	else
-		strlcat(tag, "snapshots", tag_len + 1);
-
-	strlcat(tag,           "/", tag_len + 1);
-	strlcat(tag, name->machine, tag_len + 1);
-	strlcat(tag,     "/SHA256", tag_len + 1);
+	n +=  strlcpy(tag + n, name->machine, tag_len + 1 - n);
+	(void)strlcpy(tag + n,     "/SHA256", tag_len + 1 - n);
 
 	free(name);
 
