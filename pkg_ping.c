@@ -630,12 +630,8 @@ main(int argc, char *argv[])
 			line[pos++] = '\0';
 			if (u) {
 				if (!strncmp("USA", line, 3)) {
-					while ((c = getc(input)) != EOF) {
-						if (c == '\n')
-							break;
-					}
-					if (c == EOF)
-						break;
+					while ((c = getc(input)) != EOF)
+						if (c == '\n') break;
 					pos = 0;
 					continue;
 				}
@@ -772,7 +768,8 @@ main(int argc, char *argv[])
 
 	timeout.tv_sec = (time_t) s;
 	timeout.tv_nsec =
-	    (long) ((s - (long double) timeout.tv_sec) * (long double)1000000000);
+	    (long) ((s - (long double) timeout.tv_sec) *
+	    (long double)1000000000);
 
 	for (c = 0; c < array_length; ++c) {
 
@@ -808,77 +805,81 @@ main(int argc, char *argv[])
 
 
 
-
 		if (d == 0)
-			goto skip_dig;
+			n = 0;
+		else
+			n = 2;
 		
-		n = 2;
+		for(; n > 0; --n) {
 		
-		skip_back:
-
-		if (verbose >= 2)
-			clock_gettime(CLOCK_UPTIME, &tv_start);
-
-		pid_t dig_pid;
-		
-		dig_pid = fork();
-		if (dig_pid == (pid_t) 0) {
-
-			if (pledge("stdio exec", NULL) == -1) {
-				printf("dig pledge, line: %d\n", __LINE__);
-				_exit(EXIT_FAILURE);
-			}
-			
-			char *temp1, *temp2;
-			
-			temp1 = strstr(line, "://");
-			if (temp1 == NULL) {
-				printf("strstr(%s, \"://\") == NULL", line);
-				_exit(EXIT_FAILURE);
-			}
-				
-			temp1 += 3;
-				
-			temp2 = strstr( temp1, "/");
-			if (temp2 == NULL) {
-				printf("strstr(%s, \"/\") == NULL", temp1);
-				_exit(EXIT_FAILURE);
-			}
-			*temp2 = '\0';
-			
 			if (verbose >= 2)
-				printf("Running:  dig %s\n", temp1);
-			
-			if (verbose <= 3) {
-				i = open("/dev/null", O_WRONLY);
-				if (i != -1)
-					dup2(i, STDOUT_FILENO);
+				clock_gettime(CLOCK_UPTIME, &tv_start);
+
+			pid_t dig_pid = fork();
+			if (dig_pid == (pid_t) 0) {
+
+				if (pledge("stdio exec", NULL) == -1) {
+					printf("dig pledge, ");
+					printf("line: %d\n", __LINE__);
+					_exit(EXIT_FAILURE);
+				}
+				
+				char *first, *last;
+				
+				first = strstr(line, "://");
+				if (first == NULL) {
+					printf("strstr(%s, \"://\")", line);
+					printf(" == NULL ");
+					printf("line: %d\n", __LINE__);
+					_exit(EXIT_FAILURE);
+				}
+					
+				first += 3;
+					
+				last = strstr( first, "/");
+				if (last == NULL) {
+					printf("strstr(%s, \"/\")", first);
+					printf(" == NULL ");
+					printf("line: %d\n", __LINE__);
+					_exit(EXIT_FAILURE);
+				}
+				*last = '\0';
+				
+				if (verbose >= 2)
+					printf("Running:  dig %s\n", first);
+				
+				if (verbose <= 3) {
+					i = open("/dev/null", O_WRONLY);
+					if (i != -1)
+						dup2(i, STDOUT_FILENO);
+				}
+				execl("/usr/sbin/dig", "dig", first, NULL);
+				
+				printf("dig execl() failed, ");
+				printf("line: %d\n", __LINE__);
+				_exit(EXIT_FAILURE);
 			}
-			execl("/usr/sbin/dig", "dig", temp1, NULL);
-			printf("dig execl() failed, line: %d\n", __LINE__);
-			_exit(EXIT_FAILURE);
+			if (dig_pid == -1) {
+				err(EXIT_FAILURE,
+				    "dig fork, line: %d", __LINE__);
+			}
+
+			waitpid(dig_pid, &i, 0);
+
+			if (i == EXIT_FAILURE)
+				errx(EXIT_FAILURE, "dig returned an error.");
+			
+			if (verbose >= 2) {
+				clock_gettime(CLOCK_UPTIME, &tv_end);
+				printf("%.9Lf\n",
+				    (long double)(tv_end.tv_sec -
+				    tv_start.tv_sec) +
+				    
+				    (long double)(tv_end.tv_nsec -
+				    tv_start.tv_nsec) /
+				    (long double)1000000000);
+			}		    
 		}
-		if (dig_pid == -1)
-			err(EXIT_FAILURE, "dig fork, line: %d", __LINE__);
-
-		waitpid(dig_pid, &i, 0);
-
-		if (i == EXIT_FAILURE)
-			errx(EXIT_FAILURE, "dig returned an error.");
-
-		
-		if (verbose >= 2) {
-			clock_gettime(CLOCK_UPTIME, &tv_end);
-			printf("%.9Lf\n",
-			    (long double)(tv_end.tv_sec - tv_start.tv_sec) +
-			    (long double)(tv_end.tv_nsec - tv_start.tv_nsec) /
-			    (long double)1000000000);
-		}
-		
-		if (--n > 0)
-			goto skip_back;
-		    
-		skip_dig:
 
 
 		
@@ -963,7 +964,7 @@ main(int argc, char *argv[])
 		
 		waitpid(ftp_pid, &n, 0);
 		
-		if (n != 0) {
+		if (n != EXIT_SUCCESS) {
 			array[c]->diff = s + 1;
 			if (verbose >= 2)
 				printf("Download Error\n");
