@@ -323,6 +323,7 @@ main(int argc, char *argv[])
 			char *tag_w;
 			
 			if (pledge("stdio cpath wpath", NULL) == -1) {
+				printf("%s ", strerror(errno));
 				printf("pledge, line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
@@ -331,6 +332,7 @@ main(int argc, char *argv[])
 						
 			kq = kqueue();
 			if (kq == -1) {
+				printf("%s ", strerror(errno));
 				printf("kq! line %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
@@ -338,6 +340,7 @@ main(int argc, char *argv[])
 			EV_SET(&ke, parent_to_write[STDIN_FILENO], EVFILT_READ,
 				EV_ADD | EV_ONESHOT, 0, 0, NULL);
 			if (kevent(kq, &ke, 1, &ke, 1, NULL) == -1) {
+				printf("%s ", strerror(errno));
 				printf("write_pid kevent register fail,");
 				printf(" line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
@@ -352,6 +355,7 @@ main(int argc, char *argv[])
 			
 			input = fdopen(parent_to_write[STDIN_FILENO], "r");
 			if (input == NULL) {
+				printf("%s ", strerror(errno));
 				printf("write_pid fdopen, ");
 				printf("line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
@@ -359,6 +363,7 @@ main(int argc, char *argv[])
 			
 			tag_w = malloc(300 + 1);
 			if (tag_w == NULL) {
+				printf("%s ", strerror(errno));
 				printf("malloc, line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
@@ -387,6 +392,7 @@ main(int argc, char *argv[])
 			pkg_write = fopen("/etc/installurl", "w");
 
 			if (pledge("stdio", NULL) == -1) {
+				printf("%s ", strerror(errno));
 				printf("pledge, line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
@@ -403,6 +409,7 @@ main(int argc, char *argv[])
 				_exit(EXIT_SUCCESS);
 			}
 			
+			printf("%s ", strerror(errno));
 			printf("/etc/installurl not opened.\n");
 			_exit(EXIT_FAILURE);
 		}
@@ -423,6 +430,7 @@ main(int argc, char *argv[])
 	if (ftp_pid == (pid_t) 0) {
 
 		if (pledge("stdio exec", NULL) == -1) {
+			printf("%s ", strerror(errno));
 			printf("ftp 1 pledge, line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
@@ -430,6 +438,7 @@ main(int argc, char *argv[])
 		close(ftp_to_sed[STDIN_FILENO]);
 
 		if (dup2(ftp_to_sed[STDOUT_FILENO], STDOUT_FILENO) == -1) {
+			printf("%s ", strerror(errno));
 			printf("ftp STDOUT dup2, line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
@@ -444,6 +453,7 @@ main(int argc, char *argv[])
 			    "https://www.openbsd.org/ftp.html", NULL);
 		}
 
+		fprintf(stderr, "%s ", strerror(errno));
 		fprintf(stderr, "ftp 1 execl() failed, line: %d\n", __LINE__);
 		_exit(EXIT_FAILURE);
 	}
@@ -453,25 +463,27 @@ main(int argc, char *argv[])
 	close(ftp_to_sed[STDOUT_FILENO]);
 
 	if (pipe(sed_to_parent) == -1) {
-		n = errno;
+		printf("%s ", strerror(errno));
 		kill(ftp_pid, SIGKILL);
-		errno = n;
-		err(EXIT_FAILURE, "pipe, line: %d", __LINE__);
+		errx(EXIT_FAILURE, "pipe, line: %d", __LINE__);
 	}
 	sed_pid = fork();
 	if (sed_pid == (pid_t) 0) {
 
 		if (pledge("stdio exec", NULL) == -1) {
+			printf("%s ", strerror(errno));
 			printf("sed pledge, line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 		close(sed_to_parent[STDIN_FILENO]);
 
 		if (dup2(ftp_to_sed[STDIN_FILENO], STDIN_FILENO) == -1) {
+			printf("%s ", strerror(errno));
 			printf("sed STDIN dup2, line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 		if (dup2(sed_to_parent[STDOUT_FILENO], STDOUT_FILENO) == -1) {
+			printf("%s ", strerror(errno));
 			printf("sed STDOUT dup2, line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
@@ -480,14 +492,14 @@ main(int argc, char *argv[])
 		    "-e", "s:\t<strong>\\([^<]*\\)<.*:\\1:p",
 		    "-e", "s:^\\(\t[hfr].*\\):\\1:p", NULL);
 
+		fprintf(stderr, "%s ", strerror(errno));
 		fprintf(stderr, "sed execl, line: %d\n", __LINE__);
 		_exit(EXIT_FAILURE);
 	}
 	if (sed_pid == -1) {
-		n = errno;
+		printf("%s ", strerror(errno));
 		kill(ftp_pid, SIGKILL);
-		errno = n;
-		err(EXIT_FAILURE, "sed fork, line: %d", __LINE__);
+		errx(EXIT_FAILURE, "sed fork, line: %d", __LINE__);
 	}
 
 	close(ftp_to_sed[STDIN_FILENO]);
@@ -503,11 +515,10 @@ main(int argc, char *argv[])
 	}
 	
 	if (uname(name) == -1) {
-		n = errno;
+		printf("%s ", strerror(errno));
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
-		errno = n;
-		err(EXIT_FAILURE, "uname, line: %d", __LINE__);
+		errx(EXIT_FAILURE, "uname, line: %d", __LINE__);
 	}
 	
 	i = strlen(name->release);
@@ -552,22 +563,20 @@ main(int argc, char *argv[])
 
 	kq = kqueue();
 	if (kq == -1) {
-		n = errno;
+		printf("%s ", strerror(errno));
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
-		errno = n;
-		err(EXIT_FAILURE, "kq! line: %d", __LINE__);
+		errx(EXIT_FAILURE, "kq! line: %d", __LINE__);
 	}
 
 	EV_SET(&ke, sed_to_parent[STDIN_FILENO], EVFILT_READ,
 	    EV_ADD | EV_ONESHOT, 0, 0, NULL);
 	i = kevent(kq, &ke, 1, &ke, 1, &timeout0);
 	if (i == -1) {
-		n = errno;
+		printf("%s ", strerror(errno));
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
-		errno = n;
-		err(EXIT_FAILURE,
+		errx(EXIT_FAILURE,
 		    "kevent, timeout0 may be too large. line: %d\n", __LINE__);
 	}
 	if (i == 0) {
@@ -578,10 +587,9 @@ main(int argc, char *argv[])
 	}
 	input = fdopen(sed_to_parent[STDIN_FILENO], "r");
 	if (input == NULL) {
-		n = errno;
+		printf("%s ", strerror(errno));
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
-		errno = n;
 		err(EXIT_FAILURE, "fdopen sed_to_parent, line: %d", __LINE__);
 	}
 
@@ -819,6 +827,7 @@ main(int argc, char *argv[])
 			if (dig_pid == (pid_t) 0) {
 
 				if (pledge("stdio exec", NULL) == -1) {
+					printf("%s ", strerror(errno));
 					printf("dig pledge, ");
 					printf("line: %d\n", __LINE__);
 					_exit(EXIT_FAILURE);
@@ -855,6 +864,7 @@ main(int argc, char *argv[])
 				}
 				execl("/usr/sbin/dig", "dig", first, NULL);
 				
+				printf("%s ", strerror(errno));
 				printf("dig execl() failed, ");
 				printf("line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
@@ -874,7 +884,6 @@ main(int argc, char *argv[])
 				printf("%.9Lf\n",
 				    (long double)(tv_end.tv_sec -
 				    tv_start.tv_sec) +
-				    
 				    (long double)(tv_end.tv_nsec -
 				    tv_start.tv_nsec) /
 				    (long double)1000000000);
@@ -891,6 +900,7 @@ main(int argc, char *argv[])
 		if (ftp_pid == (pid_t) 0) {
 
 			if (pledge("stdio exec", NULL) == -1) {
+				printf("%s ", strerror(errno));
 				printf("ftp 2 pledge, line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
@@ -917,6 +927,7 @@ main(int argc, char *argv[])
 				    "/dev/null", line, NULL);
 			}
 
+			printf("%s ", strerror(errno));
 			printf("ftp 2 execl() failed, line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
@@ -929,10 +940,9 @@ main(int argc, char *argv[])
 		EV_SET(&ke, ftp_pid, EVFILT_PROC, EV_ADD | EV_ONESHOT,
 		    NOTE_EXIT, 0, NULL);
 		if (kevent(kq, &ke, 1, NULL, 0, NULL) == -1) {
-			n = errno;
+			printf("%s ", strerror(errno));
 			kill(ftp_pid, SIGKILL);
-			errno = n;
-			err(EXIT_FAILURE,
+			errx(EXIT_FAILURE,
 			    "kevent register fail, line: %d", __LINE__);
 		}
 		clock_gettime(CLOCK_UPTIME, &tv_start);
@@ -942,10 +952,9 @@ main(int argc, char *argv[])
 
 		i = kevent(kq, NULL, 0, &ke, 1, &timeout);
 		if (i == -1) {
-			n = errno;
+			printf("%s ", strerror(errno));
 			kill(ftp_pid, SIGKILL);
-			errno = n;
-			err(EXIT_FAILURE, "kevent, line: %d", __LINE__);
+			errx(EXIT_FAILURE, "kevent, line: %d", __LINE__);
 		}
 		
 		/* timeout occurred before ftp() exit received */
