@@ -1086,6 +1086,8 @@ main(int argc, char *argv[])
 		if (current == 0) {
 			printf("\n\nNo mirrors. It doesn't appear that the ");
 			printf("%s release is present yet.\n", release);
+			if (override == 0)
+				printf("Perhaps try the -O option?\n");
 			return EXIT_FAILURE;
 		} else
 			errx(EXIT_FAILURE, "No successful mirrors found.");
