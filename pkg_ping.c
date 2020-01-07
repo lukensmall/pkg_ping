@@ -1083,7 +1083,7 @@ main(int argc, char *argv[])
 	}
 
 	if (array[0]->diff >= s) {
-		if (current == 0 && override == 1) {
+		if (current == 0) {
 			printf("\n\nNo mirrors. It doesn't appear that the ");
 			printf("%s release is present yet.\n", release);
 			return EXIT_FAILURE;
