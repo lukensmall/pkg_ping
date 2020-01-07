@@ -73,12 +73,12 @@ struct mirror_st {
 static int
 diff_cmp(const void *a, const void *b)
 {
-	struct mirror_st **one = (struct mirror_st **) a;
-	struct mirror_st **two = (struct mirror_st **) b;
+	struct mirror_st *one = ((struct mirror_st **) a)[0];
+	struct mirror_st *two = ((struct mirror_st **) b)[0];
 
-	if ((*one)->diff < (*two)->diff)
+	if (one->diff < two->diff)
 		return -1;
-	if ((*one)->diff > (*two)->diff)
+	if (one->diff > two->diff)
 		return 1;
 	return 0;
 }
@@ -86,42 +86,42 @@ diff_cmp(const void *a, const void *b)
 static int
 ftp_cmp(const void *a, const void *b)
 {
-	struct mirror_st **one = (struct mirror_st **) a;
-	struct mirror_st **two = (struct mirror_st **) b;
+	struct mirror_st *one = ((struct mirror_st **) a)[0];
+	struct mirror_st *two = ((struct mirror_st **) b)[0];
 
-	return strcmp((*one)->ftp_file, (*two)->ftp_file);
+	return strcmp(one->ftp_file, two->ftp_file);
 }
 
 static int
 label_cmp(const void *a, const void *b)
 {
-	struct mirror_st **one = (struct mirror_st **) a;
-	struct mirror_st **two = (struct mirror_st **) b;
+	struct mirror_st *one = ((struct mirror_st **) a)[0];
+	struct mirror_st *two = ((struct mirror_st **) b)[0];
 
 	/* list the USA mirrors first, it will subsort correctly */
-	int8_t temp = !strncmp("USA", (*one)->label, 3);
-	if (temp != !strncmp("USA", (*two)->label, 3)) {
+	int8_t temp = !strncmp("USA", one->label, 3);
+	if (temp != !strncmp("USA", two->label, 3)) {
 		if (temp)
 			return -1;
 		return 1;
 	}
-	return strcmp((*one)->label, (*two)->label);
+	return strcmp(one->label, two->label);
 }
 
 static int
 label_rev_cmp(const void *a, const void *b)
 {
-	struct mirror_st **one = (struct mirror_st **) a;
-	struct mirror_st **two = (struct mirror_st **) b;
+	struct mirror_st *one = ((struct mirror_st **) a)[0];
+	struct mirror_st *two = ((struct mirror_st **) b)[0];
 
 	/* list the USA mirrors first, and will reverse subsort */
-	int8_t temp = !strncmp("USA", (*one)->label, 3);
-	if (temp != !strncmp("USA", (*two)->label, 3)) {
+	int8_t temp = !strncmp("USA", one->label, 3);
+	if (temp != !strncmp("USA", two->label, 3)) {
 		if (temp)
 			return -1;
 		return 1;
 	}
-	return strcmp((*two)->label, (*one)->label);
+	return strcmp(two->label, one->label);
 }
 
 static void
@@ -577,13 +577,13 @@ main(int argc, char *argv[])
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
 		errx(EXIT_FAILURE,
-		    "kevent, timeout0 may be too large. line: %d\n", __LINE__);
+		    "kevent, timeout0 may be too large. line: %d", __LINE__);
 	}
 	if (i == 0) {
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
 		errx(EXIT_FAILURE,
-		    "timed out fetching: https://www.openbsd.org/ftp.html\n");
+		    "timed out fetching: https://www.openbsd.org/ftp.html");
 	}
 	input = fdopen(sed_to_parent[STDIN_FILENO], "r");
 	if (input == NULL) {
@@ -813,12 +813,7 @@ main(int argc, char *argv[])
 
 
 
-		if (d == 0)
-			n = 0;
-		else
-			n = 2;
-		
-		for(; n > 0; --n) {
+		for(n = 2 * d; n > 0; --n) {
 		
 			if (verbose >= 2)
 				clock_gettime(CLOCK_UPTIME, &tv_start);
@@ -864,9 +859,9 @@ main(int argc, char *argv[])
 				}
 				execl("/usr/sbin/dig", "dig", first, NULL);
 				
-				printf("%s ", strerror(errno));
-				printf("dig execl() failed, ");
-				printf("line: %d\n", __LINE__);
+				fprintf(stderr, "%s ", strerror(errno));
+				fprintf(stderr, "dig execl() failed, ");
+				fprintf(stderr, "line: %d\n", __LINE__);
 				_exit(EXIT_FAILURE);
 			}
 			if (dig_pid == -1) {
@@ -957,7 +952,7 @@ main(int argc, char *argv[])
 			errx(EXIT_FAILURE, "kevent, line: %d", __LINE__);
 		}
 		
-		/* timeout occurred before ftp() exit received */
+		/* timeout occurred before ftp() exit was received */
 		if (i == 0) {
 			kill(ftp_pid, SIGKILL);
 			
