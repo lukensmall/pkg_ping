@@ -397,8 +397,6 @@ main(int argc, char *argv[])
 		hints.ai_family = AF_INET;
 		hints.ai_socktype = SOCK_STREAM;
 		hints.ai_protocol = 0;
-		if (getaddrinfo(host, line, &hints, &res0))
-			_exit(EXIT_FAILURE);
 		if (getaddrinfo(host, line, &hints, &res0)) {
 			printf("%s ", strerror(errno));
 			printf("getaddrinfo() failed line: %d\n", __LINE__);
