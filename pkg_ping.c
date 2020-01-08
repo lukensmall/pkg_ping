@@ -52,11 +52,13 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <netdb.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/event.h>
+#include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
 #include <sys/utsname.h>
@@ -128,7 +130,7 @@ static void
 manpage(char a[])
 {
 	printf("%s\n", a);
-	printf("[-d (don't run Dig)]\n");
+	printf("[-d (don't cache DNS)]\n");
 
 	printf("[-f (don't write to File even if run as root)]\n");
 
@@ -157,7 +159,7 @@ int
 main(int argc, char *argv[])
 {
 	int8_t f = (getuid() == 0) ? 1 : 0;
-	int8_t num, current, insecure, u, verbose, override, d;
+	int8_t num, current, insecure, u, verbose, override, dns_cache;
 	long double s, S;
 	pid_t ftp_pid, sed_pid, write_pid;
 	int kq, i, pos, c, n, array_max, array_length, tag_len;
@@ -170,17 +172,15 @@ main(int argc, char *argv[])
 	
 	/* 20 seconds and 0 nanoseconds */
 	struct timespec timeout0 = { 20, 0 };
+	char *line;
 	
-	if (pledge("stdio proc exec cpath wpath unveil", NULL) == -1)
+	if (pledge("stdio proc exec cpath wpath dns unveil", NULL) == -1)
 		err(EXIT_FAILURE, "pledge, line: %d", __LINE__);
 
 	if (unveil("/usr/bin/ftp", "x") == -1)
 		err(EXIT_FAILURE, "unveil, line: %d", __LINE__);
 
 	if (unveil("/usr/bin/sed", "x") == -1)
-		err(EXIT_FAILURE, "unveil, line: %d", __LINE__);
-
-	if (unveil("/usr/sbin/dig", "x") == -1)
 		err(EXIT_FAILURE, "unveil, line: %d", __LINE__);
 	
 
@@ -189,14 +189,15 @@ main(int argc, char *argv[])
 		if (unveil("/etc/installurl", "cw") == -1)
 			err(EXIT_FAILURE, "unveil, line: %d", __LINE__);
 
-		if (pledge("stdio proc exec cpath wpath", NULL) == -1)
+		if (pledge("stdio proc exec cpath wpath dns", NULL) == -1)
 			err(EXIT_FAILURE, "pledge, line: %d", __LINE__);
-	} else if (pledge("stdio proc exec", NULL) == -1)
+	} else if (pledge("stdio proc exec dns", NULL) == -1)
 		err(EXIT_FAILURE, "pledge, line: %d", __LINE__);
 
 	
 	u = verbose = current = override = 0;
-	insecure = d = 1;
+	insecure = 1;
+	dns_cache = 1;
 	s = 5;
 
 	char *version;
@@ -220,12 +221,12 @@ main(int argc, char *argv[])
 	while ((c = getopt(argc, argv, "dfhOSs:uvV")) != -1) {
 		switch (c) {
 		case 'd':
-			d = 0;
+			dns_cache = 0;
 			break;
 		case 'f':
 			if (f == 0)
 				break;
-			if (pledge("stdio proc exec", NULL) == -1)
+			if (pledge("stdio proc exec dns", NULL) == -1)
 				err(EXIT_FAILURE, "pledge, line: %d", __LINE__);
 			f = 0;
 			break;
@@ -260,11 +261,11 @@ main(int argc, char *argv[])
 			errno = 0;
 			s = strtold(optarg, NULL);
 			if (errno == ERANGE)
-				err(EXIT_FAILURE, "strtod");
-			if (s > (long double)1000.0)
+				err(EXIT_FAILURE, "strtold");
+			if (s > (long double)1000)
 				errx(EXIT_FAILURE, "-s should be <= 1000");
-			if (s <= (long double)0.01)
-				errx(EXIT_FAILURE, "-s should be > 0.01");
+			if (s < (long double)0.01)
+				errx(EXIT_FAILURE, "-s should be >= 0.01");
 			break;
 		case 'u':
 			u = 1;
@@ -286,6 +287,167 @@ main(int argc, char *argv[])
 	if (optind < argc) {
 		manpage(argv[0]);
 		errx(EXIT_FAILURE, "non-option ARGV-element: %s", argv[optind]);
+	}
+
+
+
+
+
+
+	if (dns_cache == 0)
+		goto jump_dns;
+
+	int getaddr_socket[2];
+	if (socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, getaddr_socket) == -1)
+		err(EXIT_FAILURE, "socketpair");
+
+	pid_t getaddr_pid = fork();
+	if (getaddr_pid == (pid_t) 0) {
+
+		if (pledge("stdio dns", NULL) == -1) {
+			printf("%s ", strerror(errno));
+			printf("getaddr pledge, line: %d\n", __LINE__);
+			_exit(EXIT_FAILURE);
+		}
+				
+		close(getaddr_socket[1]);
+		char *host, *last;
+		
+		kq = kqueue();
+		if (kq == -1) {
+			printf("%s ", strerror(errno));
+			printf("kq! line: %d\n", __LINE__);
+			_exit(EXIT_FAILURE);
+		}
+		
+		loop:
+
+		EV_SET(&ke, getaddr_socket[0], EVFILT_READ,
+		    EV_ADD | EV_ONESHOT, 0, 0, NULL);
+		if (kevent(kq, &ke, 1, &ke, 1, NULL) == -1) {
+			printf("%s ", strerror(errno));
+			printf("kevent register fail, line: %d\n", __LINE__);
+			_exit(EXIT_FAILURE);
+		}
+		
+		if (ke.flags & EV_EOF)
+		{
+			close(kq);
+			_exit(EXIT_SUCCESS);
+		}
+
+		if (ke.data > 300) {
+			printf("ke.data > 300, line: %d\n", __LINE__);
+			_exit(EXIT_FAILURE);
+		}
+			
+		line = malloc(ke.data + 1);
+		if (line == NULL) {
+			printf("%s ", strerror(errno));
+			printf("malloc, line: %d\n", __LINE__);
+			_exit(EXIT_FAILURE);
+		}
+		line[ke.data] = '\0';
+
+		i = read(getaddr_socket[0], line, ke.data);
+		if (i <= 0) {
+			printf("%s ", strerror(errno));
+			printf("'line' not received");
+			printf(" line: %d\n", __LINE__);
+			_exit(EXIT_FAILURE);
+		}
+
+		host = strstr(line, "://");
+		if (host == NULL) {
+			printf("strstr(%s, \"://\")", line);
+			printf(" == NULL ");
+			printf("line: %d\n", __LINE__);
+			_exit(EXIT_FAILURE);
+		}
+		
+		/* null terminator for 'line' in getaddrinfo() */
+		*host = '\0';
+			
+		host += 3;
+			
+		last = strstr( host, "/");
+		if (last == NULL) {
+			printf("strstr(%s, \"/\")", host);
+			printf(" == NULL ");
+			printf("line: %d\n", __LINE__);
+			_exit(EXIT_FAILURE);
+		}
+		*last = '\0';
+		
+		if (verbose >= 2)
+			printf("Running:  getaddr %s\n", host);
+
+
+		struct addrinfo hints, *res0, *res;
+
+		bzero(&hints, sizeof(hints));
+		hints.ai_flags = AI_CANONNAME;
+		hints.ai_family = AF_INET;
+		hints.ai_socktype = SOCK_STREAM;
+		hints.ai_protocol = 0;
+		if (getaddrinfo(host, line, &hints, &res0))
+			_exit(EXIT_FAILURE);
+		if (getaddrinfo(host, line, &hints, &res0)) {
+			printf("%s ", strerror(errno));
+			printf("getaddrinfo() failed line: %d\n", __LINE__);
+			_exit(EXIT_FAILURE);
+		}
+
+		
+		if (verbose == 4 && res0->ai_canonname) {
+			if (strcmp(res0->ai_canonname, host))
+				printf("canon name: %s\n", res0->ai_canonname);
+		}
+
+		if (verbose == 4) {
+			struct sockaddr_in *sad;
+			
+			for (res = res0; res; res = res->ai_next) {
+				sad = (struct sockaddr_in*)res->ai_addr;
+				printf("%d.%d.%d.%d\n",
+				     sad->sin_addr.s_addr&0x000000FF,
+				    (sad->sin_addr.s_addr&0x0000FF00) >>  8,
+				    (sad->sin_addr.s_addr&0x00FF0000) >> 16,
+				    (sad->sin_addr.s_addr&0xFF000000) >> 24);
+			}
+		}
+
+			
+			
+		i = write(getaddr_socket[0], "\0", 1);		
+		
+		if (i < 1)
+			_exit(EXIT_FAILURE);
+
+		freeaddrinfo(res0);
+		free(line);
+		
+		goto loop;
+		
+		_exit(EXIT_SUCCESS);
+	}
+	if (getaddr_pid == -1)
+		err(EXIT_FAILURE, "getaddr fork, line: %d\n", __LINE__);
+
+	close(getaddr_socket[0]);
+	
+	jump_dns:
+
+
+
+
+	
+	if (f) {
+		if (pledge("stdio proc exec cpath wpath", NULL) == -1)
+			err(EXIT_FAILURE, "pledge, line: %d", __LINE__);
+	} else {
+		if (pledge("stdio proc exec", NULL) == -1)
+			err(EXIT_FAILURE, "pledge, line: %d", __LINE__);
 	}
 
 
@@ -454,7 +616,7 @@ main(int argc, char *argv[])
 		}
 
 		fprintf(stderr, "%s ", strerror(errno));
-		fprintf(stderr, "ftp 1 execl() failed, line: %d\n", __LINE__);
+		fprintf(stderr, "ftp 1 execl failed, line: %d\n", __LINE__);
 		_exit(EXIT_FAILURE);
 	}
 	if (ftp_pid == -1)
@@ -594,7 +756,7 @@ main(int argc, char *argv[])
 	}
 
 	/* if the index for line[] exceeds 299, it will error out */
-	char *line = malloc(300);
+	line = malloc(300);
 	if (line == NULL) {
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
@@ -785,8 +947,8 @@ main(int argc, char *argv[])
 		strlcpy(line + n, tag, pos_max - n);
 
 		if (verbose >= 2) {
-			if (verbose == 4 && d)
-				printf("\n\n\n");
+			if (verbose == 4 && dns_cache)
+				printf("\n\n");
 			else if (verbose >= 3)
 				printf("\n");
 			if (array_length >= 100) {
@@ -813,70 +975,27 @@ main(int argc, char *argv[])
 
 
 
-		for(n = 2 * d; n > 0; --n) {
+		for(n = dns_cache; n > 0; --n) {
 		
 			if (verbose >= 2)
 				clock_gettime(CLOCK_UPTIME, &tv_start);
 
-			pid_t dig_pid = fork();
-			if (dig_pid == (pid_t) 0) {
 
-				if (pledge("stdio exec", NULL) == -1) {
-					printf("%s ", strerror(errno));
-					printf("dig pledge, ");
-					printf("line: %d\n", __LINE__);
-					_exit(EXIT_FAILURE);
-				}
-				
-				char *first, *last;
-				
-				first = strstr(line, "://");
-				if (first == NULL) {
-					printf("strstr(%s, \"://\")", line);
-					printf(" == NULL ");
-					printf("line: %d\n", __LINE__);
-					_exit(EXIT_FAILURE);
-				}
-					
-				first += 3;
-					
-				last = strstr( first, "/");
-				if (last == NULL) {
-					printf("strstr(%s, \"/\")", first);
-					printf(" == NULL ");
-					printf("line: %d\n", __LINE__);
-					_exit(EXIT_FAILURE);
-				}
-				*last = '\0';
-				
-				if (verbose >= 2)
-					printf("Running:  dig %s\n", first);
-				
-				if (verbose <= 3) {
-					i = open("/dev/null", O_WRONLY);
-					if (i != -1)
-						dup2(i, STDOUT_FILENO);
-				}
-				execl("/usr/sbin/dig", "dig", first, NULL);
-				
-				fprintf(stderr, "%s ", strerror(errno));
-				fprintf(stderr, "dig execl() failed, ");
-				fprintf(stderr, "line: %d\n", __LINE__);
-				_exit(EXIT_FAILURE);
-			}
-			if (dig_pid == -1) {
-				err(EXIT_FAILURE,
-				    "dig fork, line: %d", __LINE__);
-			}
 
-			waitpid(dig_pid, &i, 0);
+			i = write(getaddr_socket[1], line, strlen(line));
+			
+			if (i < (int)strlen(line))
+				err(EXIT_FAILURE, "response not sent");
 
-			if (i == EXIT_FAILURE)
-				errx(EXIT_FAILURE, "dig returned an error.");
+			i = read(getaddr_socket[1], &i, 1);
+			
+			if (i < 1)
+				err(EXIT_FAILURE, "response not received");
+			
 			
 			if (verbose >= 2) {
 				clock_gettime(CLOCK_UPTIME, &tv_end);
-				printf("%.9Lf\n",
+				printf("%.9Lf seconds\n",
 				    (long double)(tv_end.tv_sec -
 				    tv_start.tv_sec) +
 				    (long double)(tv_end.tv_nsec -
@@ -910,7 +1029,7 @@ main(int argc, char *argv[])
 					dup2(i, STDERR_FILENO);
 			}
 			
-			if (verbose >= 2 && d)
+			if (verbose >= 2 && dns_cache)
 				printf("Running:  ftp\n");
 
 
@@ -1088,9 +1207,10 @@ main(int argc, char *argv[])
 			printf("%s release is present yet.\n", release);
 			if (override == 0)
 				printf("Perhaps try the -O option?\n");
-			return EXIT_FAILURE;
 		} else
-			errx(EXIT_FAILURE, "No successful mirrors found.");
+			printf("No successful mirrors found.\n");
+			
+		return EXIT_FAILURE;
 	}
 	
 	
