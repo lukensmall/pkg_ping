@@ -15,7 +15,7 @@ This program should work on OpenBSD versions 6.4+ (Up to 6.6 as of this writing)
 
 It uses several commandline options:
 
--d causes dig to be skipped.
+-d causes DNS caching to be skipped.
 
 -f prohibits a fork()ed process from writing the fastest mirror to file even if it has the power to do so as root.
 
