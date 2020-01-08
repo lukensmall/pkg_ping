@@ -320,11 +320,18 @@ main(int argc, char *argv[])
 			_exit(EXIT_FAILURE);
 		}
 		
-		loop:
 
 		EV_SET(&ke, getaddr_socket[0], EVFILT_READ,
-		    EV_ADD | EV_ONESHOT, 0, 0, NULL);
-		if (kevent(kq, &ke, 1, &ke, 1, NULL) == -1) {
+		    EV_ADD | EV_CLEAR, 0, 0, NULL);
+		if (kevent(kq, &ke, 1, NULL, 0, NULL) == -1) {
+			printf("%s ", strerror(errno));
+			printf("kevent register fail, line: %d\n", __LINE__);
+			_exit(EXIT_FAILURE);
+		}
+
+		loop:
+
+		if (kevent(kq, NULL, 0, &ke, 1, NULL) == -1) {
 			printf("%s ", strerror(errno));
 			printf("kevent register fail, line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
@@ -1124,6 +1131,10 @@ main(int argc, char *argv[])
 	free(line);
 	free(tag);		
 	close(kq);
+	
+	if (dns_cache)
+		close(getaddr_socket[1]);
+
 
 	if (verbose == 0 || verbose == 1) {
 		printf("\b \b");
