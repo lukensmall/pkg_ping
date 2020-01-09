@@ -158,6 +158,9 @@ manpage(char a[])
 int
 main(int argc, char *argv[])
 {
+	if (pledge("stdio proc exec cpath wpath dns unveil", NULL) == -1)
+		err(EXIT_FAILURE, "pledge, line: %d", __LINE__);
+
 	int8_t f = (getuid() == 0) ? 1 : 0;
 	int8_t num, current, insecure, u, verbose, override, dns_cache;
 	long double s, S;
@@ -174,9 +177,6 @@ main(int argc, char *argv[])
 	struct timespec timeout0 = { 20, 0 };
 	char *line;
 	
-	if (pledge("stdio proc exec cpath wpath dns unveil", NULL) == -1)
-		err(EXIT_FAILURE, "pledge, line: %d", __LINE__);
-
 	if (unveil("/usr/bin/ftp", "x") == -1)
 		err(EXIT_FAILURE, "unveil, line: %d", __LINE__);
 
@@ -321,8 +321,9 @@ main(int argc, char *argv[])
 		goto jump_dns;
 
 	int dns_cache_socket[2];
-	if (socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, dns_cache_socket) == -1)
-		err(EXIT_FAILURE, "socketpair");
+	if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC,
+	    PF_UNSPEC, dns_cache_socket) == -1)
+		err(EXIT_FAILURE, "socketpair, line: %d\n", __LINE__);
 
 	pid_t dns_cache_pid = fork();
 	if (dns_cache_pid == (pid_t) 0) {
@@ -356,7 +357,7 @@ main(int argc, char *argv[])
 
 		if (kevent(kq, NULL, 0, &ke, 1, NULL) == -1) {
 			printf("%s ", strerror(errno));
-			printf("kevent register fail, line: %d\n", __LINE__);
+			printf("kevent, line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 		
@@ -396,6 +397,7 @@ main(int argc, char *argv[])
 		}
 		
 		/* null terminator for 'line' in getaddrinfo() */
+		/* 'line' will resolve to "https" and "http" services */
 		*host = '\0';
 			
 		host += 3;
@@ -467,8 +469,8 @@ main(int argc, char *argv[])
 	if (pledge("stdio proc exec cpath wpath", NULL) == -1)
 		err(EXIT_FAILURE, "pledge, line: %d", __LINE__);
 
-	if (pipe(parent_to_write) == -1)
-		err(EXIT_FAILURE, "pipe, line: %d", __LINE__);
+	if (pipe2(parent_to_write, O_CLOEXEC) == -1)
+		err(EXIT_FAILURE, "pipe2, line: %d", __LINE__);
 
 	write_pid = fork();
 	if (write_pid == (pid_t) 0) {
@@ -482,6 +484,8 @@ main(int argc, char *argv[])
 		}
 		
 		close(parent_to_write[STDOUT_FILENO]);
+		
+		if (dns_cache) close(dns_cache_socket[1]);
 					
 		input = fdopen(parent_to_write[STDIN_FILENO], "r");
 		if (input == NULL) {
@@ -817,9 +821,6 @@ main(int argc, char *argv[])
 			/* excise the final unnecessary '/' */
 			line[pos - 1] = '\0';
 
-			if (pos_max < pos)
-				pos_max = pos;
-
 			if (!insecure) {
 				if (strncmp(line, "https", 5))
 					break;
@@ -828,7 +829,10 @@ main(int argc, char *argv[])
 				num = pos = 0;
 				continue;
 			}
-			
+
+
+			if (pos_max < pos)
+				pos_max = pos;
 
 			array[array_length]->ftp_file = malloc(pos);
 			    
