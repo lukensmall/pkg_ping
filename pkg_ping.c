@@ -297,20 +297,20 @@ main(int argc, char *argv[])
 	if (dns_cache == 0)
 		goto jump_dns;
 
-	int getaddr_socket[2];
-	if (socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, getaddr_socket) == -1)
+	int dns_cache_socket[2];
+	if (socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, dns_cache_socket) == -1)
 		err(EXIT_FAILURE, "socketpair");
 
-	pid_t getaddr_pid = fork();
-	if (getaddr_pid == (pid_t) 0) {
+	pid_t dns_cache_pid = fork();
+	if (dns_cache_pid == (pid_t) 0) {
 
 		if (pledge("stdio dns", NULL) == -1) {
 			printf("%s ", strerror(errno));
-			printf("getaddr pledge, line: %d\n", __LINE__);
+			printf("dns_cache pledge, line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
 				
-		close(getaddr_socket[1]);
+		close(dns_cache_socket[1]);
 		char *host, *last;
 		
 		kq = kqueue();
@@ -321,7 +321,7 @@ main(int argc, char *argv[])
 		}
 		
 
-		EV_SET(&ke, getaddr_socket[0], EVFILT_READ,
+		EV_SET(&ke, dns_cache_socket[0], EVFILT_READ,
 		    EV_ADD | EV_CLEAR, 0, 0, NULL);
 		if (kevent(kq, &ke, 1, NULL, 0, NULL) == -1) {
 			printf("%s ", strerror(errno));
@@ -356,7 +356,7 @@ main(int argc, char *argv[])
 		}
 		line[ke.data] = '\0';
 
-		i = read(getaddr_socket[0], line, ke.data);
+		i = read(dns_cache_socket[0], line, ke.data);
 		if (i <= 0) {
 			printf("%s ", strerror(errno));
 			printf("'line' not received");
@@ -387,7 +387,7 @@ main(int argc, char *argv[])
 		*last = '\0';
 		
 		if (verbose >= 2)
-			printf("Running:  getaddr %s\n", host);
+			printf("DNS caching: %s\n", host);
 
 
 		struct addrinfo hints, *res0, *res;
@@ -424,7 +424,7 @@ main(int argc, char *argv[])
 
 			
 			
-		i = write(getaddr_socket[0], "\0", 1);		
+		i = write(dns_cache_socket[0], "\0", 1);		
 		
 		if (i < 1)
 			_exit(EXIT_FAILURE);
@@ -436,10 +436,10 @@ main(int argc, char *argv[])
 		
 		_exit(EXIT_SUCCESS);
 	}
-	if (getaddr_pid == -1)
-		err(EXIT_FAILURE, "getaddr fork, line: %d\n", __LINE__);
+	if (dns_cache_pid == -1)
+		err(EXIT_FAILURE, "dns_cache fork, line: %d\n", __LINE__);
 
-	close(getaddr_socket[0]);
+	close(dns_cache_socket[0]);
 	
 	jump_dns:
 
@@ -497,34 +497,17 @@ main(int argc, char *argv[])
 			
 			close(parent_to_write[STDOUT_FILENO]);
 						
-			kq = kqueue();
-			if (kq == -1) {
-				printf("%s ", strerror(errno));
-				printf("kq! line %d\n", __LINE__);
-				_exit(EXIT_FAILURE);
-			}
-			
-			EV_SET(&ke, parent_to_write[STDIN_FILENO], EVFILT_READ,
-				EV_ADD | EV_ONESHOT, 0, 0, NULL);
-			if (kevent(kq, &ke, 1, &ke, 1, NULL) == -1) {
-				printf("%s ", strerror(errno));
-				printf("write_pid kevent register fail,");
-				printf(" line: %d\n", __LINE__);
-				_exit(EXIT_FAILURE);
-			}
-			close(kq);
-			
-			/* parent exited before sending data */
-			if (ke.data == 0) {
-				printf("/etc/installurl not written.\n");
-				_exit(EXIT_FAILURE);
-			}
-			
 			input = fdopen(parent_to_write[STDIN_FILENO], "r");
 			if (input == NULL) {
 				printf("%s ", strerror(errno));
 				printf("write_pid fdopen, ");
 				printf("line: %d\n", __LINE__);
+				_exit(EXIT_FAILURE);
+			}
+			
+			c = getc(input);
+			if (c == EOF) {
+				printf("/etc/installurl not written.\n");
 				_exit(EXIT_FAILURE);
 			}
 			
@@ -538,7 +521,7 @@ main(int argc, char *argv[])
 			i = 0;
 			if (verbose >= 1)
 				printf("\n");
-			while ((c = getc(input)) != EOF) {
+			do {
 				if (i >= 300) {
 					printf("\nmirror length ");
 					printf("became too long.\n");
@@ -551,7 +534,8 @@ main(int argc, char *argv[])
 				tag_w[i++] = c;
 				if (c == '\n')
 					break;
-			}
+				c = getc(input);
+			} while (c != EOF);
 			fclose(input);
 			tag_w[i] = '\0';			
 			
@@ -922,10 +906,10 @@ main(int argc, char *argv[])
 		while (c < array_length) {
 			if (!strcmp(array[c - 1]->ftp_file,
 			    array[c]->ftp_file)) {
-				free(array[c - 1]->label);
-				free(array[c - 1]->ftp_file);
-				free(array[c - 1]);
-				for (i = c; i < array_length; ++i)
+				free(array[c]->label);
+				free(array[c]->ftp_file);
+				free(array[c]);
+				for (i = c + 1; i < array_length; ++i)
 					array[i - 1] = array[i];
 				--array_length;
 			} else
@@ -948,8 +932,8 @@ main(int argc, char *argv[])
 
 	for (c = 0; c < array_length; ++c) {
 
-		n = strlcpy(line, array[c]->ftp_file, pos_max);
-		strlcpy(line + n, tag, pos_max - n);
+		pos  = strlcpy(line, array[c]->ftp_file, pos_max);
+		pos += strlcpy(line + pos, tag, pos_max - pos);
 
 		if (verbose >= 2) {
 			if (verbose == 4 && dns_cache)
@@ -987,12 +971,12 @@ main(int argc, char *argv[])
 
 
 
-			i = write(getaddr_socket[1], line, strlen(line));
+			i = write(dns_cache_socket[1], line, pos);
 			
-			if (i < (int)strlen(line))
+			if (i < pos)
 				err(EXIT_FAILURE, "response not sent");
 
-			i = read(getaddr_socket[1], &i, 1);
+			i = read(dns_cache_socket[1], &i, 1);
 			
 			if (i < 1)
 				err(EXIT_FAILURE, "response not received");
@@ -1131,7 +1115,7 @@ main(int argc, char *argv[])
 	close(kq);
 	
 	if (dns_cache)
-		close(getaddr_socket[1]);
+		close(dns_cache_socket[1]);
 
 
 	if (verbose == 0 || verbose == 1) {
@@ -1228,11 +1212,21 @@ main(int argc, char *argv[])
 		if (dup2(parent_to_write[STDOUT_FILENO], STDOUT_FILENO) == -1)
 			err(EXIT_FAILURE, "dup2, line: %d\n", __LINE__);
 		
-		/* remove superfluous dynamic array memory before writing */
-		for (c = 1; c < array_length; ++c) {
-			free(array[c]->ftp_file);
-			free(array[c]->label);
-			free(array[c]);
+		/* Perhaps somebody has kinda strict memory limits */
+		if (dns_cache == 0) {
+			/* remove extra dynamic array memory before writing */
+			for (c = 1; c < array_length; ++c) {
+				free(array[c]->label);
+				free(array[c]->ftp_file);
+				free(array[c]);
+			}
+			array = reallocarray(array, 1,
+			    sizeof(struct mirror_st *));
+
+			if (array == NULL) {
+				err(EXIT_FAILURE,
+				    "reallocarray, line: %d", __LINE__);
+			}
 		}
 		
 		/* sends the fastest mirror to write_pid process */
