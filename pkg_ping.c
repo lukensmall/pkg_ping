@@ -291,6 +291,29 @@ main(int argc, char *argv[])
 
 
 
+	if (verbose > 1) {
+		if (current == 1) {
+			if (override == 0)
+				printf("This is a snapshot.\n\n");
+			else {
+				printf("This is a snapshot, ");
+				printf("but it has been overridden ");
+				printf("to show release mirrors!\n\n");
+			}
+		} else {
+			if (override == 0)
+				printf("This is a release.\n\n");
+			else {
+				printf("This is a release, ");
+				printf("but it has been overridden ");
+				printf("to show snapshot mirrors!\n\n");
+			}
+		}
+	}
+	
+	if (override == 1)
+		current = !current;
+
 
 
 
@@ -378,13 +401,8 @@ main(int argc, char *argv[])
 		host += 3;
 			
 		last = strstr( host, "/");
-		if (last == NULL) {
-			printf("strstr(%s, \"/\")", host);
-			printf(" == NULL ");
-			printf("line: %d\n", __LINE__);
-			_exit(EXIT_FAILURE);
-		}
-		*last = '\0';
+		if (last != NULL)
+			*last = '\0';
 		
 		if (verbose >= 2)
 			printf("DNS caching: %s\n", host);
@@ -443,135 +461,105 @@ main(int argc, char *argv[])
 	
 	jump_dns:
 
+	if (f == 0)
+		goto jump_f;
 
+	if (pledge("stdio proc exec cpath wpath", NULL) == -1)
+		err(EXIT_FAILURE, "pledge, line: %d", __LINE__);
 
+	if (pipe(parent_to_write) == -1)
+		err(EXIT_FAILURE, "pipe, line: %d", __LINE__);
 
-	
-	if (f) {
-		if (pledge("stdio proc exec cpath wpath", NULL) == -1)
-			err(EXIT_FAILURE, "pledge, line: %d", __LINE__);
-	} else {
-		if (pledge("stdio proc exec", NULL) == -1)
-			err(EXIT_FAILURE, "pledge, line: %d", __LINE__);
-	}
-
-
-	if (verbose > 1) {
-		if (current == 1) {
-			if (override == 0)
-				printf("This is a snapshot.\n\n");
-			else {
-				printf("This is a snapshot, ");
-				printf("but it has been overridden ");
-				printf("to show release mirrors!\n\n");
-			}
-		} else {
-			if (override == 0)
-				printf("This is a release.\n\n");
-			else {
-				printf("This is a release, ");
-				printf("but it has been overridden ");
-				printf("to show snapshot mirrors!\n\n");
-			}
-		}
-	}
-	
-	if (override == 1)
-		current = !current;
-
-	if (f) {
+	write_pid = fork();
+	if (write_pid == (pid_t) 0) {
 		
-		if (pipe(parent_to_write) == -1)
-			err(EXIT_FAILURE, "pipe, line: %d", __LINE__);
-
-		write_pid = fork();
-		if (write_pid == (pid_t) 0) {
+		char *tag_w;
+		
+		if (pledge("stdio cpath wpath", NULL) == -1) {
+			printf("%s ", strerror(errno));
+			printf("pledge, line: %d\n", __LINE__);
+			_exit(EXIT_FAILURE);
+		}
+		
+		close(parent_to_write[STDOUT_FILENO]);
+					
+		input = fdopen(parent_to_write[STDIN_FILENO], "r");
+		if (input == NULL) {
+			printf("%s ", strerror(errno));
+			printf("write_pid fdopen, line: %d\n", __LINE__);
+			_exit(EXIT_FAILURE);
+		}
+		
+		c = getc(input);
+		if (c == EOF) {
+			printf("/etc/installurl not written.\n");
+			_exit(EXIT_FAILURE);
+		}
+		
+		tag_w = malloc(300 + 1);
+		if (tag_w == NULL) {
+			printf("%s ", strerror(errno));
+			printf("malloc, line: %d\n", __LINE__);
+			_exit(EXIT_FAILURE);
+		}
 			
-			char *tag_w;
-			
-			if (pledge("stdio cpath wpath", NULL) == -1) {
-				printf("%s ", strerror(errno));
-				printf("pledge, line: %d\n", __LINE__);
-				_exit(EXIT_FAILURE);
-			}
-			
-			close(parent_to_write[STDOUT_FILENO]);
-						
-			input = fdopen(parent_to_write[STDIN_FILENO], "r");
-			if (input == NULL) {
-				printf("%s ", strerror(errno));
-				printf("write_pid fdopen, ");
-				printf("line: %d\n", __LINE__);
-				_exit(EXIT_FAILURE);
-			}
-			
-			c = getc(input);
-			if (c == EOF) {
+		i = 0;
+		if (verbose >= 1)
+			printf("\n");
+		do {
+			if (i >= 300) {
+				printf("\nmirror length became too long.\n");
 				printf("/etc/installurl not written.\n");
 				_exit(EXIT_FAILURE);
 			}
-			
-			tag_w = malloc(300 + 1);
-			if (tag_w == NULL) {
-				printf("%s ", strerror(errno));
-				printf("malloc, line: %d\n", __LINE__);
-				_exit(EXIT_FAILURE);
-			}
-				
-			i = 0;
-			if (verbose >= 1)
-				printf("\n");
-			do {
-				if (i >= 300) {
-					printf("\nmirror length ");
-					printf("became too long.\n");
-					
-					printf("/etc/installurl");
-					printf(" not written.\n");
-					_exit(EXIT_FAILURE);
-				}
 
-				tag_w[i++] = c;
-				if (c == '\n')
-					break;
-				c = getc(input);
-			} while (c != EOF);
-			fclose(input);
-			tag_w[i] = '\0';			
-			
-			/* fopen(... "w") truncates the file */
-			pkg_write = fopen("/etc/installurl", "w");
+			tag_w[i++] = c;
+			if (c == '\n')
+				break;
+			c = getc(input);
+		} while (c != EOF);
+		fclose(input);
+		tag_w[i] = '\0';			
+		
+		/* fopen(... "w") truncates the file */
+		pkg_write = fopen("/etc/installurl", "w");
 
-			if (pledge("stdio", NULL) == -1) {
-				printf("%s ", strerror(errno));
-				printf("pledge, line: %d\n", __LINE__);
-				_exit(EXIT_FAILURE);
-			}
-			
-			if (pkg_write != NULL) {
-				n = fwrite(tag_w, sizeof(char), i, pkg_write);
-				fclose(pkg_write);
-				if (n < i && verbose >= 0)
-					printf("write error occurred.\n");
-				if (n < i)
-					_exit(EXIT_FAILURE);
-				if (verbose >= 0)
-					printf("/etc/installurl: %s", tag_w);
-				_exit(EXIT_SUCCESS);
-			}
-			
+		if (pledge("stdio", NULL) == -1) {
 			printf("%s ", strerror(errno));
-			printf("/etc/installurl not opened.\n");
+			printf("pledge, line: %d\n", __LINE__);
 			_exit(EXIT_FAILURE);
 		}
-		if (write_pid == -1)
-			err(EXIT_FAILURE, "write fork, line: %d", __LINE__);
-			
-		if (pledge("stdio proc exec", NULL) == -1)
-			err(EXIT_FAILURE, "pledge, line: %d", __LINE__);
-
-		close(parent_to_write[STDIN_FILENO]);
+		
+		if (pkg_write != NULL) {
+			n = fwrite(tag_w, sizeof(char), i, pkg_write);
+			fclose(pkg_write);
+			if (n < i) {
+				printf("write error occurred ");
+				printf("line: %d\n", __LINE__);
+				_exit(EXIT_FAILURE);
+			}
+			if (verbose >= 0)
+				printf("/etc/installurl: %s", tag_w);
+			_exit(EXIT_SUCCESS);
+		}
+		
+		printf("%s ", strerror(errno));
+		printf("/etc/installurl not opened.\n");
+		_exit(EXIT_FAILURE);
 	}
+	if (write_pid == -1)
+		err(EXIT_FAILURE, "write fork, line: %d", __LINE__);
+		
+	close(parent_to_write[STDIN_FILENO]);
+
+
+
+	jump_f:
+	
+	
+	
+	if (pledge("stdio proc exec", NULL) == -1)
+		err(EXIT_FAILURE, "pledge, line: %d", __LINE__);
 
 
 	if (pipe(ftp_to_sed) == -1)
@@ -736,6 +724,7 @@ main(int argc, char *argv[])
 		errx(EXIT_FAILURE,
 		    "timed out fetching: https://www.openbsd.org/ftp.html");
 	}
+	
 	input = fdopen(sed_to_parent[STDIN_FILENO], "r");
 	if (input == NULL) {
 		printf("%s ", strerror(errno));
@@ -761,7 +750,6 @@ main(int argc, char *argv[])
 		errno = ENOMEM;
 		err(EXIT_FAILURE, "calloc, line: %d", __LINE__);
 	}
-
 
 	num = pos = array_length = 0;
 	array[0] = malloc(sizeof(struct mirror_st));
@@ -932,8 +920,8 @@ main(int argc, char *argv[])
 
 	for (c = 0; c < array_length; ++c) {
 
-		pos  = strlcpy(line, array[c]->ftp_file, pos_max);
-		pos += strlcpy(line + pos, tag, pos_max - pos);
+		pos = strlcpy(line, array[c]->ftp_file, pos_max);
+		strlcpy(line + pos, tag, pos_max - pos);
 
 		if (verbose >= 2) {
 			if (verbose == 4 && dns_cache)
@@ -968,7 +956,6 @@ main(int argc, char *argv[])
 		
 			if (verbose >= 2)
 				clock_gettime(CLOCK_UPTIME, &tv_start);
-
 
 
 			i = write(dns_cache_socket[1], line, pos);
