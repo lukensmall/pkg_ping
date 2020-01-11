@@ -1,3 +1,4 @@
+
 /*
  * BSD 2-Clause License
  *
@@ -75,8 +76,8 @@ struct mirror_st {
 static int
 diff_cmp(const void *a, const void *b)
 {
-	struct mirror_st *one = ((struct mirror_st **) a)[0];
-	struct mirror_st *two = ((struct mirror_st **) b)[0];
+	struct mirror_st *one = *( (struct mirror_st **)a );
+	struct mirror_st *two = *( (struct mirror_st **)b );
 
 	if (one->diff < two->diff)
 		return -1;
@@ -88,8 +89,8 @@ diff_cmp(const void *a, const void *b)
 static int
 ftp_cmp(const void *a, const void *b)
 {
-	struct mirror_st *one = ((struct mirror_st **) a)[0];
-	struct mirror_st *two = ((struct mirror_st **) b)[0];
+	struct mirror_st *one = *( (struct mirror_st **)a );
+	struct mirror_st *two = *( (struct mirror_st **)b );
 
 	return strcmp(one->ftp_file, two->ftp_file);
 }
@@ -97,8 +98,8 @@ ftp_cmp(const void *a, const void *b)
 static int
 label_cmp(const void *a, const void *b)
 {
-	struct mirror_st *one = ((struct mirror_st **) a)[0];
-	struct mirror_st *two = ((struct mirror_st **) b)[0];
+	struct mirror_st *one = *( (struct mirror_st **)a );
+	struct mirror_st *two = *( (struct mirror_st **)b );
 
 	/* list the USA mirrors first, it will subsort correctly */
 	int8_t temp = !strncmp("USA", one->label, 3);
@@ -113,8 +114,8 @@ label_cmp(const void *a, const void *b)
 static int
 label_rev_cmp(const void *a, const void *b)
 {
-	struct mirror_st *one = ((struct mirror_st **) a)[0];
-	struct mirror_st *two = ((struct mirror_st **) b)[0];
+	struct mirror_st *one = *( (struct mirror_st **)a );
+	struct mirror_st *two = *( (struct mirror_st **)b );
 
 	/* list the USA mirrors first, and will reverse subsort */
 	int8_t temp = !strncmp("USA", one->label, 3);
@@ -130,6 +131,8 @@ static void
 manpage(char a[])
 {
 	printf("%s\n", a);
+	printf("[-6 (only check ipv6 mirrors)]\n");
+
 	printf("[-d (don't cache DNS)]\n");
 
 	printf("[-f (don't write to File even if run as root)]\n");
@@ -158,11 +161,9 @@ manpage(char a[])
 int
 main(int argc, char *argv[])
 {
-	if (pledge("stdio proc exec cpath wpath dns unveil", NULL) == -1)
-		err(EXIT_FAILURE, "pledge, line: %d", __LINE__);
-
 	int8_t f = (getuid() == 0) ? 1 : 0;
-	int8_t num, current, insecure, u, verbose, override, dns_cache;
+	int8_t num, current, insecure, u, verbose;
+	int8_t override, dns_cache, six;
 	long double s, S;
 	pid_t ftp_pid, sed_pid, write_pid;
 	int kq, i, pos, c, n, array_max, array_length, tag_len;
@@ -170,45 +171,46 @@ main(int argc, char *argv[])
 	FILE *input, *pkg_write;
 	struct mirror_st **array;
 	struct kevent ke;
-	struct timespec tv_start, tv_end;
-	struct timespec timeout;
+	struct timespec tv_start, tv_end, timeout;
 	
 	/* 20 seconds and 0 nanoseconds */
 	struct timespec timeout0 = { 20, 0 };
 	char *line;
 	
+	if (pledge("stdio proc exec cpath wpath dns unveil", NULL) == -1)
+		err(1, "pledge, line: %d", __LINE__);
+
 	if (unveil("/usr/bin/ftp", "x") == -1)
-		err(EXIT_FAILURE, "unveil, line: %d", __LINE__);
+		err(1, "unveil, line: %d", __LINE__);
 
 	if (unveil("/usr/bin/sed", "x") == -1)
-		err(EXIT_FAILURE, "unveil, line: %d", __LINE__);
+		err(1, "unveil, line: %d", __LINE__);
 	
 
 	if (f) {
 
 		if (unveil("/etc/installurl", "cw") == -1)
-			err(EXIT_FAILURE, "unveil, line: %d", __LINE__);
+			err(1, "unveil, line: %d", __LINE__);
 
 		if (pledge("stdio proc exec cpath wpath dns", NULL) == -1)
-			err(EXIT_FAILURE, "pledge, line: %d", __LINE__);
+			err(1, "pledge, line: %d", __LINE__);
 	} else if (pledge("stdio proc exec dns", NULL) == -1)
-		err(EXIT_FAILURE, "pledge, line: %d", __LINE__);
+		err(1, "pledge, line: %d", __LINE__);
 
 	
-	u = verbose = current = override = 0;
-	insecure = 1;
-	dns_cache = 1;
+	u = verbose = current = override = six = 0;
+	insecure = dns_cache = 1;
 	s = 5;
 
 	char *version;
 	size_t len = 300;
 	version = malloc(len);
-	if (version == NULL) err(EXIT_FAILURE, "malloc, line: %d\n", __LINE__);
+	if (version == NULL) err(1, "malloc, line: %d\n", __LINE__);
 
 	/* stores results of "sysctl kern.version" into 'version' */
 	const int mib[2] = { CTL_KERN, KERN_VERSION };
 	if (sysctl(mib, 2, version, &len, NULL, 0) == -1)
-                   err(EXIT_FAILURE, "sysctl, line: %d", __LINE__);
+                   err(1, "sysctl, line: %d", __LINE__);
 	
 	/* Discovers if the kernel is not a release version */
 	if (strstr(version, "beta"))
@@ -218,8 +220,11 @@ main(int argc, char *argv[])
 		
 	free(version);
 
-	while ((c = getopt(argc, argv, "dfhOSs:uvV")) != -1) {
+	while ((c = getopt(argc, argv, "6dfhOSs:uvV")) != -1) {
 		switch (c) {
+		case '6':
+			six = 1;
+			break;
 		case 'd':
 			dns_cache = 0;
 			break;
@@ -227,12 +232,12 @@ main(int argc, char *argv[])
 			if (f == 0)
 				break;
 			if (pledge("stdio proc exec dns", NULL) == -1)
-				err(EXIT_FAILURE, "pledge, line: %d", __LINE__);
+				err(1, "pledge, line: %d", __LINE__);
 			f = 0;
 			break;
 		case 'h':
 			manpage(argv[0]);
-			return EXIT_SUCCESS;
+			return 0;
 		case 'O':
 			override = 1;
 			break;
@@ -240,6 +245,8 @@ main(int argc, char *argv[])
 			insecure = 0;
 			break;
 		case 's':
+			if (strlen(optarg) > 20)
+				errx(1, "too many characters in -s");
 			c = -1;
 			i = n = 0;
 			while (optarg[++c] != '\0') {
@@ -251,21 +258,21 @@ main(int argc, char *argv[])
 					continue;
 
 				if (optarg[c] == '-')
-					errx(EXIT_FAILURE, "No negative sign.");
-				errx(EXIT_FAILURE,
-				    "Bad floating point format.");
+					errx(1, "No negative sign.");
+				errx(1, "Bad floating point format.");
 			}
-			if (n == 0)
-				errx(EXIT_FAILURE,
-				    "-s needs a numeric character.");
+			if (n == 0) {
+				errx(1, "-s needs a numeric character.");
+			}
+			
 			errno = 0;
 			s = strtold(optarg, NULL);
 			if (errno == ERANGE)
-				err(EXIT_FAILURE, "strtold");
+				err(1, "strtold");
 			if (s > (long double)1000)
-				errx(EXIT_FAILURE, "-s should be <= 1000");
+				errx(1, "-s should be <= 1000");
 			if (s < (long double)0.01)
-				errx(EXIT_FAILURE, "-s should be >= 0.01");
+				errx(1, "-s should be >= 0.01");
 			break;
 		case 'u':
 			u = 1;
@@ -281,17 +288,436 @@ main(int argc, char *argv[])
 			break;
 		default:
 			manpage(argv[0]);
-			return EXIT_FAILURE;
+			return 1;
 		}
 	}
 	if (optind < argc) {
 		manpage(argv[0]);
-		errx(EXIT_FAILURE, "non-option ARGV-element: %s", argv[optind]);
+		errx(1, "non-option ARGV-element: %s", argv[optind]);
 	}
 
 
+	if (dns_cache == 0)
+		goto jump_dns;
 
-	if (verbose > 1) {
+	int dns_cache_socket[2];
+	if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC,
+	    PF_UNSPEC, dns_cache_socket) == -1)
+		err(1, "socketpair, line: %d\n", __LINE__);
+
+	pid_t dns_cache_pid = fork();
+	if (dns_cache_pid == (pid_t) 0) {
+		
+		if (pledge("stdio dns", NULL) == -1) {
+			printf("%s ", strerror(errno));
+			printf("dns_cache pledge, ");
+			printf("line: %d\n", __LINE__);
+			_exit(1);
+		}
+				
+		close(dns_cache_socket[1]);
+		char *host, *last;
+		
+		kq = kqueue();
+		if (kq == -1) {
+			printf("%s ", strerror(errno));
+			printf("kq! line: %d\n", __LINE__);
+			_exit(1);
+		}
+		
+
+		char table[16] = { '0', '1', '2', '3',
+			           '4', '5', '6', '7',
+			           '8', '9', 'a', 'b',
+			           'c', 'd', 'e', 'f' };
+		
+		uint8_t line_max;
+		
+		i = read(dns_cache_socket[0], &line_max, 1);
+		if (i < 1) _exit(1);
+			
+		line = malloc(line_max + 1);
+		if (line == NULL) {
+			printf("%s ", strerror(errno));
+			printf("malloc, line: %d\n", __LINE__);
+			_exit(1);
+		}
+		
+
+		loop:
+
+
+		EV_SET(&ke, dns_cache_socket[0], EVFILT_READ,
+		    EV_ADD | EV_ONESHOT, 0, 0, NULL);
+		if (kevent(kq, &ke, 1, &ke, 1, NULL) == -1) {
+			printf("%s ", strerror(errno));
+			printf("kevent register fail, line: %d\n", __LINE__);
+			_exit(1);
+		}
+		
+		if (ke.flags & EV_EOF)
+		{
+			close(kq);
+			_exit(0);
+		}
+
+		if (ke.data > line_max) {
+			printf("ke.data > line_max (%d), ", line_max);
+			printf("line: %d\n", __LINE__);
+			_exit(1);
+		}
+			
+		i = read(dns_cache_socket[0], line, ke.data);
+		if (i <= 0) {
+			printf("%s ", strerror(errno));
+			printf("'line' not received");
+			printf(" line: %d\n", __LINE__);
+			_exit(1);
+		}
+		line[ke.data] = '\0';
+
+		host = strstr(line, "://");
+		if (host == NULL) {
+			printf("strstr(%s, \"://\")", line);
+			printf(" == NULL ");
+			printf("line: %d\n", __LINE__);
+			_exit(1);
+		}
+		
+		/* null terminator for 'line' in getaddrinfo() */
+		/* 'line' will resolve to "https" and "http" services */
+		*host = '\0';
+			
+		host += 3;
+			
+		last = strstr( host, "/");
+		if (last != NULL)
+			*last = '\0';
+		
+		if (verbose >= 2)
+			printf("DNS caching: %s\n", host);
+
+
+		struct addrinfo hints, *res0, *res;
+
+		bzero(&hints, sizeof(hints));
+		hints.ai_flags = AI_CANONNAME;
+		hints.ai_family = AF_UNSPEC;
+		hints.ai_socktype = SOCK_STREAM;
+		n = getaddrinfo(host, line, &hints, &res0);
+		if (n) {
+			printf("%s ", gai_strerror(n));
+			printf("getaddrinfo() failed\n");
+			_exit(1);
+		}
+
+		if (verbose < 4 && !six)
+			goto loop;
+			
+		if (res0->ai_canonname && verbose == 4) {
+			if (strcmp(res0->ai_canonname, host))
+				printf("canon name: %s\n", res0->ai_canonname);
+		}
+
+		struct sockaddr_in *sa4;
+		uint32_t sui4;
+		
+		struct sockaddr_in6 *sa6;
+		unsigned char *suc6;
+		
+		int8_t j, max, h, i_temp, i_max, six_available = 0;
+		
+		for (res = res0; res; res = res->ai_next) {
+			
+			if (res->ai_family == AF_INET) {
+				if (six) continue;
+				sa4 = (struct sockaddr_in*)res->ai_addr;
+				sui4 = sa4->sin_addr.s_addr;
+				printf("%d.%d.%d.%d\n",
+				     sui4 & 0x000000FF,
+				    (sui4 & 0x0000FF00) >>  8,
+				    (sui4 & 0x00FF0000) >> 16,
+				     sui4               >> 24);
+				continue;
+			}
+			
+			six_available = 1;
+			if (verbose < 4) break;
+			
+			sa6 = (struct sockaddr_in6*)res->ai_addr;
+			suc6 = sa6->sin6_addr.s6_addr;
+			
+			j = max = 0;
+			i_max = -1;
+
+			/* load largest gap beginning into i_max */
+			for (i = 0; i < 16; i += 2) {
+						
+				if (suc6[i] | suc6[i | 1]) {
+					j = 0;
+					continue;
+				}
+				
+				if (j == 0) {
+					j = h = 1;
+					i_temp = i;
+					continue;
+				}
+								
+				if (max < ++h) {
+					max = h;
+					i_max = i_temp;
+				}
+			}
+			
+			j = 2;
+			
+			for (i = 0; i < 16; i += 2) {
+				
+				if (i == i_max) {
+					j = 1;
+					if (i == 0) printf(":");
+					printf(":");
+					continue;
+				}
+				
+				if (j == 1) {
+					if (--max) continue;
+					j = 2;
+				}
+				
+				if (suc6[i  ] >> 4) {
+					printf("%c%c%c%c",
+					    table[suc6[i  ] >> 4],
+					    table[suc6[i  ] & 15],
+					    table[suc6[i|1] >> 4],
+					    table[suc6[i|1] & 15]);
+					    
+				} else if (suc6[i  ]) {
+					printf("%c%c%c",
+					    table[suc6[i  ]],
+					    table[suc6[i|1] >> 4],
+					    table[suc6[i|1] & 15]);
+					    
+				} else if (suc6[i|1] >> 4) {
+					printf("%c%c",
+					    table[suc6[i|1] >> 4],
+					    table[suc6[i|1] & 15]);
+				} else printf("%c", table[suc6[i|1]]);
+				
+				if (i < 14) printf(":");
+			}
+			printf("\n");
+		}
+
+		if (six_available == 0)
+			i = write(dns_cache_socket[0], "0", 1);
+		else		
+			i = write(dns_cache_socket[0], "1", 1);		
+		
+		if (i < 1) _exit(1);
+
+		freeaddrinfo(res0);
+		
+		goto loop;
+		
+		_exit(0);
+	}
+	if (dns_cache_pid == -1)
+		err(1, "dns_cache fork, line: %d\n", __LINE__);
+
+	close(dns_cache_socket[0]);
+	
+	jump_dns:
+
+	if (pledge("stdio proc exec cpath wpath", NULL) == -1)
+		err(1, "pledge, line: %d", __LINE__);
+
+	if (f == 0)
+		goto jump_f;
+
+	if (pipe2(parent_to_write, O_CLOEXEC) == -1)
+		err(1, "pipe2, line: %d", __LINE__);
+
+	write_pid = fork();
+	if (write_pid == (pid_t) 0) {
+		
+		char *tag_w;
+		
+		if (pledge("stdio cpath wpath", NULL) == -1) {
+			printf("%s ", strerror(errno));
+			printf("pledge, line: %d\n", __LINE__);
+			_exit(1);
+		}
+		
+		close(parent_to_write[STDOUT_FILENO]);
+		
+		if (dns_cache) close(dns_cache_socket[1]);
+					
+		input = fdopen(parent_to_write[STDIN_FILENO], "r");
+		if (input == NULL) {
+			printf("%s ", strerror(errno));
+			printf("write_pid fdopen, line: %d\n", __LINE__);
+			_exit(1);
+		}
+		
+		c = getc(input);
+		if (c == EOF) {
+			printf("/etc/installurl not written.\n");
+			_exit(1);
+		}
+		
+		tag_w = malloc(300 + 1);
+		if (tag_w == NULL) {
+			printf("%s ", strerror(errno));
+			printf("malloc, line: %d\n", __LINE__);
+			_exit(1);
+		}
+			
+		i = 0;
+		if (verbose >= 1)
+			printf("\n");
+		do {
+			if (i >= 300) {
+				printf("\nmirror length became too long.\n");
+				printf("/etc/installurl not written.\n");
+				_exit(1);
+			}
+
+			tag_w[i++] = c;
+			if (c == '\n')
+				break;
+			c = getc(input);
+		} while (c != EOF);
+		fclose(input);
+		tag_w[i] = '\0';			
+		
+		/* fopen(... "w") truncates the file */
+		pkg_write = fopen("/etc/installurl", "w");
+
+		if (pledge("stdio", NULL) == -1) {
+			printf("%s ", strerror(errno));
+			printf("pledge, line: %d\n", __LINE__);
+			_exit(1);
+		}
+		
+		if (pkg_write != NULL) {
+			n = fwrite(tag_w, sizeof(char), i, pkg_write);
+			fclose(pkg_write);
+			if (n < i) {
+				printf("write error occurred ");
+				printf("line: %d\n", __LINE__);
+				_exit(1);
+			}
+			if (verbose >= 0)
+				printf("/etc/installurl: %s", tag_w);
+			_exit(0);
+		}
+		
+		printf("%s ", strerror(errno));
+		printf("/etc/installurl not opened.\n");
+		_exit(1);
+	}
+	if (write_pid == -1)
+		err(1, "write fork, line: %d", __LINE__);
+		
+	close(parent_to_write[STDIN_FILENO]);
+
+
+
+	jump_f:
+	
+	
+	
+	if (pledge("stdio proc exec", NULL) == -1)
+		err(1, "pledge, line: %d", __LINE__);
+
+
+	if (pipe(ftp_to_sed) == -1)
+		err(1, "pipe, line: %d", __LINE__);
+
+	ftp_pid = fork();
+	if (ftp_pid == (pid_t) 0) {
+
+		if (pledge("stdio exec", NULL) == -1) {
+			printf("%s ", strerror(errno));
+			printf("ftp 1 pledge, line: %d\n", __LINE__);
+			_exit(1);
+		}
+		
+		close(ftp_to_sed[STDIN_FILENO]);
+
+		if (verbose >= 2)
+			printf("fetching https://www.openbsd.org/ftp.html\n");
+			    
+		if (dup2(ftp_to_sed[STDOUT_FILENO], STDOUT_FILENO) == -1) {
+			printf("%s ", strerror(errno));
+			printf("ftp STDOUT dup2, line: %d\n", __LINE__);
+			_exit(1);
+		}
+		
+		if (verbose >= 2) {
+			execl("/usr/bin/ftp", "ftp", "-vmo", "-",
+			    "https://www.openbsd.org/ftp.html", NULL);
+		} else {
+			execl("/usr/bin/ftp", "ftp", "-VMo", "-",
+			    "https://www.openbsd.org/ftp.html", NULL);
+		}
+
+		fprintf(stderr, "%s ", strerror(errno));
+		fprintf(stderr, "ftp 1 execl failed, line: %d\n", __LINE__);
+		_exit(1);
+	}
+	if (ftp_pid == -1)
+		err(1, "ftp 1 fork, line: %d", __LINE__);
+
+	close(ftp_to_sed[STDOUT_FILENO]);
+
+	if (pipe(sed_to_parent) == -1) {
+		printf("%s ", strerror(errno));
+		kill(ftp_pid, SIGKILL);
+		errx(1, "pipe, line: %d", __LINE__);
+	}
+	sed_pid = fork();
+	if (sed_pid == (pid_t) 0) {
+
+		if (pledge("stdio exec", NULL) == -1) {
+			printf("%s ", strerror(errno));
+			printf("sed pledge, line: %d\n", __LINE__);
+			_exit(1);
+		}
+		close(sed_to_parent[STDIN_FILENO]);
+
+		if (dup2(ftp_to_sed[STDIN_FILENO], STDIN_FILENO) == -1) {
+			printf("%s ", strerror(errno));
+			printf("sed STDIN dup2, line: %d\n", __LINE__);
+			_exit(1);
+		}
+		if (dup2(sed_to_parent[STDOUT_FILENO], STDOUT_FILENO) == -1) {
+			printf("%s ", strerror(errno));
+			printf("sed STDOUT dup2, line: %d\n", __LINE__);
+			_exit(1);
+		}
+		execl("/usr/bin/sed", "sed", "-n",
+		    "-e", "s:</a>$::",
+		    "-e", "s:\t<strong>\\([^<]*\\)<.*:\\1:p",
+		    "-e", "s:^\\(\t[hfr].*\\):\\1:p", NULL);
+
+		fprintf(stderr, "%s ", strerror(errno));
+		fprintf(stderr, "sed execl, line: %d\n", __LINE__);
+		_exit(1);
+	}
+	if (sed_pid == -1) {
+		printf("%s ", strerror(errno));
+		kill(ftp_pid, SIGKILL);
+		errx(1, "sed fork, line: %d", __LINE__);
+	}
+
+	close(ftp_to_sed[STDIN_FILENO]);
+	close(sed_to_parent[STDOUT_FILENO]);
+
+
+	if (verbose >= 2) {
 		if (current == 1) {
 			if (override == 0)
 				printf("This is a snapshot.\n\n");
@@ -316,352 +742,19 @@ main(int argc, char *argv[])
 
 
 
-
-	if (dns_cache == 0)
-		goto jump_dns;
-
-	int dns_cache_socket[2];
-	if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC,
-	    PF_UNSPEC, dns_cache_socket) == -1)
-		err(EXIT_FAILURE, "socketpair, line: %d\n", __LINE__);
-
-	pid_t dns_cache_pid = fork();
-	if (dns_cache_pid == (pid_t) 0) {
-
-		if (pledge("stdio dns", NULL) == -1) {
-			printf("%s ", strerror(errno));
-			printf("dns_cache pledge, line: %d\n", __LINE__);
-			_exit(EXIT_FAILURE);
-		}
-				
-		close(dns_cache_socket[1]);
-		char *host, *last;
-		
-		kq = kqueue();
-		if (kq == -1) {
-			printf("%s ", strerror(errno));
-			printf("kq! line: %d\n", __LINE__);
-			_exit(EXIT_FAILURE);
-		}
-		
-
-		EV_SET(&ke, dns_cache_socket[0], EVFILT_READ,
-		    EV_ADD | EV_CLEAR, 0, 0, NULL);
-		if (kevent(kq, &ke, 1, NULL, 0, NULL) == -1) {
-			printf("%s ", strerror(errno));
-			printf("kevent register fail, line: %d\n", __LINE__);
-			_exit(EXIT_FAILURE);
-		}
-
-		loop:
-
-		if (kevent(kq, NULL, 0, &ke, 1, NULL) == -1) {
-			printf("%s ", strerror(errno));
-			printf("kevent, line: %d\n", __LINE__);
-			_exit(EXIT_FAILURE);
-		}
-		
-		if (ke.flags & EV_EOF)
-		{
-			close(kq);
-			_exit(EXIT_SUCCESS);
-		}
-
-		if (ke.data > 300) {
-			printf("ke.data > 300, line: %d\n", __LINE__);
-			_exit(EXIT_FAILURE);
-		}
-			
-		line = malloc(ke.data + 1);
-		if (line == NULL) {
-			printf("%s ", strerror(errno));
-			printf("malloc, line: %d\n", __LINE__);
-			_exit(EXIT_FAILURE);
-		}
-		line[ke.data] = '\0';
-
-		i = read(dns_cache_socket[0], line, ke.data);
-		if (i <= 0) {
-			printf("%s ", strerror(errno));
-			printf("'line' not received");
-			printf(" line: %d\n", __LINE__);
-			_exit(EXIT_FAILURE);
-		}
-
-		host = strstr(line, "://");
-		if (host == NULL) {
-			printf("strstr(%s, \"://\")", line);
-			printf(" == NULL ");
-			printf("line: %d\n", __LINE__);
-			_exit(EXIT_FAILURE);
-		}
-		
-		/* null terminator for 'line' in getaddrinfo() */
-		/* 'line' will resolve to "https" and "http" services */
-		*host = '\0';
-			
-		host += 3;
-			
-		last = strstr( host, "/");
-		if (last != NULL)
-			*last = '\0';
-		
-		if (verbose >= 2)
-			printf("DNS caching: %s\n", host);
-
-
-		struct addrinfo hints, *res0, *res;
-
-		bzero(&hints, sizeof(hints));
-		hints.ai_flags = AI_CANONNAME;
-		hints.ai_family = AF_INET;
-		hints.ai_socktype = SOCK_STREAM;
-		hints.ai_protocol = 0;
-		if (getaddrinfo(host, line, &hints, &res0)) {
-			printf("%s ", strerror(errno));
-			printf("getaddrinfo() failed line: %d\n", __LINE__);
-			_exit(EXIT_FAILURE);
-		}
-
-		
-		if (verbose == 4 && res0->ai_canonname) {
-			if (strcmp(res0->ai_canonname, host))
-				printf("canon name: %s\n", res0->ai_canonname);
-		}
-
-		if (verbose == 4) {
-			struct sockaddr_in *sad;
-			
-			for (res = res0; res; res = res->ai_next) {
-				sad = (struct sockaddr_in*)res->ai_addr;
-				printf("%d.%d.%d.%d\n",
-				     sad->sin_addr.s_addr&0x000000FF,
-				    (sad->sin_addr.s_addr&0x0000FF00) >>  8,
-				    (sad->sin_addr.s_addr&0x00FF0000) >> 16,
-				    (sad->sin_addr.s_addr&0xFF000000) >> 24);
-			}
-		}
-
-			
-			
-		i = write(dns_cache_socket[0], "\0", 1);		
-		
-		if (i < 1)
-			_exit(EXIT_FAILURE);
-
-		freeaddrinfo(res0);
-		free(line);
-		
-		goto loop;
-		
-		_exit(EXIT_SUCCESS);
-	}
-	if (dns_cache_pid == -1)
-		err(EXIT_FAILURE, "dns_cache fork, line: %d\n", __LINE__);
-
-	close(dns_cache_socket[0]);
-	
-	jump_dns:
-
-	if (f == 0)
-		goto jump_f;
-
-	if (pledge("stdio proc exec cpath wpath", NULL) == -1)
-		err(EXIT_FAILURE, "pledge, line: %d", __LINE__);
-
-	if (pipe2(parent_to_write, O_CLOEXEC) == -1)
-		err(EXIT_FAILURE, "pipe2, line: %d", __LINE__);
-
-	write_pid = fork();
-	if (write_pid == (pid_t) 0) {
-		
-		char *tag_w;
-		
-		if (pledge("stdio cpath wpath", NULL) == -1) {
-			printf("%s ", strerror(errno));
-			printf("pledge, line: %d\n", __LINE__);
-			_exit(EXIT_FAILURE);
-		}
-		
-		close(parent_to_write[STDOUT_FILENO]);
-		
-		if (dns_cache) close(dns_cache_socket[1]);
-					
-		input = fdopen(parent_to_write[STDIN_FILENO], "r");
-		if (input == NULL) {
-			printf("%s ", strerror(errno));
-			printf("write_pid fdopen, line: %d\n", __LINE__);
-			_exit(EXIT_FAILURE);
-		}
-		
-		c = getc(input);
-		if (c == EOF) {
-			printf("/etc/installurl not written.\n");
-			_exit(EXIT_FAILURE);
-		}
-		
-		tag_w = malloc(300 + 1);
-		if (tag_w == NULL) {
-			printf("%s ", strerror(errno));
-			printf("malloc, line: %d\n", __LINE__);
-			_exit(EXIT_FAILURE);
-		}
-			
-		i = 0;
-		if (verbose >= 1)
-			printf("\n");
-		do {
-			if (i >= 300) {
-				printf("\nmirror length became too long.\n");
-				printf("/etc/installurl not written.\n");
-				_exit(EXIT_FAILURE);
-			}
-
-			tag_w[i++] = c;
-			if (c == '\n')
-				break;
-			c = getc(input);
-		} while (c != EOF);
-		fclose(input);
-		tag_w[i] = '\0';			
-		
-		/* fopen(... "w") truncates the file */
-		pkg_write = fopen("/etc/installurl", "w");
-
-		if (pledge("stdio", NULL) == -1) {
-			printf("%s ", strerror(errno));
-			printf("pledge, line: %d\n", __LINE__);
-			_exit(EXIT_FAILURE);
-		}
-		
-		if (pkg_write != NULL) {
-			n = fwrite(tag_w, sizeof(char), i, pkg_write);
-			fclose(pkg_write);
-			if (n < i) {
-				printf("write error occurred ");
-				printf("line: %d\n", __LINE__);
-				_exit(EXIT_FAILURE);
-			}
-			if (verbose >= 0)
-				printf("/etc/installurl: %s", tag_w);
-			_exit(EXIT_SUCCESS);
-		}
-		
-		printf("%s ", strerror(errno));
-		printf("/etc/installurl not opened.\n");
-		_exit(EXIT_FAILURE);
-	}
-	if (write_pid == -1)
-		err(EXIT_FAILURE, "write fork, line: %d", __LINE__);
-		
-	close(parent_to_write[STDIN_FILENO]);
-
-
-
-	jump_f:
-	
-	
-	
-	if (pledge("stdio proc exec", NULL) == -1)
-		err(EXIT_FAILURE, "pledge, line: %d", __LINE__);
-
-
-	if (pipe(ftp_to_sed) == -1)
-		err(EXIT_FAILURE, "pipe, line: %d", __LINE__);
-
-	ftp_pid = fork();
-	if (ftp_pid == (pid_t) 0) {
-
-		if (pledge("stdio exec", NULL) == -1) {
-			printf("%s ", strerror(errno));
-			printf("ftp 1 pledge, line: %d\n", __LINE__);
-			_exit(EXIT_FAILURE);
-		}
-		
-		close(ftp_to_sed[STDIN_FILENO]);
-
-		if (dup2(ftp_to_sed[STDOUT_FILENO], STDOUT_FILENO) == -1) {
-			printf("%s ", strerror(errno));
-			printf("ftp STDOUT dup2, line: %d\n", __LINE__);
-			_exit(EXIT_FAILURE);
-		}
-		
-		if (verbose >= 2) {
-			fprintf(stderr,
-			    "fetching https://www.openbsd.org/ftp.html\n");
-			execl("/usr/bin/ftp", "ftp", "-vmo", "-",
-			    "https://www.openbsd.org/ftp.html", NULL);
-		} else {
-			execl("/usr/bin/ftp", "ftp", "-VMo", "-",
-			    "https://www.openbsd.org/ftp.html", NULL);
-		}
-
-		fprintf(stderr, "%s ", strerror(errno));
-		fprintf(stderr, "ftp 1 execl failed, line: %d\n", __LINE__);
-		_exit(EXIT_FAILURE);
-	}
-	if (ftp_pid == -1)
-		err(EXIT_FAILURE, "ftp 1 fork, line: %d", __LINE__);
-
-	close(ftp_to_sed[STDOUT_FILENO]);
-
-	if (pipe(sed_to_parent) == -1) {
-		printf("%s ", strerror(errno));
-		kill(ftp_pid, SIGKILL);
-		errx(EXIT_FAILURE, "pipe, line: %d", __LINE__);
-	}
-	sed_pid = fork();
-	if (sed_pid == (pid_t) 0) {
-
-		if (pledge("stdio exec", NULL) == -1) {
-			printf("%s ", strerror(errno));
-			printf("sed pledge, line: %d\n", __LINE__);
-			_exit(EXIT_FAILURE);
-		}
-		close(sed_to_parent[STDIN_FILENO]);
-
-		if (dup2(ftp_to_sed[STDIN_FILENO], STDIN_FILENO) == -1) {
-			printf("%s ", strerror(errno));
-			printf("sed STDIN dup2, line: %d\n", __LINE__);
-			_exit(EXIT_FAILURE);
-		}
-		if (dup2(sed_to_parent[STDOUT_FILENO], STDOUT_FILENO) == -1) {
-			printf("%s ", strerror(errno));
-			printf("sed STDOUT dup2, line: %d\n", __LINE__);
-			_exit(EXIT_FAILURE);
-		}
-		execl("/usr/bin/sed", "sed", "-n",
-		    "-e", "s:</a>$::",
-		    "-e", "s:\t<strong>\\([^<]*\\)<.*:\\1:p",
-		    "-e", "s:^\\(\t[hfr].*\\):\\1:p", NULL);
-
-		fprintf(stderr, "%s ", strerror(errno));
-		fprintf(stderr, "sed execl, line: %d\n", __LINE__);
-		_exit(EXIT_FAILURE);
-	}
-	if (sed_pid == -1) {
-		printf("%s ", strerror(errno));
-		kill(ftp_pid, SIGKILL);
-		errx(EXIT_FAILURE, "sed fork, line: %d", __LINE__);
-	}
-
-	close(ftp_to_sed[STDIN_FILENO]);
-	close(sed_to_parent[STDOUT_FILENO]);
-
-
 	struct utsname *name = malloc(sizeof(struct utsname));
 	if (name == NULL) {
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
 		errno = ENOMEM;
-		err(EXIT_FAILURE, "malloc, line: %d", __LINE__);
+		err(1, "malloc, line: %d", __LINE__);
 	}
 	
 	if (uname(name) == -1) {
 		printf("%s ", strerror(errno));
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
-		errx(EXIT_FAILURE, "uname, line: %d", __LINE__);
+		errx(1, "uname, line: %d", __LINE__);
 	}
 	
 	i = strlen(name->release);
@@ -670,7 +763,7 @@ main(int argc, char *argv[])
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
 		errno = ENOMEM;
-		err(EXIT_FAILURE, "malloc, line: %d", __LINE__);
+		err(1, "malloc, line: %d", __LINE__);
 	}
 	strlcpy(release, name->release, i + 1);
 
@@ -687,7 +780,7 @@ main(int argc, char *argv[])
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
 		errno = ENOMEM;
-		err(EXIT_FAILURE, "malloc, line: %d", __LINE__);
+		err(1, "malloc, line: %d", __LINE__);
 	}
 
 	if (current == 0) {
@@ -709,7 +802,7 @@ main(int argc, char *argv[])
 		printf("%s ", strerror(errno));
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
-		errx(EXIT_FAILURE, "kq! line: %d", __LINE__);
+		errx(1, "kq! line: %d", __LINE__);
 	}
 
 	EV_SET(&ke, sed_to_parent[STDIN_FILENO], EVFILT_READ,
@@ -719,14 +812,13 @@ main(int argc, char *argv[])
 		printf("%s ", strerror(errno));
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
-		errx(EXIT_FAILURE,
+		errx(1,
 		    "kevent, timeout0 may be too large. line: %d", __LINE__);
 	}
 	if (i == 0) {
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
-		errx(EXIT_FAILURE,
-		    "timed out fetching: https://www.openbsd.org/ftp.html");
+		errx(1, "timed out fetching: https://www.openbsd.org/ftp.html");
 	}
 	
 	input = fdopen(sed_to_parent[STDIN_FILENO], "r");
@@ -734,16 +826,16 @@ main(int argc, char *argv[])
 		printf("%s ", strerror(errno));
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
-		err(EXIT_FAILURE, "fdopen sed_to_parent, line: %d", __LINE__);
+		err(1, "fdopen sed_to_parent, line: %d", __LINE__);
 	}
 
-	/* if the index for line[] exceeds 299, it will error out */
-	line = malloc(300);
+	/* if the index for line[] exceeds 254, it will error out */
+	line = malloc(255);
 	if (line == NULL) {
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
 		errno = ENOMEM;
-		err(EXIT_FAILURE, "malloc, line: %d", __LINE__);
+		err(1, "malloc, line: %d", __LINE__);
 	}	
 
 	array_max = 100;
@@ -752,7 +844,7 @@ main(int argc, char *argv[])
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
 		errno = ENOMEM;
-		err(EXIT_FAILURE, "calloc, line: %d", __LINE__);
+		err(1, "calloc, line: %d", __LINE__);
 	}
 
 	num = pos = array_length = 0;
@@ -761,17 +853,16 @@ main(int argc, char *argv[])
 		kill(ftp_pid, SIGKILL);
 		kill(sed_pid, SIGKILL);
 		errno = ENOMEM;
-		err(EXIT_FAILURE, "malloc, line: %d", __LINE__);
+		err(1, "malloc, line: %d", __LINE__);
 	}
 
 	int pos_max = 0;
 	
 	while ((c = getc(input)) != EOF) {
-		if (pos >= 300) {
+		if (pos >= 255) {
 			kill(ftp_pid, SIGKILL);
 			kill(sed_pid, SIGKILL);
-			errx(EXIT_FAILURE,
-			    "pos got too big! line: %d", __LINE__);
+			errx(1, "pos got too big! line: %d", __LINE__);
 		}
 		if (num == 0) {
 			if (c != '\n') {
@@ -792,7 +883,7 @@ main(int argc, char *argv[])
 				kill(ftp_pid, SIGKILL);
 				kill(sed_pid, SIGKILL);
 				errno = ENOMEM;
-				err(EXIT_FAILURE, "malloc, line: %d", __LINE__);
+				err(1, "malloc, line: %d", __LINE__);
 			}
 			strlcpy(array[array_length]->label, line, pos);
 
@@ -830,7 +921,6 @@ main(int argc, char *argv[])
 				continue;
 			}
 
-
 			if (pos_max < pos)
 				pos_max = pos;
 
@@ -840,7 +930,7 @@ main(int argc, char *argv[])
 				kill(ftp_pid, SIGKILL);
 				kill(sed_pid, SIGKILL);
 				errno = ENOMEM;
-				err(EXIT_FAILURE, "malloc, line: %d", __LINE__);
+				err(1, "malloc, line: %d", __LINE__);
 			}
 			
 			strlcpy(array[array_length]->ftp_file, line, pos);
@@ -854,7 +944,7 @@ main(int argc, char *argv[])
 					kill(ftp_pid, SIGKILL);
 					kill(sed_pid, SIGKILL);
 					errno = ENOMEM;
-					err(EXIT_FAILURE,
+					err(1,
 					    "reallocarray, line: %d", __LINE__);
 				}
 			}
@@ -864,17 +954,23 @@ main(int argc, char *argv[])
 				kill(ftp_pid, SIGKILL);
 				kill(sed_pid, SIGKILL);
 				errno = ENOMEM;
-				err(EXIT_FAILURE, "malloc, line: %d", __LINE__);
+				err(1, "malloc, line: %d", __LINE__);
 			}
 			pos = num = 0;
 		}
 	}
 	fclose(input);
 	free(line);
-
+	
+	if (dns_cache) {
+		uint8_t length = pos_max;
+		i = write(dns_cache_socket[1], &length, 1);
+		if (i < 1) err(1, "'length' not sent");
+	}
+	
 	pos_max += tag_len;
 	line = malloc(pos_max);
-	if (line == NULL) err(EXIT_FAILURE, "malloc, line: %d", __LINE__);
+	if (line == NULL) err(1, "malloc, line: %d", __LINE__);
 
 	close(sed_to_parent[STDIN_FILENO]);
 
@@ -883,8 +979,7 @@ main(int argc, char *argv[])
 	waitpid(ftp_pid, NULL, 0);
 	waitpid(sed_pid, NULL, 0);
 
-	if (array_length == 0)
-		errx(EXIT_FAILURE, "No mirror found. Is www.openbsd.org live?");
+	if (array_length == 0) errx(1, "No mirror found. Is openbsd.org live?");
 
 	if (num == 1)
 		free(array[array_length]->label);
@@ -910,8 +1005,7 @@ main(int argc, char *argv[])
 	}
 
 	array = reallocarray(array, array_length, sizeof(struct mirror_st *));
-	if (array == NULL)
-		err(EXIT_FAILURE, "reallocarray, line: %d", __LINE__);
+	if (array == NULL) err(1, "reallocarray, line: %d", __LINE__);
 		
 	qsort(array, array_length, sizeof(struct mirror_st *), label_cmp);
 	
@@ -956,22 +1050,25 @@ main(int argc, char *argv[])
 
 
 
-		for(n = dns_cache; n > 0; --n) {
+		if (dns_cache) {
 		
 			if (verbose >= 2)
 				clock_gettime(CLOCK_UPTIME, &tv_start);
 
-
 			i = write(dns_cache_socket[1], line, pos);
-			
-			if (i < pos)
-				err(EXIT_FAILURE, "response not sent");
+			if (i < pos) err(1, "response not sent");
 
-			i = read(dns_cache_socket[1], &i, 1);
+			char v;
 			
-			if (i < 1)
-				err(EXIT_FAILURE, "response not received");
+			i = read(dns_cache_socket[1], &v, 1);		
+			if (i < 1) err(1, "response not received");
 			
+			if (six && v == '0') {
+				if (verbose >= 2)
+					printf("No ipv6 address found.\n");
+				array[c]->diff = s + 1;
+				continue;
+			}
 			
 			if (verbose >= 2) {
 				clock_gettime(CLOCK_UPTIME, &tv_end);
@@ -988,7 +1085,7 @@ main(int argc, char *argv[])
 		
 
 		if (pipe(block_pipe) == -1)
-			err(EXIT_FAILURE, "pipe, line: %d", __LINE__);
+			err(1, "pipe, line: %d", __LINE__);
 
 		ftp_pid = fork();
 		if (ftp_pid == (pid_t) 0) {
@@ -996,7 +1093,7 @@ main(int argc, char *argv[])
 			if (pledge("stdio exec", NULL) == -1) {
 				printf("%s ", strerror(errno));
 				printf("ftp 2 pledge, line: %d\n", __LINE__);
-				_exit(EXIT_FAILURE);
+				_exit(1);
 			}
 
 			close(block_pipe[STDOUT_FILENO]);
@@ -1010,8 +1107,16 @@ main(int argc, char *argv[])
 			}
 			
 			if (verbose >= 2 && dns_cache)
-				printf("Running:  ftp\n");
+				printf("Running: ftp\n");
 
+
+			if (verbose >= 3 && six) {
+				execl("/usr/bin/ftp", "ftp", "-vm6o",
+				    "/dev/null", line, NULL);
+			} else if (six) {
+				execl("/usr/bin/ftp", "ftp", "-VM6o",
+				    "/dev/null", line, NULL);
+			}
 
 			if (verbose >= 3) {
 				execl("/usr/bin/ftp", "ftp", "-vmo",
@@ -1023,10 +1128,10 @@ main(int argc, char *argv[])
 
 			printf("%s ", strerror(errno));
 			printf("ftp 2 execl() failed, line: %d\n", __LINE__);
-			_exit(EXIT_FAILURE);
+			_exit(1);
 		}
 		if (ftp_pid == -1)
-			err(EXIT_FAILURE, "ftp 2 fork, line: %d", __LINE__);
+			err(1, "ftp 2 fork, line: %d", __LINE__);
 
 
 		close(block_pipe[STDIN_FILENO]);
@@ -1036,8 +1141,7 @@ main(int argc, char *argv[])
 		if (kevent(kq, &ke, 1, NULL, 0, NULL) == -1) {
 			printf("%s ", strerror(errno));
 			kill(ftp_pid, SIGKILL);
-			errx(EXIT_FAILURE,
-			    "kevent register fail, line: %d", __LINE__);
+			errx(1, "kevent register fail, line: %d", __LINE__);
 		}
 		clock_gettime(CLOCK_UPTIME, &tv_start);
 
@@ -1048,7 +1152,7 @@ main(int argc, char *argv[])
 		if (i == -1) {
 			printf("%s ", strerror(errno));
 			kill(ftp_pid, SIGKILL);
-			errx(EXIT_FAILURE, "kevent, line: %d", __LINE__);
+			errx(1, "kevent, line: %d", __LINE__);
 		}
 		
 		/* timeout occurred before ftp() exit was received */
@@ -1057,7 +1161,7 @@ main(int argc, char *argv[])
 			
 			/* reap event */
 			if (kevent(kq, NULL, 0, &ke, 1, NULL) == -1)
-				err(EXIT_FAILURE, "kevent, line: %d", __LINE__);
+				err(1, "kevent, line: %d", __LINE__);
 			waitpid(ftp_pid, NULL, 0);
 			if (verbose >= 2)
 				printf("Timeout\n");
@@ -1067,7 +1171,7 @@ main(int argc, char *argv[])
 		
 		waitpid(ftp_pid, &n, 0);
 		
-		if (n != EXIT_SUCCESS) {
+		if (n != 0) {
 			array[c]->diff = s + 1;
 			if (verbose >= 2)
 				printf("Download Error\n");
@@ -1099,7 +1203,7 @@ main(int argc, char *argv[])
 
 
 	if (pledge("stdio", NULL) == -1)
-		err(EXIT_FAILURE, "pledge, line: %d", __LINE__);
+		err(1, "pledge, line: %d", __LINE__);
 
 	free(line);
 	free(tag);		
@@ -1194,14 +1298,14 @@ main(int argc, char *argv[])
 		} else
 			printf("No successful mirrors found.\n");
 			
-		return EXIT_FAILURE;
+		return 1;
 	}
 	
 	
 	if (f) {		
 		
 		if (dup2(parent_to_write[STDOUT_FILENO], STDOUT_FILENO) == -1)
-			err(EXIT_FAILURE, "dup2, line: %d\n", __LINE__);
+			err(1, "dup2, line: %d\n", __LINE__);
 		
 		/* Perhaps somebody has kinda strict memory limits */
 		if (dns_cache == 0) {
@@ -1215,8 +1319,7 @@ main(int argc, char *argv[])
 			    sizeof(struct mirror_st *));
 
 			if (array == NULL) {
-				err(EXIT_FAILURE,
-				    "reallocarray, line: %d", __LINE__);
+				err(1, "reallocarray, line: %d", __LINE__);
 			}
 		}
 		
@@ -1236,5 +1339,5 @@ main(int argc, char *argv[])
 		    array[0]->ftp_file);
 	}
 
-	return EXIT_SUCCESS;
+	return 0;
 }
