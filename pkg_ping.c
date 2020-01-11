@@ -450,20 +450,12 @@ main(int argc, char *argv[])
 				}
 			}
 			
-			j = 2;
-			
 			for (i = 0; i < 16; i += 2) {
 								
 				if (i == i_max) {
-					j = 1;
 					if (i == 0) printf("::");
 					else printf(":");
-					i += 4;
-				}
-				
-				if (j == 1) {
-					if (max-- > 2) continue;
-					j = 2;
+					i += 2 * max;
 				}
 				
 				if (suc6[i  ] >> 4) {
@@ -1269,6 +1261,8 @@ main(int argc, char *argv[])
 		if (current == 0) {
 			printf("\n\nNo mirrors. It doesn't appear that the ");
 			printf("%s release is present yet.\n", release);
+			if (six)
+				printf("Perhaps try losing the -6 option?\n");
 			if (override == 0)
 				printf("Perhaps try the -O option?\n");
 		} else
