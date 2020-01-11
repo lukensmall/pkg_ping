@@ -1033,17 +1033,17 @@ main(int argc, char *argv[])
 			
 			i = read(dns_cache_socket[1], &v, 1);		
 			if (i < 1) err(1, "response not received");
+
+			if (verbose == (verbose & 1)) {
+				printf("\b \b");
+				fflush(stdout);
+			}
 			
 			if (six && v == '0') {
 				if (verbose >= 2)
 					printf("No ipv6 address found.\n");
 				array[c]->diff = s + 1;
 				continue;
-			}
-			
-			if (verbose == (verbose & 1)) {
-				printf("\b \b");
-				fflush(stdout);
 			}
 		}
 
@@ -1071,10 +1071,6 @@ main(int argc, char *argv[])
 				if (i != -1)
 					dup2(i, STDERR_FILENO);
 			}
-			
-			if (verbose >= 2 && dns_cache)
-				printf("Running: ftp\n");
-
 
 			if (verbose >= 3 && six) {
 				execl("/usr/bin/ftp", "ftp", "-vm6o",
