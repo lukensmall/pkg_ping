@@ -309,21 +309,12 @@ main(int argc, char *argv[])
 		
 		if (pledge("stdio dns", NULL) == -1) {
 			printf("%s ", strerror(errno));
-			printf("dns_cache pledge, ");
-			printf("line: %d\n", __LINE__);
+			printf("dns_cache pledge, line: %d\n", __LINE__);
 			_exit(1);
 		}
 				
 		close(dns_cache_socket[1]);
 		char *host, *last;
-		
-		kq = kqueue();
-		if (kq == -1) {
-			printf("%s ", strerror(errno));
-			printf("kq! line: %d\n", __LINE__);
-			_exit(1);
-		}
-		
 
 		char table[16] = { '0', '1', '2', '3',
 			           '4', '5', '6', '7',
@@ -334,7 +325,7 @@ main(int argc, char *argv[])
 		
 		i = read(dns_cache_socket[0], &line_max, 1);
 		if (i < 1) _exit(1);
-			
+
 		line = malloc(line_max + 1);
 		if (line == NULL) {
 			printf("%s ", strerror(errno));
@@ -346,41 +337,33 @@ main(int argc, char *argv[])
 		loop:
 
 
-		EV_SET(&ke, dns_cache_socket[0], EVFILT_READ,
-		    EV_ADD | EV_ONESHOT, 0, 0, NULL);
-		if (kevent(kq, &ke, 1, &ke, 1, NULL) == -1) {
-			printf("%s ", strerror(errno));
-			printf("kevent register fail, line: %d\n", __LINE__);
-			_exit(1);
-		}
-		
-		if (ke.flags & EV_EOF) _exit(0);
+		i = read(dns_cache_socket[0], line, line_max + 1);
 
-		if (ke.data > line_max) {
-			printf("ke.data > line_max (%d), ", line_max);
+		if (i == 0) _exit(0);
+		
+		if (i > line_max) {
+			printf("i (%d) > line_max (%d), ", i, line_max);
 			printf("line: %d\n", __LINE__);
 			_exit(1);
 		}
-			
-		i = read(dns_cache_socket[0], line, ke.data);
-		if (i <= 0) {
+		
+		if (i == -1) {
 			printf("%s ", strerror(errno));
 			printf("'line' not received");
 			printf(" line: %d\n", __LINE__);
 			_exit(1);
 		}
-		line[ke.data] = '\0';
+		line[i] = '\0';
 
 		host = strstr(line, "://");
 		if (host == NULL) {
 			printf("strstr(%s, \"://\")", line);
-			printf(" == NULL ");
-			printf("line: %d\n", __LINE__);
+			printf(" == NULL line: %d\n", __LINE__);
 			_exit(1);
 		}
 		
 		/* null terminator for 'line' in getaddrinfo() */
-		/* 'line' will resolve to "https" and "http" services */
+		/* 'line' will resolve to "https" or "http" services */
 		*host = '\0';
 			
 		host += 3;
@@ -408,6 +391,8 @@ main(int argc, char *argv[])
 
 		if (verbose < 4 && !six) {
 			i = write(dns_cache_socket[0], "1", 1);		
+			if (i < 1) _exit(1);
+			freeaddrinfo(res0);
 			goto loop;
 		}
 			
@@ -430,7 +415,7 @@ main(int argc, char *argv[])
 				if (six) continue;
 				sa4 = (struct sockaddr_in*)res->ai_addr;
 				sui4 = sa4->sin_addr.s_addr;
-				printf("%d.%d.%d.%d\n",
+				printf("       %d.%d.%d.%d\n",
 				     sui4 & 0x000000FF,
 				    (sui4 & 0x0000FF00) >>  8,
 				    (sui4 & 0x00FF0000) >> 16,
@@ -440,6 +425,8 @@ main(int argc, char *argv[])
 			
 			six_available = 1;
 			if (verbose < 4) break;
+			
+			printf("       ");
 			
 			sa6 = (struct sockaddr_in6*)res->ai_addr;
 			suc6 = sa6->sin6_addr.s6_addr;
@@ -456,8 +443,8 @@ main(int argc, char *argv[])
 				}
 				
 				if (j == 0) {
-					j = h = 1;
 					i_temp = i;
+					j = h = 1;
 					continue;
 				}
 								
@@ -500,7 +487,8 @@ main(int argc, char *argv[])
 					printf("%c%c",
 					    table[suc6[i|1] >> 4],
 					    table[suc6[i|1] & 15]);
-				} else printf("%c", table[suc6[i|1]]);
+				} else
+					printf("%c", table[suc6[i|1]]);
 				
 				if (i < 14) printf(":");
 			}
