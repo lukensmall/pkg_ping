@@ -130,7 +130,7 @@ static void
 manpage(char a[])
 {
 	printf("%s\n", a);
-	printf("[-6 (only check ipv6 mirrors)]\n");
+	printf("[-6 (only check ipv6 compatible mirrors)]\n");
 
 	printf("[-d (don't cache DNS)]\n");
 
