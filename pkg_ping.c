@@ -411,8 +411,10 @@ main(int argc, char *argv[])
 			_exit(1);
 		}
 
-		if (verbose < 4 && !six)
+		if (verbose < 4 && !six) {
+			i = write(dns_cache_socket[0], "1", 1);		
 			goto loop;
+		}
 			
 		if (res0->ai_canonname && verbose == 4) {
 			if (strcmp(res0->ai_canonname, host))
@@ -530,11 +532,11 @@ main(int argc, char *argv[])
 	
 	jump_dns:
 
-	if (pledge("stdio proc exec cpath wpath", NULL) == -1)
-		err(1, "pledge, line: %d", __LINE__);
-
 	if (f == 0)
 		goto jump_f;
+
+	if (pledge("stdio proc exec cpath wpath", NULL) == -1)
+		err(1, "pledge, line: %d", __LINE__);
 
 	if (pipe2(parent_to_write, O_CLOEXEC) == -1)
 		err(1, "pipe2, line: %d", __LINE__);
