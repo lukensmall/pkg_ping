@@ -316,12 +316,13 @@ main(int argc, char *argv[])
 		close(dns_cache_socket[1]);
 		char *host, *last;
 
-		char table[16] = { '0', '1', '2', '3',
-			           '4', '5', '6', '7',
-			           '8', '9', 'a', 'b',
-			           'c', 'd', 'e', 'f' };
+		char table6[16] = { '0', '1', '2', '3',
+			            '4', '5', '6', '7',
+			            '8', '9', 'a', 'b',
+			            'c', 'd', 'e', 'f' };
 		
 		uint8_t line_max;
+		struct addrinfo hints, *res0 = NULL, *res;
 		
 		i = read(dns_cache_socket[0], &line_max, 1);
 		if (i < 1) _exit(1);
@@ -338,19 +339,18 @@ main(int argc, char *argv[])
 
 
 		i = read(dns_cache_socket[0], line, line_max + 1);
-
 		if (i == 0) _exit(0);
 		
+		if (res0) freeaddrinfo(res0);
+		
 		if (i > line_max) {
-			printf("i (%d) > line_max (%d), ", i, line_max);
-			printf("line: %d\n", __LINE__);
+			printf("i > line_max, line: %d\n", __LINE__);
 			_exit(1);
 		}
 		
 		if (i == -1) {
 			printf("%s ", strerror(errno));
-			printf("'line' not received");
-			printf(" line: %d\n", __LINE__);
+			printf("read error line: %d\n", __LINE__);
 			_exit(1);
 		}
 		line[i] = '\0';
@@ -363,7 +363,7 @@ main(int argc, char *argv[])
 		}
 		
 		/* null terminator for 'line' in getaddrinfo() */
-		/* 'line' will resolve to "https" or "http" services */
+		/* 'line' will resolve to either "http" or "https" */
 		*host = '\0';
 			
 		host += 3;
@@ -372,11 +372,8 @@ main(int argc, char *argv[])
 		if (last != NULL)
 			*last = '\0';
 		
-		if (verbose >= 2)
-			printf("DNS caching: %s\n", host);
+		if (verbose >= 2) printf("DNS caching: %s\n", host);
 
-
-		struct addrinfo hints, *res0, *res;
 
 		bzero(&hints, sizeof(hints));
 		hints.ai_flags = AI_CANONNAME;
@@ -390,9 +387,8 @@ main(int argc, char *argv[])
 		}
 
 		if (verbose < 4 && !six) {
-			i = write(dns_cache_socket[0], "1", 1);		
+			i = write(dns_cache_socket[0], "0", 1);		
 			if (i < 1) _exit(1);
-			freeaddrinfo(res0);
 			goto loop;
 		}
 			
@@ -457,38 +453,38 @@ main(int argc, char *argv[])
 			j = 2;
 			
 			for (i = 0; i < 16; i += 2) {
-				
+								
 				if (i == i_max) {
 					j = 1;
-					if (i == 0) printf(":");
-					printf(":");
-					continue;
+					if (i == 0) printf("::");
+					else printf(":");
+					i += 4;
 				}
 				
 				if (j == 1) {
-					if (--max) continue;
+					if (max-- > 2) continue;
 					j = 2;
 				}
 				
 				if (suc6[i  ] >> 4) {
 					printf("%c%c%c%c",
-					    table[suc6[i  ] >> 4],
-					    table[suc6[i  ] & 15],
-					    table[suc6[i|1] >> 4],
-					    table[suc6[i|1] & 15]);
+					    table6[suc6[i  ] >> 4],
+					    table6[suc6[i  ] & 15],
+					    table6[suc6[i|1] >> 4],
+					    table6[suc6[i|1] & 15]);
 					    
 				} else if (suc6[i  ]) {
 					printf("%c%c%c",
-					    table[suc6[i  ]],
-					    table[suc6[i|1] >> 4],
-					    table[suc6[i|1] & 15]);
+					    table6[suc6[i  ]],
+					    table6[suc6[i|1] >> 4],
+					    table6[suc6[i|1] & 15]);
 					    
 				} else if (suc6[i|1] >> 4) {
 					printf("%c%c",
-					    table[suc6[i|1] >> 4],
-					    table[suc6[i|1] & 15]);
+					    table6[suc6[i|1] >> 4],
+					    table6[suc6[i|1] & 15]);
 				} else
-					printf("%c", table[suc6[i|1]]);
+					printf("%c", table6[suc6[i|1]]);
 				
 				if (i < 14) printf(":");
 			}
@@ -501,12 +497,8 @@ main(int argc, char *argv[])
 			i = write(dns_cache_socket[0], "1", 1);		
 		
 		if (i < 1) _exit(1);
-
-		freeaddrinfo(res0);
 		
 		goto loop;
-		
-		_exit(0);
 	}
 	if (dns_cache_pid == -1)
 		err(1, "dns_cache fork, line: %d\n", __LINE__);
@@ -1037,8 +1029,10 @@ main(int argc, char *argv[])
 
 		if (dns_cache) {
 		
-			if (verbose >= 2)
-				clock_gettime(CLOCK_UPTIME, &tv_start);
+			if (verbose == (verbose & 1)) {
+				printf("*");
+				fflush(stdout);
+			}
 
 			i = write(dns_cache_socket[1], line, pos);
 			if (i < pos) err(1, "response not sent");
@@ -1055,16 +1049,10 @@ main(int argc, char *argv[])
 				continue;
 			}
 			
-			if (verbose >= 2) {
-				clock_gettime(CLOCK_UPTIME, &tv_end);
-				printf("%.9Lf seconds\n",
-				    (long double)(tv_end.tv_sec -
-				    tv_start.tv_sec) +
-				    (long double)(tv_end.tv_nsec -
-				    tv_start.tv_nsec) /
-				    (long double)1000000000);
-			}		    
-			if (verbose == 4) printf("\n");
+			if (verbose == (verbose & 1)) {
+				printf("\b \b");
+				fflush(stdout);
+			}
 		}
 
 
@@ -1195,11 +1183,13 @@ main(int argc, char *argv[])
 	free(tag);		
 	close(kq);
 	
-	if (dns_cache)
+	if (dns_cache) {
 		close(dns_cache_socket[1]);
+		waitpid(dns_cache_pid, NULL, 0);
+	}
 
 
-	if (verbose == 0 || verbose == 1) {
+	if (verbose == (verbose & 1)) {
 		printf("\b \b");
 		fflush(stdout);
 	}
