@@ -8,12 +8,14 @@ immediately takes away the possibility to unveil() any further.
 
 It automatically discovers whether you are running a release vs a current or beta snapshot!
 
-It will precache your dns server by running "dig". This way, there is no inconsistency between runs after your dns cache is 
-updated.
+It will precache your dns server by looking up the mirror's ip addresses.
+This way, there is no inconsistency between runs after your dns cache is updated.
  
 This program should work on OpenBSD versions 6.4+ (Up to 6.6 as of this writing) and won't compile for earlier versions.
 
 It uses several commandline options:
+
+-6 causes only ipv6 compatible mirrors to be returned.
 
 -d causes DNS caching to be skipped.
 
@@ -40,7 +42,7 @@ It uses several commandline options:
    
    A third ‘v’ will show verboseness in the ftp calls to mirrors.
    
-   A fourth 'v' will show dig output.
+   A fourth 'v' will show dns lookup output.
 
 -V will stop all output except error messages. It overrides all -v instances.
 
