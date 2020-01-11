@@ -354,11 +354,7 @@ main(int argc, char *argv[])
 			_exit(1);
 		}
 		
-		if (ke.flags & EV_EOF)
-		{
-			close(kq);
-			_exit(0);
-		}
+		if (ke.flags & EV_EOF) _exit(0);
 
 		if (ke.data > line_max) {
 			printf("ke.data > line_max (%d), ", line_max);
@@ -454,7 +450,7 @@ main(int argc, char *argv[])
 			/* load largest gap beginning into i_max */
 			for (i = 0; i < 16; i += 2) {
 						
-				if (suc6[i] | suc6[i | 1]) {
+				if ( suc6[i] | suc6[i|1] ) {
 					j = 0;
 					continue;
 				}
@@ -1024,7 +1020,7 @@ main(int argc, char *argv[])
 
 		if (verbose >= 2) {
 			if (verbose == 4 && dns_cache)
-				printf("\n\n");
+				printf("\n\n\n");
 			else if (verbose >= 3)
 				printf("\n");
 			if (array_length >= 100) {
@@ -1080,6 +1076,7 @@ main(int argc, char *argv[])
 				    tv_start.tv_nsec) /
 				    (long double)1000000000);
 			}		    
+			if (verbose == 4) printf("\n");
 		}
 
 
