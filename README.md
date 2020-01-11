@@ -15,7 +15,7 @@ This program should work on OpenBSD versions 6.4+ (Up to 6.6 as of this writing)
 
 It uses several commandline options:
 
--6 causes only ipv6 compatible mirrors to be returned.
+-6 causes it to only lookup ipv6 addresses on mirrors.
 
 -d causes DNS caching to be skipped.
 
@@ -38,15 +38,15 @@ It uses several commandline options:
    or if timed out, or download error, alphabetically and print a line that you can copy and paste into a root terminal to
    install that mirror.
    
-   A second 'v' will make it print out the information of the mirrors in real time, as well.
+   -vv will also make it print out the information of the mirrors in real time.
    
-   A third ‘v’ will show verboseness in the ftp calls to mirrors.
+   -vvv will also show verboseness in the ftp calls to mirrors.
    
-   A fourth 'v' will show dns lookup output.
+   -vvvv will also show dns lookup output.
 
 -V will stop all output except error messages. It overrides all -v instances.
 
-It will shorten the timeout period to the download time of the fastest mirror throughout execution if no -v are used.
+It will shorten the timeout period to the download time of the fastest mirror throughout execution if no -v or if -V is used.
 
 cc pkg_ping.c -o pkg_ping
 
