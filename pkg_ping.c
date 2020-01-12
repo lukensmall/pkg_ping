@@ -107,6 +107,14 @@ label_rev_cmp(const void *a, const void *b)
 	struct mirror_st *one = *( (struct mirror_st **)a );
 	struct mirror_st *two = *( (struct mirror_st **)b );
 
+	/* list the USA mirrors first */
+	int8_t temp = (strstr(one->label, "USA") != NULL);
+	if (temp != (strstr(two->label, "USA") != NULL)) {
+		if (temp)
+			return -1;
+		return 1;
+	}
+
 	/* will reverse subsort */
 	return strcmp(two->label, one->label);
 }
@@ -438,6 +446,7 @@ main(int argc, char *argv[])
 					if (i == 0) printf("::");
 					else printf(":");
 					i += 2 * max;
+					if (i >= 16) break;
 				}
 				
 				if (suc6[i  ] >> 4) {
