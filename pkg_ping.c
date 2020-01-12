@@ -1,4 +1,3 @@
-
 /*
  * BSD 2-Clause License
  *
@@ -86,27 +85,19 @@ diff_cmp(const void *a, const void *b)
 }
 
 static int
-ftp_cmp(const void *a, const void *b)
-{
-	struct mirror_st *one = *( (struct mirror_st **)a );
-	struct mirror_st *two = *( (struct mirror_st **)b );
-
-	return strcmp(one->ftp_file, two->ftp_file);
-}
-
-static int
 label_cmp(const void *a, const void *b)
 {
 	struct mirror_st *one = *( (struct mirror_st **)a );
 	struct mirror_st *two = *( (struct mirror_st **)b );
-
-	/* list the USA mirrors first, it will subsort correctly */
-	int8_t temp = !strncmp("USA", one->label, 3);
-	if (temp != !strncmp("USA", two->label, 3)) {
+	
+	/* list the USA mirrors first */
+	int8_t temp = (strstr(one->label, "USA") != NULL);
+	if (temp != (strstr(two->label, "USA") != NULL)) {
 		if (temp)
 			return -1;
 		return 1;
 	}
+
 	return strcmp(one->label, two->label);
 }
 
@@ -116,13 +107,7 @@ label_rev_cmp(const void *a, const void *b)
 	struct mirror_st *one = *( (struct mirror_st **)a );
 	struct mirror_st *two = *( (struct mirror_st **)b );
 
-	/* list the USA mirrors first, and will reverse subsort */
-	int8_t temp = !strncmp("USA", one->label, 3);
-	if (temp != !strncmp("USA", two->label, 3)) {
-		if (temp)
-			return -1;
-		return 1;
-	}
+	/* will reverse subsort */
 	return strcmp(two->label, one->label);
 }
 
@@ -130,7 +115,7 @@ static void
 manpage(char a[])
 {
 	printf("%s\n", a);
-	printf("[-6 (only check ipv6 compatible mirrors)]\n");
+	printf("[-6 (only return ipv6 compatible mirrors)]\n");
 
 	printf("[-d (don't cache DNS)]\n");
 
@@ -143,9 +128,8 @@ manpage(char a[])
 	printf("\tif your kernel is a release, it will Override it and ");
 	printf("search for snapshot kernel mirrors.)\n");
 
-	printf("[-S (\"Secure\" https mirrors instead. Secrecy is preserved ");
-	printf("at the price of performance.\n");
-	printf("\t\"insecure\" mirrors still preserve file integrity!)]\n");
+	printf("[-S (converts http mirrors into Secure https mirrors\n");
+	printf("\thttp mirrors still preserve file integrity!)]\n");
 
 	printf("[-s floating-point timeout in Seconds (eg. -s 2.3)]\n");
 
@@ -163,11 +147,11 @@ main(int argc, char *argv[])
 	int8_t f = (getuid() == 0) ? 1 : 0;
 	int8_t num, current, insecure, u, verbose;
 	int8_t override, dns_cache, six;
-	long double s, S;
-	pid_t ftp_pid, sed_pid, write_pid;
+	long double s0, s, S;
+	pid_t ftp_pid, write_pid;
 	int kq, i, pos, c, n, array_max, array_length, tag_len;
-	int parent_to_write[2], ftp_to_sed[2], sed_to_parent[2], block_pipe[2];
-	FILE *input, *pkg_write;
+	int parent_to_write[2], ftp_out[2], block_pipe[2];
+	FILE *input;
 	struct mirror_st **array;
 	struct kevent ke;
 	struct timespec tv_start, tv_end, timeout;
@@ -176,13 +160,10 @@ main(int argc, char *argv[])
 	struct timespec timeout0 = { 20, 0 };
 	char *line;
 	
-	if (pledge("stdio proc exec cpath wpath dns unveil", NULL) == -1)
+   if (pledge("stdio proc exec flock cpath wpath rpath dns unveil", NULL) == -1)
 		err(1, "pledge, line: %d", __LINE__);
 
 	if (unveil("/usr/bin/ftp", "x") == -1)
-		err(1, "unveil, line: %d", __LINE__);
-
-	if (unveil("/usr/bin/sed", "x") == -1)
 		err(1, "unveil, line: %d", __LINE__);
 	
 
@@ -191,7 +172,7 @@ main(int argc, char *argv[])
 		if (unveil("/etc/installurl", "cw") == -1)
 			err(1, "unveil, line: %d", __LINE__);
 
-		if (pledge("stdio proc exec cpath wpath dns", NULL) == -1)
+    if (pledge("stdio proc exec flock cpath wpath rpath dns", NULL) == -1)
 			err(1, "pledge, line: %d", __LINE__);
 	} else if (pledge("stdio proc exec dns", NULL) == -1)
 		err(1, "pledge, line: %d", __LINE__);
@@ -199,7 +180,7 @@ main(int argc, char *argv[])
 	
 	u = verbose = current = override = six = 0;
 	insecure = dns_cache = 1;
-	s = 5;
+	s0 = s = 5;
 
 	char *version;
 	size_t len = 300;
@@ -265,7 +246,7 @@ main(int argc, char *argv[])
 			}
 			
 			errno = 0;
-			s = strtold(optarg, NULL);
+			s0 = s = strtold(optarg, NULL);
 			if (errno == ERANGE)
 				err(1, "strtold");
 			if (s > (long double)1000)
@@ -316,10 +297,10 @@ main(int argc, char *argv[])
 		close(dns_cache_socket[1]);
 		char *host, *last;
 
-		char table6[16] = { '0', '1', '2', '3',
-			            '4', '5', '6', '7',
-			            '8', '9', 'a', 'b',
-			            'c', 'd', 'e', 'f' };
+		const char table6[16] = { '0','1','2','3',
+			                  '4','5','6','7',
+			                  '8','9','a','b',
+			                  'c','d','e','f' };
 		
 		uint8_t line_max;
 		struct addrinfo hints, *res0 = NULL, *res;
@@ -340,8 +321,6 @@ main(int argc, char *argv[])
 
 		i = read(dns_cache_socket[0], line, line_max + 1);
 		if (i == 0) _exit(0);
-		
-		if (res0) freeaddrinfo(res0);
 		
 		if (i > line_max) {
 			printf("i > line_max, line: %d\n", __LINE__);
@@ -383,16 +362,17 @@ main(int argc, char *argv[])
 		if (n) {
 			printf("%s ", gai_strerror(n));
 			printf("getaddrinfo() failed\n");
-			_exit(1);
+			_exit(2);
 		}
 
 		if (verbose < 4 && !six) {
 			i = write(dns_cache_socket[0], "0", 1);		
 			if (i < 1) _exit(1);
+			freeaddrinfo(res0);
 			goto loop;
 		}
 			
-		if (res0->ai_canonname && verbose == 4) {
+		if (verbose == 4 && res0->ai_canonname) {
 			if (strcmp(res0->ai_canonname, host))
 				printf("canon name: %s\n", res0->ai_canonname);
 		}
@@ -433,7 +413,7 @@ main(int argc, char *argv[])
 			/* load largest gap beginning into i_max */
 			for (i = 0; i < 16; i += 2) {
 						
-				/* suc6[i] and suc6[i+1] as a 2 byte uint */
+				/* suc6[i] == 0 && suc6[i + 1] == 0 */
 				if (  *( (uint16_t*)(suc6 + i) )  ) {
 					j = 0;
 					continue;
@@ -444,13 +424,14 @@ main(int argc, char *argv[])
 					j = h = 1;
 					continue;
 				}
-								
+				
 				if (max < ++h) {
 					max = h;
 					i_max = i_temp;
 				}
 			}
 			
+			/* 'i' is even so I can use "i|1" instead of "i+1" */
 			for (i = 0; i < 16; i += 2) {
 								
 				if (i == i_max) {
@@ -489,8 +470,10 @@ main(int argc, char *argv[])
 		else		
 			i = write(dns_cache_socket[0], "1", 1);		
 		
-		if (i < 1) _exit(1);
+		if (i < 1)
+			_exit(1);
 		
+		freeaddrinfo(res0);
 		goto loop;
 	}
 	if (dns_cache_pid == -1)
@@ -503,7 +486,7 @@ main(int argc, char *argv[])
 	if (f == 0)
 		goto jump_f;
 
-	if (pledge("stdio proc exec cpath wpath", NULL) == -1)
+	if (pledge("stdio proc exec flock cpath wpath rpath", NULL) == -1)
 		err(1, "pledge, line: %d", __LINE__);
 
 	if (pipe2(parent_to_write, O_CLOEXEC) == -1)
@@ -512,81 +495,126 @@ main(int argc, char *argv[])
 	write_pid = fork();
 	if (write_pid == (pid_t) 0) {
 		
-		char *tag_w;
+		char *tag_w, *tag_r;
+		FILE *pkg_write, *pkg_read;
 		
-		if (pledge("stdio cpath wpath", NULL) == -1) {
+		if (pledge("stdio flock cpath wpath rpath", NULL) == -1) {
 			printf("%s ", strerror(errno));
 			printf("pledge, line: %d\n", __LINE__);
 			_exit(1);
 		}
-		
 		close(parent_to_write[STDOUT_FILENO]);
 		
 		if (dns_cache) close(dns_cache_socket[1]);
-					
-		input = fdopen(parent_to_write[STDIN_FILENO], "r");
-		if (input == NULL) {
-			printf("%s ", strerror(errno));
-			printf("write_pid fdopen, line: %d\n", __LINE__);
-			_exit(1);
-		}
+
+		uint8_t w_line_max, r_line_max = 0;
 		
-		c = getc(input);
-		if (c == EOF) {
-			printf("/etc/installurl not written.\n");
-			_exit(1);
-		}
+		pkg_read = fopen("/etc/installurl", "r");
 		
-		tag_w = malloc(300 + 1);
-		if (tag_w == NULL) {
+		if (pledge("stdio flock cpath wpath", NULL) == -1) {
 			printf("%s ", strerror(errno));
-			printf("malloc, line: %d\n", __LINE__);
+			printf("pledge, line: %d\n", __LINE__);
 			_exit(1);
 		}
-			
-		i = 0;
-		if (verbose >= 1)
-			printf("\n");
-		do {
-			if (i >= 300) {
-				printf("\nmirror length became too long.\n");
-				printf("/etc/installurl not written.\n");
-				_exit(1);
+
+		if (pkg_read) {
+			if (flock(fileno(pkg_read), LOCK_EX) == -1) _exit(1);
+			fseek(pkg_read, 0, SEEK_END);
+			r_line_max = ftell(pkg_read);
+			if (r_line_max == 0)
+				goto jump_write;
+			tag_r = malloc(r_line_max + 1);
+			if (tag_r == NULL) {
+				r_line_max = 0;
+				goto jump_write;
 			}
-
-			tag_w[i++] = c;
-			if (c == '\n')
-				break;
-			c = getc(input);
-		} while (c != EOF);
-		fclose(input);
-		tag_w[i] = '\0';			
+			fseek(pkg_read, 0, SEEK_SET);
+			n = fread(tag_r, 1, r_line_max, pkg_read);
+			if (n < r_line_max) {
+				free(tag_r);
+				r_line_max = 0;
+			}
+			jump_write:
+			flock(fileno(pkg_read), LOCK_UN);
+			fclose(pkg_read);
+		}
 		
-		/* fopen(... "w") truncates the file */
-		pkg_write = fopen("/etc/installurl", "w");
 
+		
+		pkg_write = fopen("/etc/installurl", "w");
+		
+		if (pledge("stdio flock", NULL) == -1) {
+			printf("%s ", strerror(errno));
+			printf("pledge, line: %d\n", __LINE__);
+			_exit(1);
+		}
+
+		if (pkg_write == NULL) {
+			printf("%s ", strerror(errno));
+			printf("/etc/installurl not opened.\n");
+			_exit(1);
+		}
+
+		if (flock(fileno(pkg_write), LOCK_EX | LOCK_NB) == -1) {
+			printf("couldn't obtain write lock\n");
+			_exit(1);
+		}
+		
 		if (pledge("stdio", NULL) == -1) {
 			printf("%s ", strerror(errno));
 			printf("pledge, line: %d\n", __LINE__);
 			_exit(1);
 		}
 		
-		if (pkg_write != NULL) {
-			n = fwrite(tag_w, sizeof(char), i, pkg_write);
-			fclose(pkg_write);
-			if (n < i) {
-				printf("write error occurred ");
-				printf("line: %d\n", __LINE__);
-				_exit(1);
-			}
-			if (verbose >= 0)
-				printf("/etc/installurl: %s", tag_w);
-			_exit(0);
+		i = read(parent_to_write[STDIN_FILENO], &w_line_max, 1);
+		if (i < 1) goto rewrite;
+		
+		tag_w = malloc(w_line_max + 1);
+		if (tag_w == NULL) {
+			printf("%s ", strerror(errno));
+			printf("malloc, line: %d\n", __LINE__);
+			_exit(1);
 		}
 		
-		printf("%s ", strerror(errno));
-		printf("/etc/installurl not opened.\n");
+		i = read(parent_to_write[STDIN_FILENO], tag_w, w_line_max + 1);
+
+		if (i < strlen("http://") || i > w_line_max)
+			goto rewrite;
+
+		if (verbose >= 1)
+			printf("\n");
+
+		if (fwrite(tag_w, 1, i, pkg_write) < i) {
+			fclose(pkg_write);
+			printf("write error occurred ");
+			printf("line: %d\n", __LINE__);
+			_exit(1);
+		}
+		fclose(pkg_write);
+		
+		if (verbose >= 0) {
+			tag_w[i] = '\0';
+			printf("/etc/installurl: %s", tag_w);
+		}
+		
+		_exit(0);
+		
+		
+		rewrite:
+		
+		if (r_line_max == 0) {
+			fclose(pkg_write);
+			_exit(1);
+		}
+		n = fwrite(tag_r, 1, r_line_max, pkg_write);
+		if (n < r_line_max)
+			printf("fwrite error occurred line: %d\n", __LINE__);
+		else
+			printf("/etc/installurl re-established.\n");
+		
+		fclose(pkg_write);
 		_exit(1);
+		
 	}
 	if (write_pid == -1)
 		err(1, "write fork, line: %d", __LINE__);
@@ -603,7 +631,7 @@ main(int argc, char *argv[])
 		err(1, "pledge, line: %d", __LINE__);
 
 
-	if (pipe(ftp_to_sed) == -1)
+	if (pipe(ftp_out) == -1)
 		err(1, "pipe, line: %d", __LINE__);
 
 	ftp_pid = fork();
@@ -615,12 +643,12 @@ main(int argc, char *argv[])
 			_exit(1);
 		}
 		
-		close(ftp_to_sed[STDIN_FILENO]);
+		close(ftp_out[STDIN_FILENO]);
 
 		if (verbose >= 2)
-			printf("fetching https://www.openbsd.org/ftp.html\n");
+			printf("https://cdn.openbsd.org/pub/OpenBSD/ftplist\n");
 			    
-		if (dup2(ftp_to_sed[STDOUT_FILENO], STDOUT_FILENO) == -1) {
+		if (dup2(ftp_out[STDOUT_FILENO], STDOUT_FILENO) == -1) {
 			printf("%s ", strerror(errno));
 			printf("ftp STDOUT dup2, line: %d\n", __LINE__);
 			_exit(1);
@@ -628,10 +656,12 @@ main(int argc, char *argv[])
 		
 		if (verbose >= 2) {
 			execl("/usr/bin/ftp", "ftp", "-vmo", "-",
-			    "https://www.openbsd.org/ftp.html", NULL);
+			    "https://cdn.openbsd.org/pub/OpenBSD/ftplist",
+			    NULL);
 		} else {
 			execl("/usr/bin/ftp", "ftp", "-VMo", "-",
-			    "https://www.openbsd.org/ftp.html", NULL);
+			    "https://cdn.openbsd.org/pub/OpenBSD/ftplist",
+			    NULL);
 		}
 
 		fprintf(stderr, "%s ", strerror(errno));
@@ -641,50 +671,8 @@ main(int argc, char *argv[])
 	if (ftp_pid == -1)
 		err(1, "ftp 1 fork, line: %d", __LINE__);
 
-	close(ftp_to_sed[STDOUT_FILENO]);
+	close(ftp_out[STDOUT_FILENO]);
 
-	if (pipe(sed_to_parent) == -1) {
-		printf("%s ", strerror(errno));
-		kill(ftp_pid, SIGKILL);
-		errx(1, "pipe, line: %d", __LINE__);
-	}
-	sed_pid = fork();
-	if (sed_pid == (pid_t) 0) {
-
-		if (pledge("stdio exec", NULL) == -1) {
-			printf("%s ", strerror(errno));
-			printf("sed pledge, line: %d\n", __LINE__);
-			_exit(1);
-		}
-		close(sed_to_parent[STDIN_FILENO]);
-
-		if (dup2(ftp_to_sed[STDIN_FILENO], STDIN_FILENO) == -1) {
-			printf("%s ", strerror(errno));
-			printf("sed STDIN dup2, line: %d\n", __LINE__);
-			_exit(1);
-		}
-		if (dup2(sed_to_parent[STDOUT_FILENO], STDOUT_FILENO) == -1) {
-			printf("%s ", strerror(errno));
-			printf("sed STDOUT dup2, line: %d\n", __LINE__);
-			_exit(1);
-		}
-		execl("/usr/bin/sed", "sed", "-n",
-		    "-e", "s:</a>$::",
-		    "-e", "s:\t<strong>\\([^<]*\\)<.*:\\1:p",
-		    "-e", "s:^\\(\t[hfr].*\\):\\1:p", NULL);
-
-		fprintf(stderr, "%s ", strerror(errno));
-		fprintf(stderr, "sed execl, line: %d\n", __LINE__);
-		_exit(1);
-	}
-	if (sed_pid == -1) {
-		printf("%s ", strerror(errno));
-		kill(ftp_pid, SIGKILL);
-		errx(1, "sed fork, line: %d", __LINE__);
-	}
-
-	close(ftp_to_sed[STDIN_FILENO]);
-	close(sed_to_parent[STDOUT_FILENO]);
 
 
 	if (verbose >= 2) {
@@ -715,7 +703,6 @@ main(int argc, char *argv[])
 	struct utsname *name = malloc(sizeof(struct utsname));
 	if (name == NULL) {
 		kill(ftp_pid, SIGKILL);
-		kill(sed_pid, SIGKILL);
 		errno = ENOMEM;
 		err(1, "malloc, line: %d", __LINE__);
 	}
@@ -723,7 +710,6 @@ main(int argc, char *argv[])
 	if (uname(name) == -1) {
 		printf("%s ", strerror(errno));
 		kill(ftp_pid, SIGKILL);
-		kill(sed_pid, SIGKILL);
 		errx(1, "uname, line: %d", __LINE__);
 	}
 	
@@ -731,7 +717,6 @@ main(int argc, char *argv[])
 	char *release = malloc(i + 1);
 	if (release == NULL) {
 		kill(ftp_pid, SIGKILL);
-		kill(sed_pid, SIGKILL);
 		errno = ENOMEM;
 		err(1, "malloc, line: %d", __LINE__);
 	}
@@ -748,7 +733,6 @@ main(int argc, char *argv[])
 	char *tag = malloc(tag_len + 1);
 	if (tag == NULL) {
 		kill(ftp_pid, SIGKILL);
-		kill(sed_pid, SIGKILL);
 		errno = ENOMEM;
 		err(1, "malloc, line: %d", __LINE__);
 	}
@@ -771,39 +755,34 @@ main(int argc, char *argv[])
 	if (kq == -1) {
 		printf("%s ", strerror(errno));
 		kill(ftp_pid, SIGKILL);
-		kill(sed_pid, SIGKILL);
 		errx(1, "kq! line: %d", __LINE__);
 	}
 
-	EV_SET(&ke, sed_to_parent[STDIN_FILENO], EVFILT_READ,
+	EV_SET(&ke, ftp_out[STDIN_FILENO], EVFILT_READ,
 	    EV_ADD | EV_ONESHOT, 0, 0, NULL);
 	i = kevent(kq, &ke, 1, &ke, 1, &timeout0);
 	if (i == -1) {
 		printf("%s ", strerror(errno));
 		kill(ftp_pid, SIGKILL);
-		kill(sed_pid, SIGKILL);
 		errx(1,
 		    "kevent, timeout0 may be too large. line: %d", __LINE__);
 	}
 	if (i == 0) {
 		kill(ftp_pid, SIGKILL);
-		kill(sed_pid, SIGKILL);
-		errx(1, "timed out fetching: https://www.openbsd.org/ftp.html");
+		errx(1, "timed out fetching from: https://cdn.openbsd.org");
 	}
 	
-	input = fdopen(sed_to_parent[STDIN_FILENO], "r");
+	input = fdopen(ftp_out[STDIN_FILENO], "r");
 	if (input == NULL) {
 		printf("%s ", strerror(errno));
 		kill(ftp_pid, SIGKILL);
-		kill(sed_pid, SIGKILL);
-		err(1, "fdopen sed_to_parent, line: %d", __LINE__);
+		errx(1, "fdopen ftp_out, line: %d", __LINE__);
 	}
 
 	/* if the index for line[] exceeds 254, it will error out */
 	line = malloc(255);
 	if (line == NULL) {
 		kill(ftp_pid, SIGKILL);
-		kill(sed_pid, SIGKILL);
 		errno = ENOMEM;
 		err(1, "malloc, line: %d", __LINE__);
 	}	
@@ -812,7 +791,6 @@ main(int argc, char *argv[])
 	array = calloc(array_max, sizeof(struct mirror_st *));
 	if (array == NULL) {
 		kill(ftp_pid, SIGKILL);
-		kill(sed_pid, SIGKILL);
 		errno = ENOMEM;
 		err(1, "calloc, line: %d", __LINE__);
 	}
@@ -821,76 +799,32 @@ main(int argc, char *argv[])
 	array[0] = malloc(sizeof(struct mirror_st));
 	if (array[0] == NULL) {
 		kill(ftp_pid, SIGKILL);
-		kill(sed_pid, SIGKILL);
 		errno = ENOMEM;
 		err(1, "malloc, line: %d", __LINE__);
 	}
 
 	int pos_max = 0;
-	
+
+
+
 	while ((c = getc(input)) != EOF) {
-		if (pos >= 255) {
+		if (pos >= 254) {
 			kill(ftp_pid, SIGKILL);
-			kill(sed_pid, SIGKILL);
+			line[pos] = '\0';
+			printf("line: %s\n", line);
 			errx(1, "pos got too big! line: %d", __LINE__);
 		}
 		if (num == 0) {
-			if (c != '\n') {
-				line[pos++] = c;
-				continue;
-			}
-			line[pos++] = '\0';
-			if (u) {
-				if (!strncmp("USA", line, 3)) {
-					while ((c = getc(input)) != EOF)
-						if (c == '\n') break;
-					pos = 0;
-					continue;
-				}
-			}
-			array[array_length]->label = malloc(pos);
-			if (array[array_length]->label == NULL) {
-				kill(ftp_pid, SIGKILL);
-				kill(sed_pid, SIGKILL);
-				errno = ENOMEM;
-				err(1, "malloc, line: %d", __LINE__);
-			}
-			strlcpy(array[array_length]->label, line, pos);
 
-			pos = 0;
-			num = 1;
-		} else {
-			if (pos == 0) {
-				if ((c != 'h') && (c != 'f') && (c != 'r'))
-					continue;
-				else if (insecure) {
-					if (c == 'r')
-						break;
-					if (c == 'f') {
-						line[pos++] = 'h';
-						c = 't';
-					}
-				} else if (c != 'h')
-					break;
-			}
-			if (c != '\n') {
+			if (c != ' ') {
 				line[pos++] = c;
 				continue;
 			}
 			
-			/* pos >= 1 to get here */
-			/* excise the final unnecessary '/' */
-			line[pos - 1] = '\0';
+			line[pos++] = '\0';
 
-			if (!insecure) {
-				if (strncmp(line, "https", 5))
-					break;
-			} else if (!strncmp(line, "https", 5)) {
-				free(array[array_length]->label);
-				num = pos = 0;
-				continue;
-			}
-
+			if (!insecure) ++pos;
+			
 			if (pos_max < pos)
 				pos_max = pos;
 
@@ -898,12 +832,50 @@ main(int argc, char *argv[])
 			    
 			if (array[array_length]->ftp_file == NULL) {
 				kill(ftp_pid, SIGKILL);
-				kill(sed_pid, SIGKILL);
 				errno = ENOMEM;
 				err(1, "malloc, line: %d", __LINE__);
 			}
 			
-			strlcpy(array[array_length]->ftp_file, line, pos);
+			if (!insecure) {
+				strlcpy(array[array_length]->ftp_file + 1,
+				    line, pos - 1);
+				memcpy(array[array_length]->ftp_file,
+				    "https", 5);
+			} else {
+				strlcpy(array[array_length]->ftp_file,
+				    line, pos);
+			}
+
+			pos = 0;
+			num = 1;
+		} else {
+			if (pos == 0) {
+				if (c == ' ')
+					continue;
+			}
+				
+			if (c != '\n') {
+				line[pos++] = c;
+				continue;
+			}
+			
+			
+			line[pos++] = '\0';
+			if (u) {
+				if (strstr(line, "USA")) {
+					free(array[array_length]->ftp_file);
+					num = pos = 0;
+					continue;
+				}
+			}
+			array[array_length]->label = malloc(pos);
+			if (array[array_length]->label == NULL) {
+				kill(ftp_pid, SIGKILL);
+				errno = ENOMEM;
+				err(1, "malloc, line: %d", __LINE__);
+			}
+			strlcpy(array[array_length]->label, line, pos);
+
 
 			if (++array_length >= array_max) {
 				array_max += 20;
@@ -912,7 +884,6 @@ main(int argc, char *argv[])
 
 				if (array == NULL) {
 					kill(ftp_pid, SIGKILL);
-					kill(sed_pid, SIGKILL);
 					errno = ENOMEM;
 					err(1,
 					    "reallocarray, line: %d", __LINE__);
@@ -922,61 +893,57 @@ main(int argc, char *argv[])
 
 			if (array[array_length] == NULL) {
 				kill(ftp_pid, SIGKILL);
-				kill(sed_pid, SIGKILL);
 				errno = ENOMEM;
 				err(1, "malloc, line: %d", __LINE__);
 			}
-			pos = num = 0;
+
+			num = pos = 0;
 		}
 	}
-	fclose(input);
+	
+	free(array[array_length]);
+
 	free(line);
+
+	fclose(input);
+	close(ftp_out[STDIN_FILENO]);
+
+	kill(ftp_pid, SIGKILL);
+	waitpid(ftp_pid, NULL, 0);
+
+
+	
+	uint8_t length;
 	
 	if (dns_cache) {
-		uint8_t length = pos_max;
+		length = pos_max;
 		i = write(dns_cache_socket[1], &length, 1);
-		if (i < 1) err(1, "'length' not sent");
+		if (i < 1) err(1, "'length' not sent to dns_cache");
 	}
 	
 	pos_max += tag_len;
+	
+	if (f) {
+		
+		if (pos_max > 255)
+			err(1, "pos_max is bigger than 255!\n");
+		
+		length = pos_max;
+		i = write(parent_to_write[STDOUT_FILENO], &length, 1);
+		if (i < 1) err(1, "'length' not sent to write process");
+	}
+	
 	line = malloc(pos_max);
 	if (line == NULL) err(1, "malloc, line: %d", __LINE__);
 
-	close(sed_to_parent[STDIN_FILENO]);
+	if (array_length == 0)
+		errx(1, "No file found. Is your network good?");
 
-	kill(ftp_pid, SIGKILL);
-	kill(sed_pid, SIGKILL);
-	waitpid(ftp_pid, NULL, 0);
-	waitpid(sed_pid, NULL, 0);
 
-	if (array_length == 0) errx(1, "No mirror found. Is openbsd.org live?");
-
-	if (num == 1)
-		free(array[array_length]->label);
-	free(array[array_length]);
-
-	
-	if (insecure) {
-		
-		qsort(array, array_length, sizeof(struct mirror_st *), ftp_cmp);
-		c = 1;
-		while (c < array_length) {
-			if (!strcmp(array[c - 1]->ftp_file,
-			    array[c]->ftp_file)) {
-				free(array[c]->label);
-				free(array[c]->ftp_file);
-				free(array[c]);
-				for (i = c + 1; i < array_length; ++i)
-					array[i - 1] = array[i];
-				--array_length;
-			} else
-				++c;
-		}
-	}
 
 	array = reallocarray(array, array_length, sizeof(struct mirror_st *));
 	if (array == NULL) err(1, "reallocarray, line: %d", __LINE__);
-		
+	
 	qsort(array, array_length, sizeof(struct mirror_st *), label_cmp);
 	
 	S = s;
@@ -1004,11 +971,10 @@ main(int argc, char *argv[])
 				    array[c]->label, line);
 			}
 		} else if (verbose >= 0) {
-			i = array_length - c;
+			n = i = array_length - c;
 			if (c > 0) {
 				if ((i == 9) || (i == 99))
 					printf("\b \b");
-				n = i;
 				do {
 					printf("\b");
 					n /= 10;
@@ -1033,11 +999,52 @@ main(int argc, char *argv[])
 			char v;
 			
 			i = read(dns_cache_socket[1], &v, 1);		
-			if (i < 1) err(1, "response not received");
 
 			if (verbose == (verbose & 1)) {
 				printf("\b \b");
 				fflush(stdout);
+			}
+			
+			if (i < 1) {
+				
+				if (f) close(parent_to_write[STDOUT_FILENO]);
+				
+				waitpid(dns_cache_pid, &n, 0);
+					
+				if (n != 2) err(1, "atypical dns_cache error.");
+				
+				if(pledge("stdio exec", NULL) == -1)
+					err(1, "pledge, line: %d", __LINE__);
+				
+				if (verbose >= 2) {
+					printf("getaddrinfo() failed again.\n");
+					printf("restarting...\n");
+				} else if (verbose >= 0) {
+					n = array_length - c;
+					do {
+						printf("\b \b");
+						n /= 10;
+					} while (n > 0);
+					fflush(stdout);
+				}
+
+				free(line);
+				free(tag);
+				
+				char **arg_list;
+
+				arg_list = calloc(argc + 1, sizeof(char*));
+				if (arg_list == NULL) err(1, "calloc");
+				for (i = 0; i < argc; ++i)
+				{
+					n = strlen(argv[i]) + 1;
+					arg_list[i] = malloc(n);
+					if (arg_list[i] == NULL)
+						err(1, "malloc");
+					memcpy(arg_list[i], argv[i], n);
+				}
+				execv(arg_list[0], arg_list);
+				err(1, "execv failed, line: %d", __LINE__);
 			}
 			
 			if (six && v == '0') {
@@ -1171,17 +1178,18 @@ main(int argc, char *argv[])
 	free(line);
 	free(tag);		
 	close(kq);
+
+	/* identical to (verbose == 0 || verbose == 1) */
+	if (verbose == (verbose & 1)) {
+		printf("\b \b");
+		fflush(stdout);
+	}
 	
 	if (dns_cache) {
 		close(dns_cache_socket[1]);
 		waitpid(dns_cache_pid, NULL, 0);
 	}
 
-
-	if (verbose == (verbose & 1)) {
-		printf("\b \b");
-		fflush(stdout);
-	}
 
 	qsort(array, array_length, sizeof(struct mirror_st *), diff_cmp);
 
@@ -1218,12 +1226,12 @@ main(int argc, char *argv[])
 		
 		c = array_length - 1;
 		
-		if (se == c)
-			printf("\n\nSUCCESSFUL MIRRORS:\n\n\n");
+		if (de == c)
+			printf("\n\nDOWNLOAD ERROR MIRRORS:\n\n\n");
 		else if (te == c)
 			printf("\n\nTIMEOUT MIRRORS:\n\n\n");
 		else
-			printf("\n\nDOWNLOAD ERROR MIRRORS:\n\n\n");
+			printf("\n\nSUCCESSFUL MIRRORS:\n\n\n");
 
 		for (; c >= 0; --c) {
 			    
@@ -1239,12 +1247,12 @@ main(int argc, char *argv[])
 			if (c <= se)
 				printf(" : %.9Lf\n\n", array[c]->diff);
 			else if (c <= te) {
-				//~ printf(" Timeout");
+				/* printf(" Timeout"); */
 				printf("\n\n");
 				if (c == ts && se != -1)
 					printf("\nSUCCESSFUL MIRRORS:\n\n\n");
 			} else {
-				//~ printf(" Download Error");
+				/* printf(" Download Error"); */
 				printf("\n\n");
 				if (c == ds && ts != -1)
 					printf("\nTIMEOUT MIRRORS:\n\n\n");
@@ -1255,45 +1263,32 @@ main(int argc, char *argv[])
 	}
 
 	if (array[0]->diff >= s) {
-		if (current == 0) {
+		
+		if (current == 0 && !six) {
 			printf("\n\nNo mirrors. It doesn't appear that the ");
 			printf("%s release is present yet.\n", release);
-			if (six)
-				printf("Perhaps try losing the -6 option?\n");
-			if (override == 0)
-				printf("Perhaps try the -O option?\n");
 		} else
 			printf("No successful mirrors found.\n");
 			
+		if (six)
+			printf("Perhaps try losing the -6 option?\n");
+		if (override == 0)
+			printf("Perhaps try the -O option?\n");
+			
+		printf("Perhaps try with a larger -s than %.9Lf", s0);
+
 		return 1;
 	}
 	
 	
 	if (f) {		
-		
+				
 		if (dup2(parent_to_write[STDOUT_FILENO], STDOUT_FILENO) == -1)
 			err(1, "dup2, line: %d\n", __LINE__);
-		
-		/* Perhaps somebody has kinda strict memory limits */
-		if (dns_cache == 0) {
-			/* remove extra dynamic array memory before writing */
-			for (c = 1; c < array_length; ++c) {
-				free(array[c]->label);
-				free(array[c]->ftp_file);
-				free(array[c]);
-			}
-			array = reallocarray(array, 1,
-			    sizeof(struct mirror_st *));
-
-			if (array == NULL) {
-				err(1, "reallocarray, line: %d", __LINE__);
-			}
-		}
 		
 		/* sends the fastest mirror to write_pid process */
 		printf("%s\n", array[0]->ftp_file);
 		
-		/* needed for verbose == -1 */
 		fflush(stdout);
 
 		waitpid(write_pid, &i, 0);
