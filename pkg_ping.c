@@ -433,7 +433,8 @@ main(int argc, char *argv[])
 			/* load largest gap beginning into i_max */
 			for (i = 0; i < 16; i += 2) {
 						
-				if ( suc6[i] | suc6[i|1] ) {
+				/* suc6[i] and suc6[i+1] as a 2 byte uint */
+				if (  *( (uint16_t*)(suc6 + i) )  ) {
 					j = 0;
 					continue;
 				}
