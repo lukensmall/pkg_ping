@@ -187,7 +187,7 @@ main(int argc, char *argv[])
 
 	if (f) {
 
-		if (unveil("/etc/installurl", "cw") == -1)
+		if (unveil("/etc/installurl", "cwr") == -1)
 			err(1, "unveil, line: %d", __LINE__);
 
     if (pledge("stdio proc exec flock cpath wpath rpath dns", NULL) == -1)
@@ -926,13 +926,13 @@ main(int argc, char *argv[])
 		
 		i = read(parent_to_write[STDIN_FILENO], tag_w, w_line_max + 1);
 
-		if (i < strlen("http://") || i > w_line_max)
+		if (i < (int)strlen("http://") || i > w_line_max)
 			goto rewrite;
 
 		if (verbose >= 1)
 			printf("\n");
 
-		if (fwrite(tag_w, 1, i, pkg_write) < i) {
+		if ((int)fwrite(tag_w, 1, i, pkg_write) < i) {
 			fclose(pkg_write);
 			printf("write error occurred ");
 			printf("line: %d\n", __LINE__);
