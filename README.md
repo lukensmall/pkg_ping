@@ -10,6 +10,9 @@ It automatically discovers whether you are running a release vs a current or bet
 
 It will precache your dns server by looking up the mirror's ip addresses.
 This way, there is no inconsistency between runs after your dns cache is updated.
+
+I did some reworking, including restarting for most cases and reinstantiating /etc/instalurl if there is an error 
+and locking the file from the new set of processes.
  
 This program should work on OpenBSD versions 6.4+ (Up to 6.6 as of this writing) and won't compile for earlier versions.
 
@@ -20,6 +23,11 @@ It uses several commandline options:
 -d causes DNS caching to be skipped.
 
 -f prohibits a fork()ed process from writing the fastest mirror to file even if it has the power to do so as root.
+
+-g generates the massive http list to retrieve and parse "ftplist", which you no doubt, noticed when you look at the
+   source code. You may be asking: why not just hard-code the list of mirrors in there to find the fastest without downloading
+   it? I suspect that the list is ever evolving and don't you want the most up-to-date mirror list, without putting it in a 
+   program?
 
 -h will print the "help" options.
 
