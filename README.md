@@ -24,10 +24,9 @@ It uses several commandline options:
 
 -f prohibits a fork()ed process from writing the fastest mirror to file even if it has the power to do so as root.
 
--g generates the massive http list to retrieve and parse "ftplist", which you no doubt, noticed when you look at the
-   source code. You may be asking: why not just hard-code the list of mirrors in there to find the fastest without downloading
-   it? I suspect that the list is ever evolving and don't you want the most up-to-date mirror list, without putting it in a 
-   program?
+-g generates the massive http list from which to retrieve and parse "ftplist", which you no doubt, noticed when you look at the
+   source code. It downloads a 11 byte timestamp which is in all mirrors, whereas not all mirrors might have snapshots or your
+   architecture or version.
 
 -h will print the "help" options.
 
