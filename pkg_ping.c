@@ -299,7 +299,8 @@ main(int argc, char *argv[])
 	
 	if (generate) {
 		s0 = s = timeout0.tv_sec / 4;
-		verbose = 4;
+		if (verbose < 1)
+			verbose = 1;
 		secure = 1;
 		dns_cache = 0;
 		f = 0;
@@ -309,314 +310,332 @@ main(int argc, char *argv[])
 
 
 	char **ftp_list;
-	ftp_list = calloc(50, sizeof(char*));
+	ftp_list = calloc(53, sizeof(char*));
 	if (ftp_list == NULL) err(1, "calloc");
 
-	ftp_list[0] = malloc(2336);
+	ftp_list[0] = malloc(2473);
 	if (ftp_list[0] == NULL) err(1, "malloc");
 
 
 
-	/* Waterloo, Ontario, Canada : 0.959271846 */
+	/* Piscataway, NJ, USA : 0.283738617 */
 
-	strlcpy(ftp_list[0], "https://mirror.csclub.uwaterloo.ca/pub/OpenBSD/ftplist", 54 + 1);
-
-
-	/* Cloudflare (CDN) : 1.132705580 */
-
-	ftp_list[1] = ftp_list[0] + 54 + 1;
-	strlcpy(ftp_list[1], "https://cloudflare.cdn.openbsd.org/pub/OpenBSD/ftplist", 54 + 1);
+	memcpy(ftp_list[0], "https://openbsd.mirror.constant.com/pub/OpenBSD/ftplist", 55 + 1);
 
 
-	/* Montreal, QC, Canada : 1.175043871 */
+	/* Toronto, ON, Canada : 0.325362248 */
 
-	ftp_list[2] = ftp_list[1] + 54 + 1;
-	strlcpy(ftp_list[2], "https://openbsd.mirror.netelligent.ca/pub/OpenBSD/ftplist", 57 + 1);
-
-
-	/* San Francisco, CA, USA : 1.208147591 */
-
-	ftp_list[3] = ftp_list[2] + 57 + 1;
-	strlcpy(ftp_list[3], "https://mirrors.sonic.net/pub/OpenBSD/ftplist", 45 + 1);
+	ftp_list[1] = ftp_list[0] + 55 + 1;
+	memcpy(ftp_list[1], "https://openbsd.cs.toronto.edu/pub/OpenBSD/ftplist", 50 + 1);
 
 
-	/* Piscataway, NJ, USA : 1.219135920 */
+	/* Dallas, TX, USA : 0.375604026 */
 
-	ftp_list[4] = ftp_list[3] + 45 + 1;
-	strlcpy(ftp_list[4], "https://openbsd.mirror.constant.com/pub/OpenBSD/ftplist", 55 + 1);
-
-
-	/* Arlington Heights, IL, USA : 1.233858448 */
-
-	ftp_list[5] = ftp_list[4] + 55 + 1;
-	strlcpy(ftp_list[5], "https://mirrors.gigenet.com/pub/OpenBSD/ftplist", 47 + 1);
+	ftp_list[2] = ftp_list[1] + 50 + 1;
+	memcpy(ftp_list[2], "https://mirror.esc7.net/pub/OpenBSD/ftplist", 43 + 1);
 
 
-	/* New York, NY, USA : 1.347425233 */
+	/* Montreal, QC, Canada : 0.380927115 */
 
-	ftp_list[6] = ftp_list[5] + 47 + 1;
-	strlcpy(ftp_list[6], "https://ftp4.usa.openbsd.org/pub/OpenBSD/ftplist", 48 + 1);
-
-
-	/* Costa Rica : 1.375017804 */
-
-	ftp_list[7] = ftp_list[6] + 48 + 1;
-	strlcpy(ftp_list[7], "https://mirrors.ucr.ac.cr/pub/OpenBSD/ftplist", 45 + 1);
+	ftp_list[3] = ftp_list[2] + 43 + 1;
+	memcpy(ftp_list[3], "https://openbsd.mirror.netelligent.ca/pub/OpenBSD/ftplist", 57 + 1);
 
 
-	/* Boise, ID, USA : 1.442362992 */
+	/* New York, NY, USA : 0.451203452 */
 
-	ftp_list[8] = ftp_list[7] + 45 + 1;
-	strlcpy(ftp_list[8], "https://mirrors.syringanetworks.net/pub/OpenBSD/ftplist", 55 + 1);
-
-
-	/* Toronto, ON, Canada : 1.451336561 */
-
-	ftp_list[9] = ftp_list[8] + 55 + 1;
-	strlcpy(ftp_list[9], "https://openbsd.cs.toronto.edu/pub/OpenBSD/ftplist", 50 + 1);
+	ftp_list[4] = ftp_list[3] + 57 + 1;
+	memcpy(ftp_list[4], "https://ftp4.usa.openbsd.org/pub/OpenBSD/ftplist", 48 + 1);
 
 
-	/* Aachen, Germany : 1.473903072 */
+	/* Cambridge, MA, USA : 0.558746234 */
 
-	ftp_list[10] = ftp_list[9] + 50 + 1;
-	strlcpy(ftp_list[10], "https://ftp.halifax.rwth-aachen.de/pub/OpenBSD/ftplist", 54 + 1);
-
-
-	/* Copenhagen, Denmark : 1.522610244 */
-
-	ftp_list[11] = ftp_list[10] + 54 + 1;
-	strlcpy(ftp_list[11], "https://mirror.one.com/pub/OpenBSD/ftplist", 42 + 1);
+	ftp_list[5] = ftp_list[4] + 48 + 1;
+	memcpy(ftp_list[5], "https://mirrors.mit.edu/pub/OpenBSD/ftplist", 43 + 1);
 
 
-	/* Aalborg, Denmark : 1.567646241 */
+	/* Rochester, NY, USA : 0.577349639 */
+
+	ftp_list[6] = ftp_list[5] + 43 + 1;
+	memcpy(ftp_list[6], "https://ftp.usa.openbsd.org/pub/OpenBSD/ftplist", 47 + 1);
+
+
+	/* Cloudflare (CDN) : 0.593645479 */
+
+	ftp_list[7] = ftp_list[6] + 47 + 1;
+	memcpy(ftp_list[7], "https://cloudflare.cdn.openbsd.org/pub/OpenBSD/ftplist", 54 + 1);
+
+
+	/* Arlington Heights, IL, USA : 0.651273720 */
+
+	ftp_list[8] = ftp_list[7] + 54 + 1;
+	memcpy(ftp_list[8], "https://mirrors.gigenet.com/pub/OpenBSD/ftplist", 47 + 1);
+
+
+	/* San Francisco, CA, USA : 0.652471109 */
+
+	ftp_list[9] = ftp_list[8] + 47 + 1;
+	memcpy(ftp_list[9], "https://mirrors.sonic.net/pub/OpenBSD/ftplist", 45 + 1);
+
+
+	/* London, United Kingdom : 0.682088478 */
+
+	ftp_list[10] = ftp_list[9] + 45 + 1;
+	memcpy(ftp_list[10], "https://mirror.exonetric.net/pub/OpenBSD/ftplist", 48 + 1);
+
+
+	/* Bucharest, Romania : 0.751084347 */
+
+	ftp_list[11] = ftp_list[10] + 48 + 1;
+	memcpy(ftp_list[11], "https://mirrors.nav.ro/pub/OpenBSD/ftplist", 42 + 1);
+
+
+	/* Berlin, Germany : 0.769780363 */
 
 	ftp_list[12] = ftp_list[11] + 42 + 1;
-	strlcpy(ftp_list[12], "https://mirrors.dotsrc.org/pub/OpenBSD/ftplist", 46 + 1);
+	memcpy(ftp_list[12], "https://ftp.spline.de/pub/OpenBSD/ftplist", 41 + 1);
 
 
-	/* Kent, United Kingdom : 1.568139389 */
+	/* Moscow, Russia : 0.784964843 */
 
-	ftp_list[13] = ftp_list[12] + 46 + 1;
-	strlcpy(ftp_list[13], "https://www.mirrorservice.org/pub/OpenBSD/ftplist", 49 + 1);
-
-
-	/* Linthal, GL, Switzerland : 1.578555452 */
-
-	ftp_list[14] = ftp_list[13] + 49 + 1;
-	strlcpy(ftp_list[14], "https://mirror.ungleich.ch/pub/OpenBSD/ftplist", 46 + 1);
+	ftp_list[13] = ftp_list[12] + 41 + 1;
+	memcpy(ftp_list[13], "https://mirror.yandex.ru/pub/OpenBSD/ftplist", 44 + 1);
 
 
-	/* Paris, France : 1.630480873 */
+	/* Frankfurt, Germany : 0.805576257 */
 
-	ftp_list[15] = ftp_list[14] + 46 + 1;
-	strlcpy(ftp_list[15], "https://ftp.fr.openbsd.org/pub/OpenBSD/ftplist", 46 + 1);
-
-
-	/* Skovde, Sweden : 1.637351625 */
-
-	ftp_list[16] = ftp_list[15] + 46 + 1;
-	strlcpy(ftp_list[16], "https://mirror.linux.pizza/pub/OpenBSD/ftplist", 46 + 1);
+	ftp_list[14] = ftp_list[13] + 44 + 1;
+	memcpy(ftp_list[14], "https://ftp.hostserver.de/pub/OpenBSD/ftplist", 45 + 1);
 
 
-	/* Esslingen, Germany : 1.637933437 */
+	/* Kaunas, Lithuania : 0.897277929 */
 
-	ftp_list[17] = ftp_list[16] + 46 + 1;
-	strlcpy(ftp_list[17], "https://mirror.hs-esslingen.de/pub/OpenBSD/ftplist", 50 + 1);
-
-
-	/* Utrecht, The Netherlands : 1.654106964 */
-
-	ftp_list[18] = ftp_list[17] + 50 + 1;
-	strlcpy(ftp_list[18], "https://ftp.nluug.nl/pub/OpenBSD/ftplist", 40 + 1);
+	ftp_list[15] = ftp_list[14] + 45 + 1;
+	memcpy(ftp_list[15], "https://mirror.litnet.lt/pub/OpenBSD/ftplist", 44 + 1);
 
 
-	/* Rochester, NY, USA : 1.665657101 */
+	/* Boise, ID, USA : 0.932078847 */
+
+	ftp_list[16] = ftp_list[15] + 44 + 1;
+	memcpy(ftp_list[16], "https://mirrors.syringanetworks.net/pub/OpenBSD/ftplist", 55 + 1);
+
+
+	/* Alberta, Canada : 0.942764702 */
+
+	ftp_list[17] = ftp_list[16] + 55 + 1;
+	memcpy(ftp_list[17], "https://ftp.OpenBSD.org/pub/OpenBSD/ftplist", 43 + 1);
+
+
+	/* Utrecht, The Netherlands : 0.966744292 */
+
+	ftp_list[18] = ftp_list[17] + 43 + 1;
+	memcpy(ftp_list[18], "https://ftp.nluug.nl/pub/OpenBSD/ftplist", 40 + 1);
+
+
+	/* Aalborg, Denmark : 0.986679663 */
 
 	ftp_list[19] = ftp_list[18] + 40 + 1;
-	strlcpy(ftp_list[19], "https://ftp.usa.openbsd.org/pub/OpenBSD/ftplist", 47 + 1);
+	memcpy(ftp_list[19], "https://mirrors.dotsrc.org/pub/OpenBSD/ftplist", 46 + 1);
 
 
-	/* Amsterdam, The Netherlands : 1.683460372 */
+	/* Hong Kong : 1.019880451 */
 
-	ftp_list[20] = ftp_list[19] + 47 + 1;
-	strlcpy(ftp_list[20], "https://mirrors.dalenys.com/pub/OpenBSD/ftplist", 47 + 1);
+	ftp_list[20] = ftp_list[19] + 46 + 1;
+	memcpy(ftp_list[20], "https://openbsd.hk/pub/OpenBSD/ftplist", 38 + 1);
 
 
-	/* Oslo, Norway : 1.690296696 */
+	/* Rome, Italy : 1.026456448 */
 
-	ftp_list[21] = ftp_list[20] + 47 + 1;
-	strlcpy(ftp_list[21], "https://ftp.eu.openbsd.org/pub/OpenBSD/ftplist", 46 + 1);
+	ftp_list[21] = ftp_list[20] + 38 + 1;
+	memcpy(ftp_list[21], "https://openbsd.mirror.garr.it/pub/OpenBSD/ftplist", 50 + 1);
 
 
-	/* Dallas, TX, USA : 1.699432775 */
+	/* Anycast within NZ, New Zealand : 1.035158833 */
 
-	ftp_list[22] = ftp_list[21] + 46 + 1;
-	strlcpy(ftp_list[22], "https://mirror.esc7.net/pub/OpenBSD/ftplist", 43 + 1);
+	ftp_list[22] = ftp_list[21] + 50 + 1;
+	memcpy(ftp_list[22], "https://mirror.fsmg.org.nz/pub/OpenBSD/ftplist", 46 + 1);
 
 
-	/* Bucharest, Romania : 1.783132605 */
+	/* Hamburg, Germany : 1.035441302 */
 
-	ftp_list[23] = ftp_list[22] + 43 + 1;
-	strlcpy(ftp_list[23], "https://mirrors.pidginhost.com/pub/OpenBSD/ftplist", 50 + 1);
+	ftp_list[23] = ftp_list[22] + 46 + 1;
+	memcpy(ftp_list[23], "https://artfiles.org/openbsd/ftplist", 36 + 1);
 
 
-	/* Bucharest, Romania : 1.798170779 */
+	/* Esslingen, Germany : 1.040369582 */
 
-	ftp_list[24] = ftp_list[23] + 50 + 1;
-	strlcpy(ftp_list[24], "https://mirrors.nav.ro/pub/OpenBSD/ftplist", 42 + 1);
+	ftp_list[24] = ftp_list[23] + 36 + 1;
+	memcpy(ftp_list[24], "https://mirror.hs-esslingen.de/pub/OpenBSD/ftplist", 50 + 1);
 
 
-	/* Oldenburg, Germany : 1.801906095 */
+	/* Vienna, Austria : 1.045085180 */
 
-	ftp_list[25] = ftp_list[24] + 42 + 1;
-	strlcpy(ftp_list[25], "https://ftp.bytemine.net/pub/OpenBSD/ftplist", 44 + 1);
+	ftp_list[25] = ftp_list[24] + 50 + 1;
+	memcpy(ftp_list[25], "https://ftp2.eu.openbsd.org/pub/OpenBSD/ftplist", 47 + 1);
 
 
-	/* Estonia : 1.818430245 */
+	/* Oslo, Norway : 1.088693634 */
 
-	ftp_list[26] = ftp_list[25] + 44 + 1;
-	strlcpy(ftp_list[26], "https://ftp.eenet.ee/pub/OpenBSD/ftplist", 40 + 1);
+	ftp_list[26] = ftp_list[25] + 47 + 1;
+	memcpy(ftp_list[26], "https://ftp.eu.openbsd.org/pub/OpenBSD/ftplist", 46 + 1);
 
 
-	/* Frankfurt, Germany : 1.826814980 */
+	/* LeaseWeb (CDN) : 1.111440784 */
 
-	ftp_list[27] = ftp_list[26] + 40 + 1;
-	strlcpy(ftp_list[27], "https://ftp.hostserver.de/pub/OpenBSD/ftplist", 45 + 1);
+	ftp_list[27] = ftp_list[26] + 46 + 1;
+	memcpy(ftp_list[27], "https://mirror.leaseweb.com/pub/OpenBSD/ftplist", 47 + 1);
 
 
-	/* Taoyuan, Taiwan : 1.841192168 */
+	/* Aachen, Germany : 1.132908734 */
 
-	ftp_list[28] = ftp_list[27] + 45 + 1;
-	strlcpy(ftp_list[28], "https://ftp.yzu.edu.tw/pub/OpenBSD/ftplist", 42 + 1);
+	ftp_list[28] = ftp_list[27] + 47 + 1;
+	memcpy(ftp_list[28], "https://ftp.halifax.rwth-aachen.de/pub/OpenBSD/ftplist", 54 + 1);
 
 
-	/* Ede, The Netherlands : 1.845395759 */
+	/* Curitiba, Brazil : 1.137481681 */
 
-	ftp_list[29] = ftp_list[28] + 42 + 1;
-	strlcpy(ftp_list[29], "https://ftp.bit.nl/pub/OpenBSD/ftplist", 38 + 1);
+	ftp_list[29] = ftp_list[28] + 54 + 1;
+	memcpy(ftp_list[29], "https://openbsd.c3sl.ufpr.br/pub/OpenBSD/ftplist", 48 + 1);
 
 
-	/* Alberta, Canada : 1.872687517 */
+	/* Costa Rica : 1.227851472 */
 
-	ftp_list[30] = ftp_list[29] + 38 + 1;
-	strlcpy(ftp_list[30], "https://ftp.OpenBSD.org/pub/OpenBSD/ftplist", 43 + 1);
+	ftp_list[30] = ftp_list[29] + 48 + 1;
+	memcpy(ftp_list[30], "https://mirrors.ucr.ac.cr/pub/OpenBSD/ftplist", 45 + 1);
 
 
-	/* Curitiba, Brazil : 1.875845199 */
+	/* Heraklion, Greece : 1.309424656 */
 
-	ftp_list[31] = ftp_list[30] + 43 + 1;
-	strlcpy(ftp_list[31], "https://openbsd.c3sl.ufpr.br/pub/OpenBSD/ftplist", 48 + 1);
+	ftp_list[31] = ftp_list[30] + 45 + 1;
+	memcpy(ftp_list[31], "https://ftp.cc.uoc.gr/pub/OpenBSD/ftplist", 41 + 1);
 
 
-	/* Hong Kong : 1.881952969 */
+	/* Skovde, Sweden : 1.317149304 */
 
-	ftp_list[32] = ftp_list[31] + 48 + 1;
-	strlcpy(ftp_list[32], "https://openbsd.hk/pub/OpenBSD/ftplist", 38 + 1);
+	ftp_list[32] = ftp_list[31] + 41 + 1;
+	memcpy(ftp_list[32], "https://mirror.linux.pizza/pub/OpenBSD/ftplist", 46 + 1);
 
 
-	/* Hamburg, Germany : 1.947180730 */
+	/* Paris, France : 1.433619559 */
 
-	ftp_list[33] = ftp_list[32] + 38 + 1;
-	strlcpy(ftp_list[33], "https://artfiles.org/openbsd/ftplist", 36 + 1);
+	ftp_list[33] = ftp_list[32] + 46 + 1;
+	memcpy(ftp_list[33], "https://ftp.fr.openbsd.org/pub/OpenBSD/ftplist", 46 + 1);
 
 
-	/* Moscow, Russia : 1.968921364 */
+	/* Linthal, GL, Switzerland : 1.482150667 */
 
-	ftp_list[34] = ftp_list[33] + 36 + 1;
-	strlcpy(ftp_list[34], "https://mirror.yandex.ru/pub/OpenBSD/ftplist", 44 + 1);
+	ftp_list[34] = ftp_list[33] + 46 + 1;
+	memcpy(ftp_list[34], "https://mirror.ungleich.ch/pub/OpenBSD/ftplist", 46 + 1);
 
 
-	/* Anycast within NZ, New Zealand : 2.005941361 */
+	/* Manchester, United Kingdom : 1.497018928 */
 
-	ftp_list[35] = ftp_list[34] + 44 + 1;
-	strlcpy(ftp_list[35], "https://mirror.fsmg.org.nz/pub/OpenBSD/ftplist", 46 + 1);
+	ftp_list[35] = ftp_list[34] + 46 + 1;
+	memcpy(ftp_list[35], "https://mirror.bytemark.co.uk/pub/OpenBSD/ftplist", 49 + 1);
 
 
-	/* London, United Kingdom : 2.018981943 */
+	/* Lisbon, Portugal : 1.550125517 */
 
-	ftp_list[36] = ftp_list[35] + 46 + 1;
-	strlcpy(ftp_list[36], "https://mirror.exonetric.net/pub/OpenBSD/ftplist", 48 + 1);
+	ftp_list[36] = ftp_list[35] + 49 + 1;
+	memcpy(ftp_list[36], "https://ftp.rnl.tecnico.ulisboa.pt/pub/OpenBSD/ftplist", 54 + 1);
 
 
-	/* Manchester, United Kingdom : 2.118278016 */
+	/* Budapest, Hungary : 1.954386060 */
 
-	ftp_list[37] = ftp_list[36] + 48 + 1;
-	strlcpy(ftp_list[37], "https://mirror.bytemark.co.uk/pub/OpenBSD/ftplist", 49 + 1);
+	ftp_list[37] = ftp_list[36] + 54 + 1;
+	memcpy(ftp_list[37], "https://ftp.fsn.hu/pub/OpenBSD/ftplist", 38 + 1);
 
 
-	/* Rome, Italy : 2.147470750 */
+	/* Ede, The Netherlands : 1.956500429 */
 
-	ftp_list[38] = ftp_list[37] + 49 + 1;
-	strlcpy(ftp_list[38], "https://openbsd.mirror.garr.it/pub/OpenBSD/ftplist", 50 + 1);
+	ftp_list[38] = ftp_list[37] + 38 + 1;
+	memcpy(ftp_list[38], "https://ftp.bit.nl/pub/OpenBSD/ftplist", 38 + 1);
 
 
-	/* Heraklion, Greece : 2.174740108 */
+	/* Amsterdam, The Netherlands : 1.986086155 */
 
-	ftp_list[39] = ftp_list[38] + 50 + 1;
-	strlcpy(ftp_list[39], "https://ftp.cc.uoc.gr/pub/OpenBSD/ftplist", 41 + 1);
+	ftp_list[39] = ftp_list[38] + 38 + 1;
+	memcpy(ftp_list[39], "https://mirrors.dalenys.com/pub/OpenBSD/ftplist", 47 + 1);
 
 
-	/* Warsaw, Poland : 2.183179501 */
+	/* Estonia : 1.991038067 */
 
-	ftp_list[40] = ftp_list[39] + 41 + 1;
-	strlcpy(ftp_list[40], "https://ftp.icm.edu.pl/pub/OpenBSD/ftplist", 42 + 1);
+	ftp_list[40] = ftp_list[39] + 47 + 1;
+	memcpy(ftp_list[40], "https://ftp.eenet.ee/pub/OpenBSD/ftplist", 40 + 1);
 
 
-	/* Berlin, Germany : 2.205932266 */
+	/* Warsaw, Poland : 2.037262685 */
 
-	ftp_list[41] = ftp_list[40] + 42 + 1;
-	strlcpy(ftp_list[41], "https://ftp.spline.de/pub/OpenBSD/ftplist", 41 + 1);
+	ftp_list[41] = ftp_list[40] + 40 + 1;
+	memcpy(ftp_list[41], "https://ftp.icm.edu.pl/pub/OpenBSD/ftplist", 42 + 1);
 
 
-	/* Fastly (CDN) : 2.210630137 */
+	/* Oldenburg, Germany : 2.116818494 */
 
-	ftp_list[42] = ftp_list[41] + 41 + 1;
-	strlcpy(ftp_list[42], "https://cdn.openbsd.org/pub/OpenBSD/ftplist", 43 + 1);
+	ftp_list[42] = ftp_list[41] + 42 + 1;
+	memcpy(ftp_list[42], "https://ftp.bytemine.net/pub/OpenBSD/ftplist", 44 + 1);
 
 
-	/* Wako-City, Saitama, Japan : 2.222907716 */
+	/* Kent, United Kingdom : 2.246665962 */
 
-	ftp_list[43] = ftp_list[42] + 43 + 1;
-	strlcpy(ftp_list[43], "https://ftp.riken.jp/pub/OpenBSD/ftplist", 40 + 1);
+	ftp_list[43] = ftp_list[42] + 44 + 1;
+	memcpy(ftp_list[43], "https://www.mirrorservice.org/pub/OpenBSD/ftplist", 49 + 1);
 
 
-	/* Erlangen, Germany : 2.284093436 */
+	/* Fastly (CDN) : 2.278799613 */
 
-	ftp_list[44] = ftp_list[43] + 40 + 1;
-	strlcpy(ftp_list[44], "https://ftp.fau.de/pub/OpenBSD/ftplist", 38 + 1);
+	ftp_list[44] = ftp_list[43] + 49 + 1;
+	memcpy(ftp_list[44], "https://cdn.openbsd.org/pub/OpenBSD/ftplist", 43 + 1);
 
 
-	/* Budapest, Hungary : 2.288506200 */
+	/* Wako-City, Saitama, Japan : 2.417693033 */
 
-	ftp_list[45] = ftp_list[44] + 38 + 1;
-	strlcpy(ftp_list[45], "https://ftp.fsn.hu/pub/OpenBSD/ftplist", 38 + 1);
+	ftp_list[45] = ftp_list[44] + 43 + 1;
+	memcpy(ftp_list[45], "https://ftp.riken.jp/pub/OpenBSD/ftplist", 40 + 1);
 
 
-	/* Indonesia : 2.526528717 */
+	/* Bucharest, Romania : 2.785395954 */
 
-	ftp_list[46] = ftp_list[45] + 38 + 1;
-	strlcpy(ftp_list[46], "https://mirror.labkom.id/pub/OpenBSD/ftplist", 44 + 1);
+	ftp_list[46] = ftp_list[45] + 40 + 1;
+	memcpy(ftp_list[46], "https://mirrors.pidginhost.com/pub/OpenBSD/ftplist", 50 + 1);
 
 
-	/* Vienna, Austria : 2.840226399 */
+	/* Copenhagen, Denmark : 2.885047896 */
 
-	ftp_list[47] = ftp_list[46] + 44 + 1;
-	strlcpy(ftp_list[47], "https://ftp2.eu.openbsd.org/pub/OpenBSD/ftplist", 47 + 1);
+	ftp_list[47] = ftp_list[46] + 50 + 1;
+	memcpy(ftp_list[47], "https://mirror.one.com/pub/OpenBSD/ftplist", 42 + 1);
 
 
-	/* Lisbon, Portugal : 3.219601367 */
+	/* Verizon Digital Media (Edgecast) (CDN) : 3.092685784 */
 
-	ftp_list[48] = ftp_list[47] + 47 + 1;
-	strlcpy(ftp_list[48], "https://ftp.rnl.tecnico.ulisboa.pt/pub/OpenBSD/ftplist", 54 + 1);
+	ftp_list[48] = ftp_list[47] + 42 + 1;
+	memcpy(ftp_list[48], "https://mirror.vdms.com/pub/OpenBSD/ftplist", 43 + 1);
 
 
-	/* Verizon Digital Media (Edgecast) (CDN) : 4.643871000 */
+	/* Erlangen, Germany : 3.118397263 */
 
-	ftp_list[49] = ftp_list[48] + 54 + 1;
-	strlcpy(ftp_list[49], "https://mirror.vdms.com/pub/OpenBSD/ftplist", 43 + 1);
+	ftp_list[49] = ftp_list[48] + 43 + 1;
+	memcpy(ftp_list[49], "https://ftp.fau.de/pub/OpenBSD/ftplist", 38 + 1);
 
 
-	int index = arc4random_uniform(50);
+	/* Waterloo, Ontario, Canada : 3.121143607 */
+
+	ftp_list[50] = ftp_list[49] + 38 + 1;
+	memcpy(ftp_list[50], "https://mirror.csclub.uwaterloo.ca/pub/OpenBSD/ftplist", 54 + 1);
+
+
+	/* Indonesia : 3.185071101 */
+
+	ftp_list[51] = ftp_list[50] + 54 + 1;
+	memcpy(ftp_list[51], "https://mirror.labkom.id/pub/OpenBSD/ftplist", 44 + 1);
+
+
+	/* Taoyuan, Taiwan : 4.652721524 */
+
+	ftp_list[52] = ftp_list[51] + 44 + 1;
+	memcpy(ftp_list[52], "https://ftp.yzu.edu.tw/pub/OpenBSD/ftplist", 42 + 1);
+
+
+	int index = arc4random_uniform(53);
 
 
 
@@ -645,7 +664,7 @@ main(int argc, char *argv[])
 		char *host, *last;
 		
 		uint8_t line_max;
-		struct addrinfo hints, *res0 = NULL, *res;
+		struct addrinfo hints, *res0, *res;
 		
 		i = read(dns_cache_socket[0], &line_max, 1);
 		if (i < 1) _exit(1);
@@ -1600,87 +1619,61 @@ main(int argc, char *argv[])
 		}
 		
 			
-		if (generate) {
+		if (!generate) goto generate_jump;
 			
-			if(se < 0) {
-				printf("\n\nno good mirrors\n");
-				return 1;
-			}
+		if(se < 0) {
+			printf("\n\nno good mirrors\n");
+			return 1;
+		}
 			
-	//~ printf("\n\n\t\tchar *ftp_list[%d] = {\n", se + 1);
-	//~ for (c = 0; c <= se; ++c) {
-		//~ printf("\n\t\t/* %s ", array[c]->label);
-		//~ printf("%.9Lf */\n", array[c]->diff);
-		//~ printf("\t\t\"%s/ftplist\"", array[c]->http);
-		
-		//~ if (c < se) printf(",\n");
-		//~ else printf("\n");
-	//~ }
-	//~ printf("\t\t};\n");
-	//~ printf("\n\n\t\tint index = ");
-	//~ printf("arc4random_uniform(%d);\n\n", se + 1);
-			
-				
-				
-				
-				
-				
-		
-	//~ printf("\n\n\tchar **ftp_list;\n");
-	//~ printf("\tftp_list = calloc(%d + 1, sizeof(char*));\n", se + 1);
-	//~ printf("\tif (ftp_list == NULL) err(1, \"calloc\");\n\n");
+		//~ printf("\n\n\t\tchar *ftp_list[%d] = {\n", se + 1);
 		//~ for (c = 0; c <= se; ++c) {
-			//~ printf("\n\n\t/* %s ", array[c]->label);
-			//~ printf("%.9Lf */\n\n", array[c]->diff);
+			//~ printf("\n\t\t/* %s ", array[c]->label);
+			//~ printf("%.9Lf */\n", array[c]->diff);
+			//~ printf("\t\t\"%s/ftplist\"", array[c]->http);
 			
-	//~ printf("\tftp_list[%d] = malloc(%lu + 1);\n",
-	    //~ c, strlen(array[c]->http) + strlen("/ftplist"));
-	    
-	//~ printf("\tif (ftp_list[%d] == NULL) err(1, \"malloc\");\n", c);
-	//~ printf("\tstrlcpy(ftp_list[%d], \"%s/ftplist\", %lu + 1);\n",
-	    //~ c, array[c]->http,
-	    //~ strlen(array[c]->http) + strlen("/ftplist"));
+			//~ if (c < se) printf(",\n");
+			//~ else printf("\n");
 		//~ }
-		//~ printf("\n\n\tint index = ");
+		//~ printf("\t\t};\n");
+		//~ printf("\n\n\t\tint index = ");
 		//~ printf("arc4random_uniform(%d);\n\n", se + 1);
-		
+					
 			
 			
-			++se;
-		
-			n = 0;
-			for (c = 0; c < se; ++c) {
-				
-		n += strlen(array[c]->http) + strlen("/ftplist") + 1;
-	
-			}
+		++se;
 			
 		printf("\n\n\tchar **ftp_list;\n");
 		printf("\tftp_list = calloc(%d, sizeof(char*));\n", se);
 		printf("\tif (ftp_list == NULL) err(1, \"calloc\");\n\n");
+	
+		n = 0;
+		for (c = 0; c < se; ++c)
+			n += strlen(array[c]->http) + strlen("/ftplist") + 1;
 		
 		printf("\tftp_list[0] = malloc(%d);\n", n);
 		printf("\tif (ftp_list[0] == NULL) err(1, \"malloc\");\n\n");
 		
-			for (c = 0; c < se; ++c) {
-				printf("\n\n\t/* %s :", array[c]->label);
-				printf(" %.9Lf */\n\n", array[c]->diff);
-		if (c) {
-			printf("\tftp_list[%d] = ftp_list[%d] + %lu + 1;\n",
-			    c, c - 1,
-			    strlen(array[c-1]->http) + strlen("/ftplist"));
-		}
-		printf("\tstrlcpy(ftp_list[%d], \"%s/ftplist\", %lu + 1);\n",
+		for (c = 0; c < se; ++c) {
+			printf("\n\n\t/* %s :", array[c]->label);
+			printf(" %.9Lf */\n\n", array[c]->diff);
+			if (c) {
+				
+	printf("\tftp_list[%d] = ftp_list[%d] + %lu + 1;\n", c, c - 1,
+	    strlen(array[c-1]->http) + strlen("/ftplist"));
+	    
+			}
+		printf("\tmemcpy(ftp_list[%d], \"%s/ftplist\", %lu + 1);\n",
 		    c, array[c]->http,
 		    strlen(array[c]->http) + strlen("/ftplist"));
 			}
-			printf("\n\n\tint index = ");
-			printf("arc4random_uniform(%d);\n\n", se);
+		printf("\n\n\tint index = ");
+		printf("arc4random_uniform(%d);\n\n", se);
 			
 		
-			return 0;
-		}
+		return 0;
 
+		generate_jump:
 		
 		if (de > ds) {
 			qsort(array + ds, 1 + de - ds, 
