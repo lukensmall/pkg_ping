@@ -863,14 +863,14 @@ main(int argc, char *argv[])
 		} else {
 			
 			n = strlen(ftp_list[index]);
-			i = strlen("/ftplist");
-			line = malloc(n + i + 1);
+			i = strlen("/ftplist") + 1;
+			line = malloc(n + i);
 			if (line == NULL) {
-				fprintf(stderr, "malloc");
+				fprintf(stderr, "malloc\n");
 				_exit(1);
 			}
 			memcpy(line, ftp_list[index], n);
-			strlcpy(line + n, "/ftplist", i + 1);
+			strlcpy(line + n, "/ftplist", i);
 		
 		}
 		
