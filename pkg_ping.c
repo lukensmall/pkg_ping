@@ -1753,7 +1753,7 @@ main(int argc, char *argv[])
 		if (dup2(parent_to_write[STDOUT_FILENO], STDOUT_FILENO) == -1)
 			err(1, "dup2, line: %d\n", __LINE__);
 		
-		/* sends the fastest mirror to write_pid process */
+		/* sends the fastest mirror to write process */
 		printf("%s\n", array[0]->http);
 		
 		fflush(stdout);
