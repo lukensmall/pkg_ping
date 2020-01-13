@@ -1290,9 +1290,13 @@ main(int argc, char *argv[])
 	fclose(input);
 	close(ftp_out[STDIN_FILENO]);
 
-	kill(ftp_pid, SIGKILL);
-	waitpid(ftp_pid, NULL, 0);
+	waitpid(ftp_pid, &n, 0);
 
+	if (n != 0) {
+		printf("ftp encountered an error...\n");
+		printf("restarting...\n");
+		goto restart;
+	}
 
 	
 	uint8_t length;
