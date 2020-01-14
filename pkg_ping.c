@@ -682,170 +682,161 @@ main(int argc, char *argv[])
 		}
 
 
-		char *ftp_list[53] = {
+		char *ftp_list[50] = {
 
-		/* Arlington Heights, IL, USA : 0.843917691 */
-		"https://mirrors.gigenet.com/pub/OpenBSD",
+		/* Fastly (CDN) : 0.754348007 */
+		"cdn.openbsd.org/pub/OpenBSD",
 
-		/* Montreal, QC, Canada : 1.018313843 */
-		"https://openbsd.mirror.netelligent.ca/pub/OpenBSD",
+		/* Cloudflare (CDN) : 0.878640738 */
+		"cloudflare.cdn.openbsd.org/pub/OpenBSD",
 
-		/* Toronto, ON, Canada : 1.129864101 */
-		"https://openbsd.cs.toronto.edu/pub/OpenBSD",
+		/* Cambridge, MA, USA : 0.919444890 */
+		"mirrors.mit.edu/pub/OpenBSD",
 
-		/* Cambridge, MA, USA : 1.182399004 */
-		"https://mirrors.mit.edu/pub/OpenBSD",
+		/* Dallas, TX, USA : 1.013594889 */
+		"mirror.esc7.net/pub/OpenBSD",
 
-		/* Rochester, NY, USA : 1.213719481 */
-		"https://ftp.usa.openbsd.org/pub/OpenBSD",
+		/* New York, NY, USA : 1.025576007 */
+		"ftp4.usa.openbsd.org/pub/OpenBSD",
 
-		/* Waterloo, Ontario, Canada : 1.269390856 */
-		"https://mirror.csclub.uwaterloo.ca/pub/OpenBSD",
+		/* Rochester, NY, USA : 1.071821515 */
+		"ftp.usa.openbsd.org/pub/OpenBSD",
 
-		/* Esslingen, Germany : 1.288317835 */
-		"https://mirror.hs-esslingen.de/pub/OpenBSD",
+		/* San Francisco, CA, USA : 1.075955155 */
+		"mirrors.sonic.net/pub/OpenBSD",
 
-		/* Copenhagen, Denmark : 1.299560533 */
-		"https://mirror.one.com/pub/OpenBSD",
+		/* Boise, ID, USA : 1.095721418 */
+		"mirrors.syringanetworks.net/pub/OpenBSD",
 
-		/* Utrecht, The Netherlands : 1.324521278 */
-		"https://ftp.nluug.nl/pub/OpenBSD",
+		/* Waterloo, Ontario, Canada : 1.117530936 */
+		"mirror.csclub.uwaterloo.ca/pub/OpenBSD",
 
-		/* London, United Kingdom : 1.342118313 */
-		"https://mirror.exonetric.net/pub/OpenBSD",
+		/* Utrecht, The Netherlands : 1.228510830 */
+		"ftp.nluug.nl/pub/OpenBSD",
 
-		/* San Francisco, CA, USA : 1.347279024 */
-		"https://mirrors.sonic.net/pub/OpenBSD",
+		/* Costa Rica : 1.285207284 */
+		"mirrors.ucr.ac.cr/pub/OpenBSD",
 
-		/* Dallas, TX, USA : 1.363969805 */
-		"https://mirror.esc7.net/pub/OpenBSD",
+		/* Manchester, United Kingdom : 1.295352117 */
+		"mirror.bytemark.co.uk/pub/OpenBSD",
 
-		/* Kent, United Kingdom : 1.383151027 */
-		"https://www.mirrorservice.org/pub/OpenBSD",
+		/* Esslingen, Germany : 1.304620701 */
+		"mirror.hs-esslingen.de/pub/OpenBSD",
 
-		/* Cloudflare (CDN) : 1.386412677 */
-		"https://cloudflare.cdn.openbsd.org/pub/OpenBSD",
+		/* Kent, United Kingdom : 1.350083821 */
+		"www.mirrorservice.org/pub/OpenBSD",
 
-		/* Paris, France : 1.393136583 */
-		"https://ftp.fr.openbsd.org/pub/OpenBSD",
+		/* Verizon Digital Media (Edgecast) (CDN) : 1.376522448 */
+		"mirror.vdms.com/pub/OpenBSD",
 
-		/* Moscow, Russia : 1.398781774 */
-		"https://mirror.yandex.ru/pub/OpenBSD",
+		/* Arlington Heights, IL, USA : 1.403436252 */
+		"mirrors.gigenet.com/pub/OpenBSD",
 
-		/* Berlin, Germany : 1.404275039 */
-		"https://ftp.spline.de/pub/OpenBSD",
+		/* Frankfurt, Germany : 1.426684536 */
+		"ftp.hostserver.de/pub/OpenBSD",
 
-		/* Linthal, GL, Switzerland : 1.422939524 */
-		"https://mirror.ungleich.ch/pub/OpenBSD",
+		/* London, United Kingdom : 1.452106502 */
+		"mirror.exonetric.net/pub/OpenBSD",
 
-		/* Aalborg, Denmark : 1.433254775 */
-		"https://mirrors.dotsrc.org/pub/OpenBSD",
+		/* Erlangen, Germany : 1.452110706 */
+		"ftp.fau.de/pub/OpenBSD",
 
-		/* Frankfurt, Germany : 1.451155761 */
-		"https://ftp.hostserver.de/pub/OpenBSD",
+		/* Piscataway, NJ, USA : 1.484699285 */
+		"openbsd.mirror.constant.com/pub/OpenBSD",
 
-		/* Skovde, Sweden : 1.456541995 */
-		"https://mirror.linux.pizza/pub/OpenBSD",
+		/* Aalborg, Denmark : 1.486500104 */
+		"mirrors.dotsrc.org/pub/OpenBSD",
 
-		/* Amsterdam, The Netherlands : 1.460241118 */
-		"https://mirrors.dalenys.com/pub/OpenBSD",
+		/* Curitiba, Brazil : 1.492214731 */
+		"openbsd.c3sl.ufpr.br/pub/OpenBSD",
 
-		/* Alberta, Canada : 1.490237399 */
-		"https://ftp.OpenBSD.org/pub/OpenBSD",
+		/* Vienna, Austria : 1.529081216 */
+		"ftp2.eu.openbsd.org/pub/OpenBSD",
 
-		/* Curitiba, Brazil : 1.511810946 */
-		"https://openbsd.c3sl.ufpr.br/pub/OpenBSD",
+		/* Amsterdam, The Netherlands : 1.537610495 */
+		"mirrors.dalenys.com/pub/OpenBSD",
 
-		/* Bucharest, Romania : 1.552842629 */
-		"https://mirrors.pidginhost.com/pub/OpenBSD",
+		/* Montreal, QC, Canada : 1.540838991 */
+		"openbsd.mirror.netelligent.ca/pub/OpenBSD",
 
-		/* Kaunas, Lithuania : 1.563195727 */
-		"https://mirror.litnet.lt/pub/OpenBSD",
+		/* Skovde, Sweden : 1.555155573 */
+		"mirror.linux.pizza/pub/OpenBSD",
 
-		/* LeaseWeb (CDN) : 1.612066363 */
-		"https://mirror.leaseweb.com/pub/OpenBSD",
+		/* Toronto, ON, Canada : 1.584717520 */
+		"openbsd.cs.toronto.edu/pub/OpenBSD",
 
-		/* Lisbon, Portugal : 1.613574412 */
-		"https://ftp.rnl.tecnico.ulisboa.pt/pub/OpenBSD",
+		/* Bucharest, Romania : 1.606474653 */
+		"mirrors.pidginhost.com/pub/OpenBSD",
 
-		/* Hong Kong : 1.725209872 */
-		"https://openbsd.hk/pub/OpenBSD",
+		/* Lisbon, Portugal : 1.648087492 */
+		"ftp.rnl.tecnico.ulisboa.pt/pub/OpenBSD",
 
-		/* Piscataway, NJ, USA : 1.731702533 */
-		"https://openbsd.mirror.constant.com/pub/OpenBSD",
+		/* Alberta, Canada : 1.696055663 */
+		"ftp.OpenBSD.org/pub/OpenBSD",
 
-		/* Erlangen, Germany : 1.747742969 */
-		"https://ftp.fau.de/pub/OpenBSD",
+		/* Hong Kong : 1.699571175 */
+		"openbsd.hk/pub/OpenBSD",
 
-		/* Boise, ID, USA : 1.781333325 */
-		"https://mirrors.syringanetworks.net/pub/OpenBSD",
+		/* Hamburg, Germany : 1.720272966 */
+		"artfiles.org/openbsd",
 
-		/* Heraklion, Greece : 1.784769581 */
-		"https://ftp.cc.uoc.gr/pub/OpenBSD",
+		/* LeaseWeb (CDN) : 1.741557982 */
+		"mirror.leaseweb.com/pub/OpenBSD",
 
-		/* Costa Rica : 1.794766583 */
-		"https://mirrors.ucr.ac.cr/pub/OpenBSD",
+		/* Warsaw, Poland : 1.781851763 */
+		"ftp.icm.edu.pl/pub/OpenBSD",
 
-		/* Wako-City, Saitama, Japan : 1.846303502 */
-		"https://ftp.riken.jp/pub/OpenBSD",
+		/* Budapest, Hungary : 1.794967570 */
+		"ftp.fsn.hu/pub/OpenBSD",
 
-		/* Manchester, United Kingdom : 1.849965890 */
-		"https://mirror.bytemark.co.uk/pub/OpenBSD",
+		/* Oldenburg, Germany : 1.802134253 */
+		"ftp.bytemine.net/pub/OpenBSD",
 
-		/* Budapest, Hungary : 1.867137246 */
-		"https://ftp.fsn.hu/pub/OpenBSD",
+		/* Anycast within NZ, New Zealand : 1.861563476 */
+		"mirror.fsmg.org.nz/pub/OpenBSD",
 
-		/* Hamburg, Germany : 1.904184739 */
-		"https://artfiles.org/openbsd",
+		/* Ede, The Netherlands : 1.864272674 */
+		"ftp.bit.nl/pub/OpenBSD",
 
-		/* Bucharest, Romania : 1.928725955 */
-		"https://mirrors.nav.ro/pub/OpenBSD",
+		/* Kaunas, Lithuania : 2.012643888 */
+		"mirror.litnet.lt/pub/OpenBSD",
 
-		/* New York, NY, USA : 1.963832276 */
-		"https://ftp4.usa.openbsd.org/pub/OpenBSD",
+		/* Estonia : 2.013031379 */
+		"ftp.eenet.ee/pub/OpenBSD",
 
-		/* Aachen, Germany : 1.989450237 */
-		"https://ftp.halifax.rwth-aachen.de/pub/OpenBSD",
+		/* Indonesia : 2.028592132 */
+		"mirror.labkom.id/pub/OpenBSD",
 
-		/* Rome, Italy : 2.082798539 */
-		"https://openbsd.mirror.garr.it/pub/OpenBSD",
+		/* Bucharest, Romania : 2.075032486 */
+		"mirrors.nav.ro/pub/OpenBSD",
 
-		/* Fastly (CDN) : 2.147461383 */
-		"https://cdn.openbsd.org/pub/OpenBSD",
+		/* Heraklion, Greece : 2.117965923 */
+		"ftp.cc.uoc.gr/pub/OpenBSD",
 
-		/* Warsaw, Poland : 2.175936805 */
-		"https://ftp.icm.edu.pl/pub/OpenBSD",
+		/* Linthal, GL, Switzerland : 2.208958231 */
+		"mirror.ungleich.ch/pub/OpenBSD",
 
-		/* Estonia : 2.192153693 */
-		"https://ftp.eenet.ee/pub/OpenBSD",
+		/* Wako-City, Saitama, Japan : 2.477300242 */
+		"ftp.riken.jp/pub/OpenBSD",
 
-		/* Oslo, Norway : 2.203651296 */
-		"https://ftp.eu.openbsd.org/pub/OpenBSD",
+		/* Paris, France : 2.529139057 */
+		"ftp.fr.openbsd.org/pub/OpenBSD",
 
-		/* Vienna, Austria : 2.216890107 */
-		"https://ftp2.eu.openbsd.org/pub/OpenBSD",
+		/* Copenhagen, Denmark : 2.567799767 */
+		"mirror.one.com/pub/OpenBSD",
 
-		/* Verizon Digital Media (Edgecast) (CDN) : 2.345868045 */
-		"https://mirror.vdms.com/pub/OpenBSD",
+		/* Oslo, Norway : 2.873540846 */
+		"ftp.eu.openbsd.org/pub/OpenBSD",
 
-		/* Anycast within NZ, New Zealand : 2.358727083 */
-		"https://mirror.fsmg.org.nz/pub/OpenBSD",
+		/* Rome, Italy : 2.970819544 */
+		"openbsd.mirror.garr.it/pub/OpenBSD",
 
-		/* Indonesia : 2.620281711 */
-		"https://mirror.labkom.id/pub/OpenBSD",
-
-		/* Oldenburg, Germany : 2.932225423 */
-		"https://ftp.bytemine.net/pub/OpenBSD",
-
-		/* Ede, The Netherlands : 3.422381851 */
-		"https://ftp.bit.nl/pub/OpenBSD",
-
-		/* Taoyuan, Taiwan : 4.252627697 */
-		"https://ftp.yzu.edu.tw/pub/OpenBSD"
+		/* Moscow, Russia : 2.988525608 */
+		"mirror.yandex.ru/pub/OpenBSD"
 		};
 
 
-		int index = arc4random_uniform(53);
+		int index = arc4random_uniform(50);
 
 
 		
@@ -862,15 +853,17 @@ main(int argc, char *argv[])
 		
 		} else {
 			
+			c = strlen("https://");
 			n = strlen(ftp_list[index]);
-			i = strlen("/ftplist") + 1;
-			line = malloc(n + i);
+			i = strlen("/ftplist");
+			line = malloc(c + n + i + 1);
 			if (line == NULL) {
 				fprintf(stderr, "malloc\n");
 				_exit(1);
 			}
-			memcpy(line, ftp_list[index], n);
-			strlcpy(line + n, "/ftplist", i);
+			memcpy(line,          "https://", c);
+			memcpy(line + c, ftp_list[index], n);
+			memcpy(line + c + n,  "/ftplist", i + 1);
 		
 		}
 		
@@ -1463,7 +1456,8 @@ main(int argc, char *argv[])
 		for (c = 0; c <= se; ++c) {
 			printf("\n\t\t/* %s : %.9Lf */\n",
 			    array[c]->label, array[c]->diff);
-			printf("\t\t\"%s\"", array[c]->http);
+			printf("\t\t\"%s\"", array[c]->http +
+			strlen("https://"));
 			
 			if (c < se) printf(",\n");
 		}
