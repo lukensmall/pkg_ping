@@ -874,8 +874,6 @@ main(int argc, char *argv[])
 		
 		}
 		
-		free(ftp_list[0]);
-		free(ftp_list);
 	
 		if (verbose >= 2)
 			fprintf(stderr, "%s\n", line);
