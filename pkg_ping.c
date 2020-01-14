@@ -843,7 +843,7 @@ main(int argc, char *argv[])
 		
 		if (generate) {
 			
-	n = strlen("https://cdn.openbsd.org/pub/OpenBSD/ftplist") + 1;
+	n  =  strlen("https://cdn.openbsd.org/pub/OpenBSD/ftplist") + 1;
 			line = malloc(n);
 			if (line == NULL) {
 				fprintf(stderr, "malloc");
@@ -853,17 +853,17 @@ main(int argc, char *argv[])
 		
 		} else {
 			
-			c = strlen("https://");
-			n = strlen(ftp_list[index]);
-			i = strlen("/ftplist");
-			line = malloc(c + n + i + 1);
+			n  = strlen("https://");
+			n += strlen(ftp_list[index]);
+			n += strlen("/ftplist");
+			line = malloc(++n);
 			if (line == NULL) {
 				fprintf(stderr, "malloc\n");
 				_exit(1);
 			}
-			memcpy(line,          "https://", c);
-			memcpy(line + c, ftp_list[index], n);
-			memcpy(line + c + n,  "/ftplist", i + 1);
+			strlcpy(line,      "https://", n);
+			strlcat(line, ftp_list[index], n);
+			strlcat(line,      "/ftplist", n);
 		
 		}
 		
@@ -952,14 +952,14 @@ main(int argc, char *argv[])
 	}
 
 	if (current == 0) {
-		n  = strlcpy(tag,           "/", tag_len + 1);
-		n += strlcpy(tag + n,   release, tag_len + 1 - n);
-		n += strlcpy(tag + n,       "/", tag_len + 1 - n);
+		strlcpy(tag,           "/", tag_len + 1);
+		strlcat(tag,       release, tag_len + 1);
+		strlcat(tag,           "/", tag_len + 1);
 	} else
-		n  = strlcpy(tag, "/snapshots/", tag_len + 1);
+		strlcpy(tag, "/snapshots/", tag_len + 1);
 
-	n +=  strlcpy(tag + n, name->machine, tag_len + 1 - n);
-	(void)strlcpy(tag + n,     "/SHA256", tag_len + 1 - n);
+	(void)  strlcat(tag, name->machine, tag_len + 1);
+	(void)  strlcat(tag,     "/SHA256", tag_len + 1);
 
 	free(name);
 
