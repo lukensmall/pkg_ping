@@ -24,9 +24,9 @@ It uses several commandline options:
 
 -f prohibits a fork()ed process from writing the fastest mirror to file even if it has the power to do so as root.
 
--g generates the massive http list from which to retrieve and parse "ftplist", which you no doubt, noticed when you look at the
+-g generates the massive https list from which to retrieve and parse "ftplist", which you no doubt, noticed when you look at the
    source code. It downloads a 11 byte timestamp which is in all mirrors, whereas not all mirrors might have snapshots or your
-   architecture or version.
+   architecture or version. It presets various other options such as minimum verboseness and secure mirrors.
 
 -h will print the "help" options.
 
@@ -41,9 +41,9 @@ It uses several commandline options:
 
 -u will make it search for only non-USA mirrors for export encryption compliance if you are searching from outside of the USA.
 
--v will show when it is fetching "https://www.openbsd.org/ftp.html", print out the results sorted in reverse order by time
-   or if timed out, or download error, alphabetically and print a line that you can copy and paste into a root terminal to
-   install that mirror.
+-v will show when it is fetching "ftplist" from one of the many mirrors hard coded from running the -g option, print out the
+   results sorted in reverse order by time or if timed out, or download error, alphabetically and print a line that you can
+   copy and paste into a root terminal to install that mirror.
    
    -vv will also make it print out the information of the mirrors in real time.
    
