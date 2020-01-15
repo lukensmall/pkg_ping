@@ -1029,8 +1029,9 @@ main(int argc, char *argv[])
 				continue;
 			}
 			
-			if (secure) pos += 2;
-				else ++pos;
+			line[pos++] = '\0';
+			
+			if (secure) ++pos;
 			
 			if (pos_max < pos)
 				pos_max = pos;
