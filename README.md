@@ -11,8 +11,7 @@ It automatically discovers whether you are running a release vs a current or bet
 It will precache your dns server by looking up the mirror's ip addresses.
 This way, there is no inconsistency between runs after your dns cache is updated.
 
-I did some reworking, including restarting for most cases and reinstantiating /etc/installurl if there is an error 
-and locking the file from the new set of processes.
+I did some reworking, including restarting for most cases.
  
 This program should work on OpenBSD versions 6.4+ (Up to 6.6 as of this writing) and won't compile for earlier versions.
 
