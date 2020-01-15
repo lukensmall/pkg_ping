@@ -170,7 +170,7 @@ main(int argc, char *argv[])
 	struct timespec timeout0 = { 20, 0 };
 	char *line;
 	
-   if (pledge("stdio proc exec flock cpath wpath rpath dns unveil", NULL) == -1)
+   if (pledge("stdio proc exec cpath wpath dns unveil", NULL) == -1)
 		err(1, "pledge, line: %d", __LINE__);
 
 	if (unveil("/usr/bin/ftp", "x") == -1)
@@ -182,10 +182,10 @@ main(int argc, char *argv[])
 
 	if (f) {
 
-		if (unveil("/etc/installurl", "cwr") == -1)
+		if (unveil("/etc/installurl", "cw") == -1)
 			err(1, "unveil, line: %d", __LINE__);
 
-    if (pledge("stdio proc exec flock cpath wpath rpath dns", NULL) == -1)
+    if (pledge("stdio proc exec cpath wpath dns", NULL) == -1)
 			err(1, "pledge, line: %d", __LINE__);
 	} else if (pledge("stdio proc exec dns", NULL) == -1)
 		err(1, "pledge, line: %d", __LINE__);
@@ -514,7 +514,7 @@ main(int argc, char *argv[])
 	if (f == 0)
 		goto jump_f;
 
-	if (pledge("stdio proc exec flock cpath wpath rpath", NULL) == -1)
+	if (pledge("stdio proc exec cpath wpath", NULL) == -1)
 		err(1, "pledge, line: %d", __LINE__);
 
 	if (pipe2(parent_to_write, O_CLOEXEC) == -1)
@@ -523,10 +523,10 @@ main(int argc, char *argv[])
 	write_pid = fork();
 	if (write_pid == (pid_t) 0) {
 		
-		char *tag_w, *tag_r;
-		FILE *pkg_write, *pkg_read;
+		char *tag_w;
+		FILE *pkg_write;
 		
-		if (pledge("stdio flock cpath wpath rpath", NULL) == -1) {
+		if (pledge("stdio cpath wpath", NULL) == -1) {
 			printf("%s ", strerror(errno));
 			printf("pledge, line: %d\n", __LINE__);
 			_exit(1);
@@ -534,117 +534,78 @@ main(int argc, char *argv[])
 		close(parent_to_write[STDOUT_FILENO]);
 		
 		if (dns_cache) close(dns_cache_socket[1]);
+					
 
+		if (verbose >= 1)
+			printf("\n");
 
-		uint8_t w_line_max, r_line_max = 0;
-		
-		pkg_read = fopen("/etc/installurl", "r");
-		
-		if (pledge("stdio flock cpath wpath", NULL) == -1) {
-			printf("%s ", strerror(errno));
-			printf("pledge, line: %d\n", __LINE__);
+		kq = kqueue();
+		if (kq == -1) {
+			printf("kq! line: %d\n", __LINE__);
 			_exit(1);
 		}
-
-		if (pkg_read) {
-			if (flock(fileno(pkg_read), LOCK_EX) == -1) _exit(1);
-			fseek(pkg_read, 0, SEEK_END);
-			r_line_max = ftell(pkg_read);
-			if (r_line_max == 0)
-				goto jump_write;
-			tag_r = malloc(r_line_max + 1);
-			if (tag_r == NULL) {
-				r_line_max = 0;
-				goto jump_write;
-			}
-			fseek(pkg_read, 0, SEEK_SET);
-			n = fread(tag_r, 1, r_line_max, pkg_read);
-			if (n < r_line_max) {
-				free(tag_r);
-				r_line_max = 0;
-			}
-			jump_write:
-			flock(fileno(pkg_read), LOCK_UN);
-			fclose(pkg_read);
+		
+		EV_SET(&ke, parent_to_write[STDIN_FILENO], EVFILT_READ,
+			EV_ADD | EV_ONESHOT, 0, 0, NULL);
+		if (kevent(kq, &ke, 1, &ke, 1, NULL) == -1) {
+			printf("write_pid kevent register fail");
+			printf(" line: %d\n", __LINE__);
+			_exit(1);
+		}
+		close(kq);
+		
+		/* parent exited before sending data */
+		if (ke.data == 0) {
+			printf("/etc/installurl not written.\n");
+			_exit(1);
 		}
 		
-
+		if (ke.data > 300) {
+			printf("received mirror is too large\n");
+			printf("/etc/installurl not written.\n");
+			_exit(1);
+		}
 		
+		/* fopen(... "w") truncates the file */
 		pkg_write = fopen("/etc/installurl", "w");
-		
-		if (pledge("stdio flock", NULL) == -1) {
-			printf("%s ", strerror(errno));
-			printf("pledge, line: %d\n", __LINE__);
-			_exit(1);
-		}
 
 		if (pkg_write == NULL) {
 			printf("%s ", strerror(errno));
 			printf("/etc/installurl not opened.\n");
 			_exit(1);
 		}
-
-		if (flock(fileno(pkg_write), LOCK_EX | LOCK_NB) == -1) {
-			printf("couldn't obtain write lock\n");
-			fclose(pkg_write);
-			_exit(1);
-		}
 		
-		if (pledge("stdio", NULL) == -1) {
-			printf("%s ", strerror(errno));
-			printf("pledge, line: %d\n", __LINE__);
-			_exit(1);
-		}
-		
-		i = read(parent_to_write[STDIN_FILENO], &w_line_max, 1);
-		if (i < 1) goto rewrite;
-		
-		tag_w = malloc(w_line_max + 1);
+		tag_w = malloc(ke.data + 1 + 1);
 		if (tag_w == NULL) {
 			printf("malloc\n");
+			_exit(1);
+		}
+			
+		i = read(parent_to_write[STDIN_FILENO], tag_w, ke.data);
+
+		if (i < (int)strlen("http://") || i < ke.data) {
 			fclose(pkg_write);
+			printf("read error occurred ");
+			printf("line: %d\n", __LINE__);
 			_exit(1);
 		}
 		
-		i = read(parent_to_write[STDIN_FILENO], tag_w, w_line_max + 1);
+		strlcpy(tag_w + ke.data, "\n", 1 + 1);
 
-		if (i < (int)strlen("http://") || i > w_line_max)
-			goto rewrite;
-
-		if (verbose >= 1)
-			printf("\n");
-
-		if ((int)fwrite(tag_w, 1, i, pkg_write) < i) {
+		i = fwrite(tag_w, 1, ke.data + 1, pkg_write);
+		if (i <  ke.data + 1) {
 			fclose(pkg_write);
 			printf("write error occurred ");
 			printf("line: %d\n", __LINE__);
 			_exit(1);
 		}
 		fclose(pkg_write);
-		
-		if (verbose >= 0) {
-			tag_w[i] = '\0';
+
+		if (verbose >= 0)
 			printf("/etc/installurl: %s", tag_w);
-		}
 		
 		_exit(0);
-		
-		
-		rewrite:
-		
-		if (r_line_max == 0) {
-			fclose(pkg_write);
-			_exit(1);
-		}
-		n = fwrite(tag_r, 1, r_line_max, pkg_write);
-		if (n < r_line_max)
-			printf("fwrite error occurred line: %d\n", __LINE__);
-		else
-			printf("/etc/installurl re-established.\n");
-		
-		fclose(pkg_write);
-		_exit(1);
-		
+				
 	}
 	if (write_pid == -1)
 		err(1, "write fork, line: %d", __LINE__);
@@ -995,7 +956,6 @@ main(int argc, char *argv[])
 	}
 	if (i == 0) {
 		kill(ftp_pid, SIGKILL);
-		printf("timed out fetching ftplist.\n");
 		printf("restarting...\n");
 		goto restart;
 	}
@@ -1137,13 +1097,11 @@ main(int argc, char *argv[])
 	waitpid(ftp_pid, &n, 0);
 
 	if (n != 0) {
-		printf("ftp encountered an error...\n");
 		printf("restarting...\n");
 		goto restart;
 	}
-
-	if (array_length == 0)
-		errx(1, "No file found. Is your network ok?");
+	
+	if (array_length == 0) errx(1, "No file found. Is your network ok?");
 
 	
 	uint8_t length;
@@ -1155,17 +1113,6 @@ main(int argc, char *argv[])
 	}
 	
 	pos_max += tag_len;
-	
-	if (f) {
-		
-		if (pos_max > 255)
-			err(1, "pos_max is bigger than 255!\n");
-		
-		length = pos_max;
-		i = write(parent_to_write[STDOUT_FILENO], &length, 1);
-		if (i < 1) err(1, "'length' not sent to write process");
-	}
-	
 	
 	line = malloc(pos_max);
 	if (line == NULL) errx(1, "malloc");
@@ -1246,10 +1193,9 @@ main(int argc, char *argv[])
 				if(pledge("stdio exec", NULL) == -1)
 					err(1, "pledge, line: %d", __LINE__);
 				
-				if (verbose >= 2) {
+				if (verbose >= 2)
 					printf("getaddrinfo() failed again.\n");
-					printf("restarting...\n");
-				} else if (verbose >= 0) {
+				else if (verbose >= 0) {
 					n = array_length - c;
 					do {
 						printf("\b \b");
@@ -1261,6 +1207,9 @@ main(int argc, char *argv[])
 				free(line);
 				free(tag);
 	restart:
+
+				if (verbose >= 2)
+					printf("restarting...\n");
 
 				arg_list = calloc(argc + 1, sizeof(char*));
 				if (arg_list == NULL) errx(1, "calloc");
@@ -1401,7 +1350,7 @@ main(int argc, char *argv[])
 	}
 
 
-	if (pledge("stdio", NULL) == -1)
+	if (pledge("stdio exec", NULL) == -1)
 		err(1, "pledge, line: %d", __LINE__);
 
 	free(line);
@@ -1610,14 +1559,14 @@ main(int argc, char *argv[])
 	
 	
 	if (f) {		
-				
-		if (dup2(parent_to_write[STDOUT_FILENO], STDOUT_FILENO) == -1)
-			err(1, "dup2, line: %d\n", __LINE__);
 		
-		/* sends the fastest mirror to write process */
-		printf("%s\n", array[0]->http);
-		
-		fflush(stdout);
+		i = write(parent_to_write[STDOUT_FILENO],
+		    array[0]->http, strlen(array[0]->http));
+		    
+		if (i < (int)strlen(array[0]->http)) {
+			printf("not all of mirror sent\n");
+			goto restart;
+		}
 
 		waitpid(write_pid, &i, 0);
 
