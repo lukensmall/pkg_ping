@@ -46,7 +46,7 @@
  *	indent pkg_ping.c -bap -br -ce -ci4 -cli0 -d0 -di0 -i8 \
  *	-ip -l79 -nbc -ncdb -ndj -ei -nfc1 -nlp -npcs -psl -sc -sob
  *	
- *	cc pkg_ping.c -pipe -ggdb -o pkg_ping
+ *	cc pkg_ping.c -pipe -o pkg_ping
  */
 
 #include <err.h>
@@ -636,12 +636,6 @@ main(int argc, char *argv[])
 		
 		close(ftp_out[STDIN_FILENO]);
 
-		if (dup2(ftp_out[STDOUT_FILENO], STDOUT_FILENO) == -1) {
-			printf("%s ", strerror(errno));
-			printf("ftp STDOUT dup2, line: %d\n", __LINE__);
-			_exit(1);
-		}
-
 
 		char *ftp_list[53] = {
 
@@ -810,51 +804,41 @@ main(int argc, char *argv[])
 
 
 		
+		line = malloc(300);
+		if (line == NULL) {
+			printf("malloc");
+			_exit(1);
+		}
 		
 		if (generate) {
 			
-	n  =  strlen("https://cdn.openbsd.org/pub/OpenBSD/ftplist") + 1;
-			line = malloc(n);
-			if (line == NULL) {
-				fprintf(stderr, "malloc");
-				_exit(1);
-			}
-	memcpy(line, "https://cdn.openbsd.org/pub/OpenBSD/ftplist", n);
+	strlcpy(line, "https://cdn.openbsd.org/pub/OpenBSD/ftplist", 300);
 		
 		} else {
-						
-			c = (ftp_list[index][0] == '*');
-			n  = strlen("https://");
-			if (c) 
-				n += strlen(ftp_list[index]) - 1;
+			
+			(void)  strlcpy(line,          "https://", 300);
+			
+			if (ftp_list[index][0] == '*')
+				strlcat(line, ftp_list[index] + 1, 300);
 			else {
-				n += strlen(ftp_list[index]);
-				n += strlen("/pub/OpenBSD");
-			}
-			n += strlen("/ftplist");
-			line = malloc(++n);
-			if (line == NULL) {
-				fprintf(stderr, "malloc\n");
-				_exit(1);
+				strlcat(line,     ftp_list[index], 300);
+				strlcat(line,      "/pub/OpenBSD", 300);
 			}
 			
-			(void)  strlcpy(line,          "https://", n);
-			
-			if (c)
-				strlcat(line, ftp_list[index] + 1, n);
-			else {
-				strlcat(line,     ftp_list[index], n);
-				strlcat(line,      "/pub/OpenBSD", n);
-			}
-			
-			(void)  strlcat(line,          "/ftplist", n);
+			(void)  strlcat(line,          "/ftplist", 300);
 		
 		}
 		
 	
 		if (verbose >= 2)
-			fprintf(stderr, "%s\n", line);
+			printf("%s\n", line);
 			
+
+		if (dup2(ftp_out[STDOUT_FILENO], STDOUT_FILENO) == -1) {
+			printf("%s ", strerror(errno));
+			printf("ftp STDOUT dup2, line: %d\n", __LINE__);
+			_exit(1);
+		}
 			
 			
 		if (verbose >= 2)
