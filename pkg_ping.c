@@ -812,7 +812,7 @@ main(int argc, char *argv[])
 		
 		if (generate) {
 			
-	strlcpy(line, "https://cdn.openbsd.org/pub/OpenBSD/ftplist", 300);
+      strlcpy(line, "https://cdn.openbsd.org/pub/OpenBSD/ftplist", 300);
 		
 		} else {
 			
@@ -975,7 +975,7 @@ main(int argc, char *argv[])
 	}
 
 	/* if the index for line[] exceeds 254, it will error out */
-	line = malloc(255);
+	line = malloc(256);
 	if (line == NULL) {
 		kill(ftp_pid, SIGKILL);
 		errx(1, "malloc");
@@ -1104,12 +1104,8 @@ main(int argc, char *argv[])
 
 	waitpid(ftp_pid, &n, 0);
 
-	if (n != 0) {
-		printf("restarting...\n");
-		goto restart;
-	}
-	
-	if (array_length == 0) errx(1, "No file found. Is your network ok?");
+	if (n != 0 || array_length == 0)
+		errx(1, "There was a download error.\n");
 
 	
 	uint8_t length;
@@ -1216,8 +1212,7 @@ main(int argc, char *argv[])
 				free(tag);
 	restart:
 
-				if (verbose >= 2)
-					printf("restarting...\n");
+				printf("restarting...\n");
 
 				arg_list = calloc(argc + 1, sizeof(char*));
 				if (arg_list == NULL) errx(1, "calloc");
