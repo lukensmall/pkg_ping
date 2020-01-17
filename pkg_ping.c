@@ -389,7 +389,7 @@ main(int argc, char *argv[])
 		if (n) {
 			printf("%s ", gai_strerror(n));
 			printf("getaddrinfo() failed\n");
-			_exit(2);
+			_exit(1);
 		}
 
 		if (verbose < 4 && !six) {
