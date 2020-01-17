@@ -825,8 +825,12 @@ main(int argc, char *argv[])
 				strlcat(line,      "/pub/OpenBSD", 300);
 			}
 			
-			(void)  strlcat(line,          "/ftplist", 300);
-		
+			n   =   strlcat(line,          "/ftplist", 300);
+			
+			if (n > 300) {
+				printf("'line' too long, line: %d\n", __LINE__);
+				_exit(1);
+			}
 		}
 		
 	
