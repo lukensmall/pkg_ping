@@ -592,8 +592,8 @@ main(int argc, char *argv[])
 		
 		strlcpy(tag_w + ke.data, "\n", 1 + 1);
 
-		i = fwrite(tag_w, 1, ke.data + 1, pkg_write);
-		if (i <  ke.data + 1) {
+		i = fwrite(tag_w, 1, ke.data, pkg_write);
+		if (i < ke.data) {
 			fclose(pkg_write);
 			printf("write error occurred ");
 			printf("line: %d\n", __LINE__);
