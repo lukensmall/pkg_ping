@@ -156,7 +156,7 @@ main(int argc, char *argv[])
 {				  
 	int8_t f = (getuid() == 0) ? 1 : 0;
 	int8_t num, current, secure, u, verbose, generate;
-	int8_t override, dns_cache, six;
+	int8_t override, dns_cache_d, six;
 	long double s0, s, S;
 	pid_t ftp_pid, write_pid;
 	int kq, i, pos, c, n, array_max, array_length, tag_len;
@@ -192,7 +192,7 @@ main(int argc, char *argv[])
 
 	
 	u = verbose = secure = current = override = six = generate = 0;
-	dns_cache = 1;
+	dns_cache_d = 1;
 	s0 = s = 5;
 
 	char *version;
@@ -219,7 +219,7 @@ main(int argc, char *argv[])
 			six = 1;
 			break;
 		case 'd':
-			dns_cache = 0;
+			dns_cache_d = 0;
 			break;
 		case 'f':
 			if (f == 0)
@@ -297,7 +297,7 @@ main(int argc, char *argv[])
 		if (verbose < 1)
 			verbose = 1;
 		secure = 1;
-		dns_cache = 0;
+		dns_cache_d = 0;
 		f = 0;
 		if (pledge("stdio proc exec dns", NULL) == -1)
 			err(1, "pledge, line: %d", __LINE__);
@@ -305,20 +305,20 @@ main(int argc, char *argv[])
 
 
 
-	if (dns_cache == 0)
+	if (dns_cache_d == 0)
 		goto jump_dns;
 
-	int dns_cache_socket[2];
+	int dns_cache_d_socket[2];
 	if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC,
-	    PF_UNSPEC, dns_cache_socket) == -1)
+	    PF_UNSPEC, dns_cache_d_socket) == -1)
 		err(1, "socketpair, line: %d\n", __LINE__);
 
-	pid_t dns_cache_pid = fork();
-	if (dns_cache_pid == (pid_t) 0) {
+	pid_t dns_cache_d_pid = fork();
+	if (dns_cache_d_pid == (pid_t) 0) {
 		
 		if (pledge("stdio dns", NULL) == -1) {
 			printf("%s ", strerror(errno));
-			printf("dns_cache pledge, line: %d\n", __LINE__);
+			printf("dns_cache_d pledge, line: %d\n", __LINE__);
 			_exit(1);
 		}
 		
@@ -327,13 +327,13 @@ main(int argc, char *argv[])
 					  '8','9','a','b',
 					  'c','d','e','f' };
 					  
-		close(dns_cache_socket[1]);
+		close(dns_cache_d_socket[1]);
 		char *host, *last;
 		
 		uint8_t line_max;
 		struct addrinfo hints, *res0, *res;
 		
-		i = read(dns_cache_socket[0], &line_max, 1);
+		i = read(dns_cache_d_socket[0], &line_max, 1);
 		if (i < 1) _exit(1);
 
 		line = malloc(line_max + 1);
@@ -346,7 +346,7 @@ main(int argc, char *argv[])
 		loop:
 
 
-		i = read(dns_cache_socket[0], line, line_max + 1);
+		i = read(dns_cache_d_socket[0], line, line_max + 1);
 		if (i == 0) _exit(0);
 		
 		if (i > line_max) {
@@ -393,7 +393,7 @@ main(int argc, char *argv[])
 		}
 
 		if (verbose < 4 && !six) {
-			i = write(dns_cache_socket[0], "0", 1);		
+			i = write(dns_cache_d_socket[0], "0", 1);		
 			if (i < 1) _exit(1);
 			freeaddrinfo(res0);
 			goto loop;
@@ -425,6 +425,8 @@ main(int argc, char *argv[])
 				     sui4               >> 24);
 				continue;
 			}
+			
+			/* res->ai_family == AF_INET6*/
 			
 			six_available = 1;
 			if (verbose < 4) break;
@@ -494,9 +496,9 @@ main(int argc, char *argv[])
 		}
 
 		if (six_available == 0)
-			i = write(dns_cache_socket[0], "0", 1);
+			i = write(dns_cache_d_socket[0], "0", 1);
 		else		
-			i = write(dns_cache_socket[0], "1", 1);		
+			i = write(dns_cache_d_socket[0], "1", 1);		
 		
 		if (i < 1)
 			_exit(1);
@@ -504,10 +506,10 @@ main(int argc, char *argv[])
 		freeaddrinfo(res0);
 		goto loop;
 	}
-	if (dns_cache_pid == -1)
-		err(1, "dns_cache fork, line: %d\n", __LINE__);
+	if (dns_cache_d_pid == -1)
+		err(1, "dns_cache_d fork, line: %d\n", __LINE__);
 
-	close(dns_cache_socket[0]);
+	close(dns_cache_d_socket[0]);
 	
 	jump_dns:
 
@@ -533,7 +535,7 @@ main(int argc, char *argv[])
 		}
 		close(parent_to_write[STDOUT_FILENO]);
 		
-		if (dns_cache) close(dns_cache_socket[1]);
+		if (dns_cache_d) close(dns_cache_d_socket[1]);
 					
 
 		if (verbose >= 1)
@@ -1114,10 +1116,10 @@ main(int argc, char *argv[])
 	
 	uint8_t length;
 	
-	if (dns_cache) {
+	if (dns_cache_d) {
 		length = pos_max;
-		i = write(dns_cache_socket[1], &length, 1);
-		if (i < 1) err(1, "'length' not sent to dns_cache");
+		i = write(dns_cache_d_socket[1], &length, 1);
+		if (i < 1) err(1, "'length' not sent to dns_cache_d");
 	}
 	
 	pos_max += tag_len;
@@ -1146,7 +1148,7 @@ main(int argc, char *argv[])
 		strlcpy(line + pos, tag, pos_max - pos);
 
 		if (verbose >= 2) {
-			if (verbose == 4 && dns_cache)
+			if (verbose == 4 && dns_cache_d)
 				printf("\n\n\n");
 			else if (verbose >= 3)
 				printf("\n");
@@ -1173,19 +1175,19 @@ main(int argc, char *argv[])
 
 
 
-		if (dns_cache) {
+		if (dns_cache_d) {
 		
 			if (verbose == (verbose & 1)) {
 				printf("*");
 				fflush(stdout);
 			}
 
-			i = write(dns_cache_socket[1], line, pos);
+			i = write(dns_cache_d_socket[1], line, pos);
 			if (i < pos) err(1, "response not sent");
 
 			char v;
 			
-			i = read(dns_cache_socket[1], &v, 1);		
+			i = read(dns_cache_d_socket[1], &v, 1);		
 
 			if (verbose == (verbose & 1)) {
 				printf("\b \b");
@@ -1196,7 +1198,7 @@ main(int argc, char *argv[])
 				
 				if (f) close(parent_to_write[STDOUT_FILENO]);
 				
-				waitpid(dns_cache_pid, NULL, 0);
+				waitpid(dns_cache_d_pid, NULL, 0);
 				
 				if(pledge("stdio exec", NULL) == -1)
 					err(1, "pledge, line: %d", __LINE__);
@@ -1370,9 +1372,9 @@ main(int argc, char *argv[])
 		fflush(stdout);
 	}
 	
-	if (dns_cache) {
-		close(dns_cache_socket[1]);
-		waitpid(dns_cache_pid, NULL, 0);
+	if (dns_cache_d) {
+		close(dns_cache_d_socket[1]);
+		waitpid(dns_cache_d_pid, NULL, 0);
 	}
 
 
