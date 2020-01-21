@@ -442,7 +442,7 @@ main(int argc, char *argv[])
 			/* load largest gap beginning into i_max */
 			for (i = 0; i < 16; i += 2) {
 						
-				/* suc6[i] == 0 && suc6[i + 1] == 0 */
+				/* suc6[i] != 0 || suc6[i + 1] != 0 */
 				if (  *( (uint16_t*)(suc6 + i) )  ) {
 					j = 0;
 					continue;
