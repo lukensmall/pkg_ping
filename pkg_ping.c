@@ -437,7 +437,7 @@ main(int argc, char *argv[])
 			suc6 = sa6->sin6_addr.s6_addr;
 			
 			j = 0;
-                        max = 1;
+			max = 1;
 			i_max = -1;
 
 			/* load largest >1 gap beginning into i_max */
