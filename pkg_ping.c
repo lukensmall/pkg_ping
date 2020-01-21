@@ -436,10 +436,11 @@ main(int argc, char *argv[])
 			sa6 = (struct sockaddr_in6*)res->ai_addr;
 			suc6 = sa6->sin6_addr.s6_addr;
 			
-			j = max = 0;
+			j = 0;
+                      max = 1;
 			i_max = -1;
 
-			/* load largest gap beginning into i_max */
+			/* load largest >1 gap beginning into i_max */
 			for (i = 0; i < 16; i += 2) {
 						
 				/* suc6[i] != 0 || suc6[i + 1] != 0 */
