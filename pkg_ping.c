@@ -1444,8 +1444,9 @@ main(int argc, char *argv[])
 		}
 		printf("\n\t};\n\n\n");
 		printf("\tint index = arc4random_uniform(%d);\n\n", se + 1);
-		printf("\tReplace section after line: %d, ", entry_line);
-		printf("but before line: %d with the code above.\n\n", exit_line);
+		
+		printf("\tReplace section after line: %d, but ", entry_line);
+		printf("before line: %d with the code above.\n\n", exit_line);
 
 	
 		return 0;
