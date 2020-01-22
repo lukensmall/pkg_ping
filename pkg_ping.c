@@ -293,7 +293,7 @@ main(int argc, char *argv[])
 	}
 	
 	if (generate) {
-		s0 = s = timeout0.tv_sec / 4;
+		s = timeout0.tv_sec / 4;
 		if (verbose < 1)
 			verbose = 1;
 		secure = 1;
@@ -443,7 +443,7 @@ main(int argc, char *argv[])
 			/* load largest >1 gap beginning into i_max */
 			for (i = 0; i < 16; i += 2) {
 						
-				/* suc6[i] != 0 || suc6[i + 1] != 0 */
+				/* suc6[i] || suc6[i + 1] */
 				if (  *( (uint16_t*)(suc6 + i) )  ) {
 					j = 0;
 					continue;
@@ -592,8 +592,6 @@ main(int argc, char *argv[])
 			printf("line: %d\n", __LINE__);
 			_exit(1);
 		}
-		
-		strlcpy(tag_w + ke.data, "\n", 1 + 1);
 
 		i = fwrite(tag_w, 1, ke.data, pkg_write);
 		if (i < ke.data) {
@@ -603,12 +601,14 @@ main(int argc, char *argv[])
 			_exit(1);
 		}
 		fclose(pkg_write);
+		
+		strlcpy(tag_w + ke.data, "\n", 1 + 1);
 
 		if (verbose >= 0)
 			printf("/etc/installurl: %s", tag_w);
 		
 		_exit(0);
-				
+	
 	}
 	if (write_pid == -1)
 		err(1, "write fork, line: %d", __LINE__);
@@ -640,170 +640,167 @@ main(int argc, char *argv[])
 		close(ftp_out[STDIN_FILENO]);
 
 
-		char *ftp_list[53] = {
+		char *ftp_list[52] = {
 
-		/* Piscataway, NJ, USA : 0.335866291 */
-		"openbsd.mirror.constant.com",
-
-		/* Montreal, QC, Canada : 0.339938184 */
-		"openbsd.mirror.netelligent.ca",
-
-		/* Waterloo, Ontario, Canada : 0.386229770 */
-		"mirror.csclub.uwaterloo.ca",
-
-		/* Cambridge, MA, USA : 0.401901281 */
-		"mirrors.mit.edu",
-
-		/* New York, NY, USA : 0.459330481 */
-		"ftp4.usa.openbsd.org",
-
-		/* Alberta, Canada : 0.467585050 */
-		"ftp.OpenBSD.org",
-
-		/* Fastly (CDN) : 0.529853630 */
-		"cdn.openbsd.org",
-
-		/* Boise, ID, USA : 0.623123919 */
-		"mirrors.syringanetworks.net",
-
-		/* Manchester, United Kingdom : 0.645264652 */
-		"mirror.bytemark.co.uk",
-
-		/* London, United Kingdom : 0.649679972 */
-		"mirror.exonetric.net",
-
-		/* Ede, The Netherlands : 0.681132965 */
-		"ftp.bit.nl",
-
-		/* Frankfurt, Germany : 0.682007090 */
-		"ftp.hostserver.de",
-
-		/* Cloudflare (CDN) : 0.732530962 */
-		"cloudflare.cdn.openbsd.org",
-
-		/* Moscow, Russia : 0.732742759 */
-		"mirror.yandex.ru",
-
-		/* Oslo, Norway : 0.741746354 */
-		"ftp.eu.openbsd.org",
-
-		/* Kent, United Kingdom : 0.742900518 */
-		"www.mirrorservice.org",
-
-		/* Bucharest, Romania : 0.791537057 */
-		"mirrors.nav.ro",
-
-		/* Hamburg, Germany : 0.809775325 */
-		"*artfiles.org/openbsd",
-
-		/* Paris, France : 0.810294522 */
-		"ftp.fr.openbsd.org",
-
-		/* Berlin, Germany : 0.824955020 */
-		"ftp.spline.de",
-
-		/* Bucharest, Romania : 0.828933532 */
-		"mirrors.pidginhost.com",
-
-		/* Copenhagen, Denmark : 0.831253350 */
-		"mirror.one.com",
-
-		/* Linthal, GL, Switzerland : 0.855777784 */
-		"mirror.ungleich.ch",
-
-		/* Skovde, Sweden : 0.856168807 */
-		"mirror.linux.pizza",
-
-		/* Oldenburg, Germany : 0.858292563 */
-		"ftp.bytemine.net",
-
-		/* Estonia : 0.865983776 */
-		"ftp.eenet.ee",
-
-		/* Arlington Heights, IL, USA : 0.877103889 */
+		/* Arlington Heights, IL, USA : 0.180343425 */
 		"mirrors.gigenet.com",
 
-		/* Kaunas, Lithuania : 0.891729912 */
-		"mirror.litnet.lt",
+		/* Fastly (CDN) : 0.276640449 */
+		"cdn.openbsd.org",
 
-		/* San Francisco, CA, USA : 0.896390482 */
-		"mirrors.sonic.net",
+		/* Montreal, QC, Canada : 0.277541457 */
+		"openbsd.mirror.netelligent.ca",
 
-		/* Erlangen, Germany : 0.918473911 */
-		"ftp.fau.de",
+		/* Cambridge, MA, USA : 0.335214700 */
+		"mirrors.mit.edu",
 
-		/* Esslingen, Germany : 0.924951281 */
-		"mirror.hs-esslingen.de",
+		/* Piscataway, NJ, USA : 0.352786862 */
+		"openbsd.mirror.constant.com",
 
-		/* Toronto, ON, Canada : 0.936098552 */
-		"openbsd.cs.toronto.edu",
+		/* Boise, ID, USA : 0.408287763 */
+		"mirrors.syringanetworks.net",
 
-		/* Rome, Italy : 0.958450934 */
-		"openbsd.mirror.garr.it",
+		/* Alberta, Canada : 0.411629695 */
+		"ftp.OpenBSD.org",
 
-		/* Aalborg, Denmark : 0.964559656 */
-		"mirrors.dotsrc.org",
-
-		/* Aachen, Germany : 1.079265762 */
-		"ftp.halifax.rwth-aachen.de",
-
-		/* Verizon Digital Media (Edgecast) (CDN) : 1.083314246 */
-		"mirror.vdms.com",
-
-		/* Anycast within NZ, New Zealand : 1.134203912 */
-		"mirror.fsmg.org.nz",
-
-		/* Utrecht, The Netherlands : 1.145447161 */
-		"ftp.nluug.nl",
-
-		/* Dallas, TX, USA : 1.176612694 */
+		/* Dallas, TX, USA : 0.421575862 */
 		"mirror.esc7.net",
 
-		/* Costa Rica : 1.197769934 */
+		/* Cloudflare (CDN) : 0.423577392 */
+		"cloudflare.cdn.openbsd.org",
+
+		/* New York, NY, USA : 0.439436000 */
+		"ftp4.usa.openbsd.org",
+
+		/* Waterloo, Ontario, Canada : 0.505158519 */
+		"mirror.csclub.uwaterloo.ca",
+
+		/* Costa Rica : 0.505776992 */
 		"mirrors.ucr.ac.cr",
 
-		/* Rochester, NY, USA : 1.226332072 */
-		"ftp.usa.openbsd.org",
-
-		/* Hong Kong : 1.226984246 */
-		"openbsd.hk",
-
-		/* Lisbon, Portugal : 1.254845004 */
-		"ftp.rnl.tecnico.ulisboa.pt",
-
-		/* Warsaw, Poland : 1.255110479 */
-		"ftp.icm.edu.pl",
-
-		/* Indonesia : 1.257638780 */
-		"mirror.labkom.id",
-
-		/* Budapest, Hungary : 1.287638261 */
-		"ftp.fsn.hu",
-
-		/* LeaseWeb (CDN) : 1.340121159 */
-		"mirror.leaseweb.com",
-
-		/* Wako-City, Saitama, Japan : 1.438448019 */
-		"ftp.riken.jp",
-
-		/* Amsterdam, The Netherlands : 1.453635217 */
+		/* Amsterdam, The Netherlands : 0.534818509 */
 		"mirrors.dalenys.com",
 
-		/* Curitiba, Brazil : 1.459569555 */
-		"openbsd.c3sl.ufpr.br",
+		/* LeaseWeb (CDN) : 0.563093374 */
+		"mirror.leaseweb.com",
 
-		/* Heraklion, Greece : 1.760924819 */
+		/* Toronto, ON, Canada : 0.568784642 */
+		"openbsd.cs.toronto.edu",
+
+		/* Rochester, NY, USA : 0.569206780 */
+		"ftp.usa.openbsd.org",
+
+		/* San Francisco, CA, USA : 0.632118792 */
+		"mirrors.sonic.net",
+
+		/* Berlin, Germany : 0.653973836 */
+		"ftp.spline.de",
+
+		/* Ede, The Netherlands : 0.671822605 */
+		"ftp.bit.nl",
+
+		/* Copenhagen, Denmark : 0.680859055 */
+		"mirror.one.com",
+
+		/* Bucharest, Romania : 0.683243559 */
+		"mirrors.pidginhost.com",
+
+		/* Aachen, Germany : 0.686563952 */
+		"ftp.halifax.rwth-aachen.de",
+
+		/* Manchester, United Kingdom : 0.693989539 */
+		"mirror.bytemark.co.uk",
+
+		/* Utrecht, The Netherlands : 0.733210429 */
+		"ftp.nluug.nl",
+
+		/* Bucharest, Romania : 0.738100162 */
+		"mirrors.nav.ro",
+
+		/* Hamburg, Germany : 0.739672318 */
+		"*artfiles.org/openbsd",
+
+		/* Moscow, Russia : 0.796624809 */
+		"mirror.yandex.ru",
+
+		/* Frankfurt, Germany : 0.832732835 */
+		"ftp.hostserver.de",
+
+		/* Linthal, GL, Switzerland : 0.845749193 */
+		"mirror.ungleich.ch",
+
+		/* Erlangen, Germany : 0.847701180 */
+		"ftp.fau.de",
+
+		/* Heraklion, Greece : 0.903313755 */
 		"ftp.cc.uoc.gr",
 
-		/* Vienna, Austria : 2.272858135 */
+		/* Paris, France : 0.975930281 */
+		"ftp.fr.openbsd.org",
+
+		/* Kaunas, Lithuania : 1.015441693 */
+		"mirror.litnet.lt",
+
+		/* Oslo, Norway : 1.022232180 */
+		"ftp.eu.openbsd.org",
+
+		/* Oldenburg, Germany : 1.085558013 */
+		"ftp.bytemine.net",
+
+		/* Esslingen, Germany : 1.090138470 */
+		"mirror.hs-esslingen.de",
+
+		/* Aalborg, Denmark : 1.098819828 */
+		"mirrors.dotsrc.org",
+
+		/* Hong Kong : 1.102324853 */
+		"openbsd.hk",
+
+		/* Estonia : 1.132065763 */
+		"ftp.eenet.ee",
+
+		/* Budapest, Hungary : 1.153941225 */
+		"ftp.fsn.hu",
+
+		/* Kent, United Kingdom : 1.163048920 */
+		"www.mirrorservice.org",
+
+		/* Anycast within NZ, New Zealand : 1.257996607 */
+		"mirror.fsmg.org.nz",
+
+		/* Curitiba, Brazil : 1.272891939 */
+		"openbsd.c3sl.ufpr.br",
+
+		/* Skovde, Sweden : 1.327877209 */
+		"mirror.linux.pizza",
+
+		/* Verizon Digital Media (Edgecast) (CDN) : 1.355630280 */
+		"mirror.vdms.com",
+
+		/* Indonesia : 1.834009343 */
+		"mirror.labkom.id",
+
+		/* Warsaw, Poland : 1.949486802 */
+		"ftp.icm.edu.pl",
+
+		/* Vienna, Austria : 2.306172366 */
 		"ftp2.eu.openbsd.org",
 
-		/* Taoyuan, Taiwan : 2.727497198 */
-		"ftp.yzu.edu.tw"
+		/* Wako-City, Saitama, Japan : 2.461375029 */
+		"ftp.riken.jp",
+
+		/* Rome, Italy : 2.714481572 */
+		"openbsd.mirror.garr.it",
+
+		/* London, United Kingdom : 3.956624241 */
+		"mirror.exonetric.net",
+
+		/* Lisbon, Portugal : 4.721741057 */
+		"ftp.rnl.tecnico.ulisboa.pt"
 		};
 
 
-		int index = arc4random_uniform(53);
+		int index = arc4random_uniform(52);
 
 
 		
@@ -995,6 +992,7 @@ main(int argc, char *argv[])
 		errx(1, "calloc");
 	}
 
+	i = 1;
 	num = pos = array_length = 0;
 	array[0] = malloc(sizeof(struct mirror_st));
 	if (array[0] == NULL) {
@@ -1013,6 +1011,7 @@ main(int argc, char *argv[])
 			printf("line: %s\n", line);
 			errx(1, "pos got too big! line: %d", __LINE__);
 		}
+		
 		if (num == 0) {
 
 			if (c != ' ') {
@@ -1044,62 +1043,66 @@ main(int argc, char *argv[])
 
 			pos = 0;
 			num = 1;
-		} else {
-			if (pos == 0) {
-				if (c == ' ')
-					continue;
-			}
-				
-			if (c != '\n') {
-				line[pos++] = c;
+			continue;
+		}
+		
+		if (pos == 0) {
+			if (c == ' ')
+				continue;
+		}
+			
+		if (c != '\n') {
+			line[pos++] = c;
+			continue;
+		}
+		
+		
+		line[pos++] = '\0';
+		if (u) {
+			if (strstr(line, "USA")) {
+				free(array[array_length]->http);
+				num = pos = 0;
 				continue;
 			}
-			
-			
-			line[pos++] = '\0';
-			if (u) {
-				if (strstr(line, "USA")) {
-					free(array[array_length]->http);
-					num = pos = 0;
-					continue;
-				}
-			}
-			
-			/* the Ishikawa mirror reverts to http */
-			if (secure) {
+		}
+		
+		/* the Ishikawa mirror reverts to http */
+		if (secure) {
+			if (i) {
 				if (strstr(line, "Ishikawa")) {
 					free(array[array_length]->http);
-					num = pos = 0;
+					num = pos = i = 0;
 					continue;
 				}
 			}
-			array[array_length]->label = malloc(pos);
-			if (array[array_length]->label == NULL) {
-				kill(ftp_pid, SIGKILL);
-				errx(1, "malloc");
-			}
-			strlcpy(array[array_length]->label, line, pos);
-
-
-			if (++array_length >= array_max) {
-				array_max += 20;
-				array = reallocarray(array, array_max,
-				    sizeof(struct mirror_st *));
-
-				if (array == NULL) {
-					kill(ftp_pid, SIGKILL);
-					errx(1, "reallocarray");
-				}
-			}
-			array[array_length] = malloc(sizeof(struct mirror_st));
-
-			if (array[array_length] == NULL) {
-				kill(ftp_pid, SIGKILL);
-				errx(1, "malloc");
-			}
-
-			num = pos = 0;
 		}
+		
+		array[array_length]->label = malloc(pos);
+		if (array[array_length]->label == NULL) {
+			kill(ftp_pid, SIGKILL);
+			errx(1, "malloc");
+		}
+		strlcpy(array[array_length]->label, line, pos);
+
+
+		if (++array_length >= array_max) {
+			array_max += 20;
+			array = reallocarray(array, array_max,
+			    sizeof(struct mirror_st *));
+
+			if (array == NULL) {
+				kill(ftp_pid, SIGKILL);
+				errx(1, "reallocarray");
+			}
+		}
+		array[array_length] = malloc(sizeof(struct mirror_st));
+
+		if (array[array_length] == NULL) {
+			kill(ftp_pid, SIGKILL);
+			errx(1, "malloc");
+		}
+
+		num = pos = 0;
 	}
 	
 	free(array[array_length]);
@@ -1112,7 +1115,7 @@ main(int argc, char *argv[])
 	waitpid(ftp_pid, &n, 0);
 
 	if (n != 0 || array_length == 0)
-		errx(1, "There was a download error.\n");
+		errx(1, "There was a download error. Try again.\n");
 
 	
 	uint8_t length;
@@ -1161,10 +1164,11 @@ main(int argc, char *argv[])
 				    array[c]->label, line);
 			}
 		} else if (verbose >= 0) {
-			n = i = array_length - c;
+			i = array_length - c;
 			if (c > 0) {
 				if ((i == 9) || (i == 99))
 					printf("\b \b");
+				n = i;
 				do {
 					printf("\b");
 					n /= 10;
@@ -1267,6 +1271,9 @@ main(int argc, char *argv[])
 				if (i != -1)
 					dup2(i, STDERR_FILENO);
 			}
+			
+			if (verbose == 2)
+				printf("Running ftp:\n");
 
 			if (verbose >= 3 && six) {
 				execl("/usr/bin/ftp", "ftp", "-vm6o",
