@@ -628,6 +628,177 @@ main(int argc, char *argv[])
 	if (pipe(ftp_out) == -1)
 		err(1, "pipe, line: %d", __LINE__);
 
+
+	
+	int entry_line, exit_line;
+	entry_line = __LINE__;
+
+
+	char *ftp_list[52] = {
+
+	/* Toronto, ON, Canada : 0.211766531 */
+	"openbsd.cs.toronto.edu",
+
+	/* Piscataway, NJ, USA : 0.232553728 */
+	"openbsd.mirror.constant.com",
+
+	/* Montreal, QC, Canada : 0.236062265 */
+	"openbsd.mirror.netelligent.ca",
+
+	/* Cloudflare (CDN) : 0.270202854 */
+	"cloudflare.cdn.openbsd.org",
+
+	/* Rochester, NY, USA : 0.288981922 */
+	"ftp.usa.openbsd.org",
+
+	/* San Francisco, CA, USA : 0.368953968 */
+	"mirrors.sonic.net",
+
+	/* Alberta, Canada : 0.431964638 */
+	"ftp.OpenBSD.org",
+
+	/* Costa Rica : 0.495253963 */
+	"mirrors.ucr.ac.cr",
+
+	/* Waterloo, Ontario, Canada : 0.518433225 */
+	"mirror.csclub.uwaterloo.ca",
+
+	/* Kent, United Kingdom : 0.518656916 */
+	"www.mirrorservice.org",
+
+	/* Frankfurt, Germany : 0.535191185 */
+	"ftp.hostserver.de",
+
+	/* Hamburg, Germany : 0.536276559 */
+	"*artfiles.org/openbsd",
+
+	/* Ede, The Netherlands : 0.548109862 */
+	"ftp.bit.nl",
+
+	/* Utrecht, The Netherlands : 0.549862316 */
+	"ftp.nluug.nl",
+
+	/* Amsterdam, The Netherlands : 0.563762458 */
+	"mirrors.dalenys.com",
+
+	/* London, United Kingdom : 0.568309946 */
+	"mirror.exonetric.net",
+
+	/* Manchester, United Kingdom : 0.570481527 */
+	"mirror.bytemark.co.uk",
+
+	/* Copenhagen, Denmark : 0.608343290 */
+	"mirror.one.com",
+
+	/* LeaseWeb (CDN) : 0.610697661 */
+	"mirror.leaseweb.com",
+
+	/* Vienna, Austria : 0.613607705 */
+	"ftp2.eu.openbsd.org",
+
+	/* Oldenburg, Germany : 0.626743285 */
+	"ftp.bytemine.net",
+
+	/* New York, NY, USA : 0.635397943 */
+	"ftp4.usa.openbsd.org",
+
+	/* Linthal, GL, Switzerland : 0.639189447 */
+	"mirror.ungleich.ch",
+
+	/* Bucharest, Romania : 0.659522036 */
+	"mirrors.pidginhost.com",
+
+	/* Oslo, Norway : 0.660661998 */
+	"ftp.eu.openbsd.org",
+
+	/* Bucharest, Romania : 0.667875812 */
+	"mirrors.nav.ro",
+
+	/* Esslingen, Germany : 0.669258711 */
+	"mirror.hs-esslingen.de",
+
+	/* Fastly (CDN) : 0.690347537 */
+	"cdn.openbsd.org",
+
+	/* Rome, Italy : 0.692679326 */
+	"openbsd.mirror.garr.it",
+
+	/* Kaunas, Lithuania : 0.692839297 */
+	"mirror.litnet.lt",
+
+	/* Aachen, Germany : 0.699390663 */
+	"ftp.halifax.rwth-aachen.de",
+
+	/* Arlington Heights, IL, USA : 0.729566931 */
+	"mirrors.gigenet.com",
+
+	/* Heraklion, Greece : 0.741233060 */
+	"ftp.cc.uoc.gr",
+
+	/* Lisbon, Portugal : 0.752793847 */
+	"ftp.rnl.tecnico.ulisboa.pt",
+
+	/* Budapest, Hungary : 0.767837889 */
+	"ftp.fsn.hu",
+
+	/* Curitiba, Brazil : 0.814469591 */
+	"openbsd.c3sl.ufpr.br",
+
+	/* Estonia : 0.818190985 */
+	"ftp.eenet.ee",
+
+	/* Aalborg, Denmark : 0.828569147 */
+	"mirrors.dotsrc.org",
+
+	/* Cambridge, MA, USA : 0.837552922 */
+	"mirrors.mit.edu",
+
+	/* Hong Kong : 0.839116979 */
+	"openbsd.hk",
+
+	/* Verizon Digital Media (Edgecast) (CDN) : 0.852881353 */
+	"mirror.vdms.com",
+
+	/* Boise, ID, USA : 0.935452172 */
+	"mirrors.syringanetworks.net",
+
+	/* Anycast within NZ, New Zealand : 0.967484426 */
+	"mirror.fsmg.org.nz",
+
+	/* Indonesia : 1.094626353 */
+	"mirror.labkom.id",
+
+	/* Taoyuan, Taiwan : 1.190099660 */
+	"ftp.yzu.edu.tw",
+
+	/* Erlangen, Germany : 1.292109766 */
+	"ftp.fau.de",
+
+	/* Moscow, Russia : 1.346799462 */
+	"mirror.yandex.ru",
+
+	/* Dallas, TX, USA : 1.347321205 */
+	"mirror.esc7.net",
+
+	/* Berlin, Germany : 1.517247916 */
+	"ftp.spline.de",
+
+	/* Warsaw, Poland : 1.668543956 */
+	"ftp.icm.edu.pl",
+
+	/* Skovde, Sweden : 3.929205812 */
+	"mirror.linux.pizza",
+
+	/* Paris, France : 4.042010789 */
+	"ftp.fr.openbsd.org"
+	};
+
+
+	int index = arc4random_uniform(52);
+
+	exit_line = __LINE__;
+
+
 	ftp_pid = fork();
 	if (ftp_pid == (pid_t) 0) {
 
@@ -638,170 +809,6 @@ main(int argc, char *argv[])
 		}
 		
 		close(ftp_out[STDIN_FILENO]);
-
-
-		char *ftp_list[52] = {
-
-		/* Arlington Heights, IL, USA : 0.180343425 */
-		"mirrors.gigenet.com",
-
-		/* Fastly (CDN) : 0.276640449 */
-		"cdn.openbsd.org",
-
-		/* Montreal, QC, Canada : 0.277541457 */
-		"openbsd.mirror.netelligent.ca",
-
-		/* Cambridge, MA, USA : 0.335214700 */
-		"mirrors.mit.edu",
-
-		/* Piscataway, NJ, USA : 0.352786862 */
-		"openbsd.mirror.constant.com",
-
-		/* Boise, ID, USA : 0.408287763 */
-		"mirrors.syringanetworks.net",
-
-		/* Alberta, Canada : 0.411629695 */
-		"ftp.OpenBSD.org",
-
-		/* Dallas, TX, USA : 0.421575862 */
-		"mirror.esc7.net",
-
-		/* Cloudflare (CDN) : 0.423577392 */
-		"cloudflare.cdn.openbsd.org",
-
-		/* New York, NY, USA : 0.439436000 */
-		"ftp4.usa.openbsd.org",
-
-		/* Waterloo, Ontario, Canada : 0.505158519 */
-		"mirror.csclub.uwaterloo.ca",
-
-		/* Costa Rica : 0.505776992 */
-		"mirrors.ucr.ac.cr",
-
-		/* Amsterdam, The Netherlands : 0.534818509 */
-		"mirrors.dalenys.com",
-
-		/* LeaseWeb (CDN) : 0.563093374 */
-		"mirror.leaseweb.com",
-
-		/* Toronto, ON, Canada : 0.568784642 */
-		"openbsd.cs.toronto.edu",
-
-		/* Rochester, NY, USA : 0.569206780 */
-		"ftp.usa.openbsd.org",
-
-		/* San Francisco, CA, USA : 0.632118792 */
-		"mirrors.sonic.net",
-
-		/* Berlin, Germany : 0.653973836 */
-		"ftp.spline.de",
-
-		/* Ede, The Netherlands : 0.671822605 */
-		"ftp.bit.nl",
-
-		/* Copenhagen, Denmark : 0.680859055 */
-		"mirror.one.com",
-
-		/* Bucharest, Romania : 0.683243559 */
-		"mirrors.pidginhost.com",
-
-		/* Aachen, Germany : 0.686563952 */
-		"ftp.halifax.rwth-aachen.de",
-
-		/* Manchester, United Kingdom : 0.693989539 */
-		"mirror.bytemark.co.uk",
-
-		/* Utrecht, The Netherlands : 0.733210429 */
-		"ftp.nluug.nl",
-
-		/* Bucharest, Romania : 0.738100162 */
-		"mirrors.nav.ro",
-
-		/* Hamburg, Germany : 0.739672318 */
-		"*artfiles.org/openbsd",
-
-		/* Moscow, Russia : 0.796624809 */
-		"mirror.yandex.ru",
-
-		/* Frankfurt, Germany : 0.832732835 */
-		"ftp.hostserver.de",
-
-		/* Linthal, GL, Switzerland : 0.845749193 */
-		"mirror.ungleich.ch",
-
-		/* Erlangen, Germany : 0.847701180 */
-		"ftp.fau.de",
-
-		/* Heraklion, Greece : 0.903313755 */
-		"ftp.cc.uoc.gr",
-
-		/* Paris, France : 0.975930281 */
-		"ftp.fr.openbsd.org",
-
-		/* Kaunas, Lithuania : 1.015441693 */
-		"mirror.litnet.lt",
-
-		/* Oslo, Norway : 1.022232180 */
-		"ftp.eu.openbsd.org",
-
-		/* Oldenburg, Germany : 1.085558013 */
-		"ftp.bytemine.net",
-
-		/* Esslingen, Germany : 1.090138470 */
-		"mirror.hs-esslingen.de",
-
-		/* Aalborg, Denmark : 1.098819828 */
-		"mirrors.dotsrc.org",
-
-		/* Hong Kong : 1.102324853 */
-		"openbsd.hk",
-
-		/* Estonia : 1.132065763 */
-		"ftp.eenet.ee",
-
-		/* Budapest, Hungary : 1.153941225 */
-		"ftp.fsn.hu",
-
-		/* Kent, United Kingdom : 1.163048920 */
-		"www.mirrorservice.org",
-
-		/* Anycast within NZ, New Zealand : 1.257996607 */
-		"mirror.fsmg.org.nz",
-
-		/* Curitiba, Brazil : 1.272891939 */
-		"openbsd.c3sl.ufpr.br",
-
-		/* Skovde, Sweden : 1.327877209 */
-		"mirror.linux.pizza",
-
-		/* Verizon Digital Media (Edgecast) (CDN) : 1.355630280 */
-		"mirror.vdms.com",
-
-		/* Indonesia : 1.834009343 */
-		"mirror.labkom.id",
-
-		/* Warsaw, Poland : 1.949486802 */
-		"ftp.icm.edu.pl",
-
-		/* Vienna, Austria : 2.306172366 */
-		"ftp2.eu.openbsd.org",
-
-		/* Wako-City, Saitama, Japan : 2.461375029 */
-		"ftp.riken.jp",
-
-		/* Rome, Italy : 2.714481572 */
-		"openbsd.mirror.garr.it",
-
-		/* London, United Kingdom : 3.956624241 */
-		"mirror.exonetric.net",
-
-		/* Lisbon, Portugal : 4.721741057 */
-		"ftp.rnl.tecnico.ulisboa.pt"
-		};
-
-
-		int index = arc4random_uniform(52);
-
 
 		
 		line = malloc(300);
@@ -1418,12 +1425,14 @@ main(int argc, char *argv[])
 		char *cut;
 
 
-		printf("\n\n\t\tchar *ftp_list[%d] = {\n", se + 1);
+		printf("\n\n");
+		printf("\t/* CODE BEGINS HERE */\n");
+		printf("\tchar *ftp_list[%d] = {\n", se + 1);
 		for (c = 0; c <= se; ++c) {
-			printf("\n\t\t/* %s : %.9Lf */\n",
+			printf("\n\t/* %s : %.9Lf */\n",
 			    array[c]->label, array[c]->diff);
 			    
-			printf("\t\t\"");
+			printf("\t\"");
 			cut = strstr(array[c]->http, "/pub/OpenBSD");
 			
 			if (cut) *cut = '\0';
@@ -1433,8 +1442,10 @@ main(int argc, char *argv[])
 			
 			if (c < se) printf(",\n");
 		}
-		printf("\n\t\t};\n\n\n");
-		printf("\t\tint index = arc4random_uniform(%d);\n\n", se + 1);
+		printf("\n\t};\n\n\n");
+		printf("\tint index = arc4random_uniform(%d);\n\n", se + 1);
+		printf("\tReplace section after line: %d, ", entry_line);
+		printf("but before line: %d with the code above.\n\n", exit_line);
 
 	
 		return 0;
