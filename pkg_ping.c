@@ -537,7 +537,7 @@ main(int argc, char *argv[])
 		close(parent_to_write[STDOUT_FILENO]);
 		
 		if (dns_cache_d) close(dns_cache_d_socket[1]);
-					
+		
 
 		if (verbose >= 1)
 			printf("\n");
@@ -1501,7 +1501,7 @@ main(int argc, char *argv[])
 		if (override == 0)
 			printf("Perhaps try the -O option?\n");
 			
-		printf("Perhaps try with a larger -s than %.9Lf", s0);
+		printf("Perhaps try with a larger -s than %.9Lf\n", s0);
 
 		return 1;
 	}
