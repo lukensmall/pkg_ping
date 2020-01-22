@@ -426,7 +426,7 @@ main(int argc, char *argv[])
 				continue;
 			}
 			
-			/* res->ai_family == AF_INET6*/
+			/* res->ai_family == AF_INET6 */
 			
 			six_available = 1;
 			if (verbose < 4) break;
