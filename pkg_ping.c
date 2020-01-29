@@ -297,7 +297,7 @@ main(int argc, char *argv[])
 		if (verbose < 1)
 			verbose = 1;
 		secure = 1;
-		dns_cache_d = 0;
+		dns_cache_d = 1;
 		f = 0;
 		if (pledge("stdio proc exec dns", NULL) == -1)
 			err(1, "pledge, line: %d", __LINE__);
@@ -592,17 +592,17 @@ main(int argc, char *argv[])
 			printf("line: %d\n", __LINE__);
 			_exit(1);
 		}
+		
+		strlcpy(tag_w + ke.data, "\n", 1 + 1);
 
-		i = fwrite(tag_w, 1, ke.data, pkg_write);
-		if (i < ke.data) {
+		i = fwrite(tag_w, 1, ke.data + 1, pkg_write);
+		if (i < ke.data + 1) {
 			fclose(pkg_write);
 			printf("write error occurred ");
 			printf("line: %d\n", __LINE__);
 			_exit(1);
 		}
 		fclose(pkg_write);
-		
-		strlcpy(tag_w + ke.data, "\n", 1 + 1);
 
 		if (verbose >= 0)
 			printf("/etc/installurl: %s", tag_w);
@@ -1448,7 +1448,7 @@ main(int argc, char *argv[])
 		printf("\tReplace section after line: %d, but ", entry_line);
 		printf("before line: %d with the code above.\n\n", exit_line);
 
-	
+
 		return 0;
 
 		generate_jump:
@@ -1519,7 +1519,7 @@ main(int argc, char *argv[])
 	}
 	
 	
-	if (f) {		
+	if (f) {
 		
 		i = write(parent_to_write[STDOUT_FILENO],
 		    array[0]->http, strlen(array[0]->http));
