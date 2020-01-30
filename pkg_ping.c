@@ -155,9 +155,9 @@ int
 main(int argc, char *argv[])
 {				  
 	int8_t f = (getuid() == 0) ? 1 : 0;
-	int8_t num, current, secure, u, verbose, generate;
-	int8_t override, dns_cache_d, six;
-	long double s0, s, S;
+	int8_t num, current, secure, u, verbose;
+	int8_t generate, override, dns_cache_d, six;
+	long double s, S;
 	pid_t ftp_pid, write_pid;
 	int kq, i, pos, c, n, array_max, array_length, tag_len;
 	int parent_to_write[2], ftp_out[2], block_pipe[2];
@@ -170,7 +170,7 @@ main(int argc, char *argv[])
 	struct timespec timeout0 = { 20, 0 };
 	char *line;
 	
-	if (pledge("stdio proc exec cpath wpath dns unveil", NULL) == -1)
+	if (pledge("stdio exec proc cpath wpath dns unveil", NULL) == -1)
 		err(1, "pledge, line: %d", __LINE__);
 
 	if (unveil("/usr/bin/ftp", "x") == -1)
@@ -185,15 +185,17 @@ main(int argc, char *argv[])
 		if (unveil("/etc/installurl", "cw") == -1)
 			err(1, "unveil, line: %d", __LINE__);
 
-		if (pledge("stdio proc exec cpath wpath dns", NULL) == -1)
+		if (pledge("stdio exec proc cpath wpath dns", NULL) == -1)
 			err(1, "pledge, line: %d", __LINE__);
-	} else if (pledge("stdio proc exec dns", NULL) == -1)
-		err(1, "pledge, line: %d", __LINE__);
+	} else {
+		if (pledge("stdio exec proc dns", NULL) == -1)
+			err(1, "pledge, line: %d", __LINE__);
+	}
 
 	
 	u = verbose = secure = current = override = six = generate = 0;
 	dns_cache_d = 1;
-	s0 = s = 5;
+	s = 5;
 
 	char *version;
 	size_t len = 300;
@@ -206,9 +208,9 @@ main(int argc, char *argv[])
                    err(1, "sysctl, line: %d", __LINE__);
 	
 	/* Discovers if the kernel is not a release version */
-	if (strstr(version, "beta"))
+	if (strstr(version, "current"))
 		current = 1;
-	else if (strstr(version, "current"))
+	else if (strstr(version, "beta"))
 		current = 1;
 		
 	free(version);
@@ -224,7 +226,7 @@ main(int argc, char *argv[])
 		case 'f':
 			if (f == 0)
 				break;
-			if (pledge("stdio proc exec dns", NULL) == -1)
+			if (pledge("stdio exec proc dns", NULL) == -1)
 				err(1, "pledge, line: %d", __LINE__);
 			f = 0;
 			break;
@@ -257,14 +259,13 @@ main(int argc, char *argv[])
 					errx(1, "No negative sign.");
 				errx(1, "Bad floating point format.");
 			}
-			if (n == 0) {
-				errx(1, "-s needs a numeric character.");
-			}
+			
+			if (n == 0) errx(1, "-s needs a numeric character.");
 			
 			errno = 0;
-			s0 = s = strtold(optarg, NULL);
-			if (errno == ERANGE)
-				err(1, "strtold");
+			s = strtold(optarg, NULL);
+			if (errno)
+				err(1, "strtold, line: %d", __LINE__);
 			if (s > (long double)1000)
 				errx(1, "-s should be <= 1000");
 			if (s < (long double)0.01)
@@ -274,7 +275,7 @@ main(int argc, char *argv[])
 			u = 1;
 			break;
 		case 'v':
-			if (verbose == -1)
+			if (verbose < 0)
 				break;
 			if (++verbose > 4)
 				verbose = 4;
@@ -299,7 +300,7 @@ main(int argc, char *argv[])
 		secure = 1;
 		dns_cache_d = 1;
 		f = 0;
-		if (pledge("stdio proc exec dns", NULL) == -1)
+		if (pledge("stdio exec proc dns", NULL) == -1)
 			err(1, "pledge, line: %d", __LINE__);
 	}
 
@@ -517,7 +518,7 @@ main(int argc, char *argv[])
 	if (f == 0)
 		goto jump_f;
 
-	if (pledge("stdio proc exec cpath wpath", NULL) == -1)
+	if (pledge("stdio exec proc cpath wpath", NULL) == -1)
 		err(1, "pledge, line: %d", __LINE__);
 
 	if (pipe2(parent_to_write, O_CLOEXEC) == -1)
@@ -534,6 +535,7 @@ main(int argc, char *argv[])
 			printf("pledge, line: %d\n", __LINE__);
 			_exit(1);
 		}
+		
 		close(parent_to_write[STDOUT_FILENO]);
 		
 		if (dns_cache_d) close(dns_cache_d_socket[1]);
@@ -544,6 +546,7 @@ main(int argc, char *argv[])
 
 		kq = kqueue();
 		if (kq == -1) {
+			printf("%s ", strerror(errno));
 			printf("kq! line: %d\n", __LINE__);
 			_exit(1);
 		}
@@ -551,6 +554,7 @@ main(int argc, char *argv[])
 		EV_SET(&ke, parent_to_write[STDIN_FILENO], EVFILT_READ,
 			EV_ADD | EV_ONESHOT, 0, 0, NULL);
 		if (kevent(kq, &ke, 1, &ke, 1, NULL) == -1) {
+			printf("%s ", strerror(errno));
 			printf("write_pid kevent register fail");
 			printf(" line: %d\n", __LINE__);
 			_exit(1);
@@ -586,10 +590,16 @@ main(int argc, char *argv[])
 			
 		i = read(parent_to_write[STDIN_FILENO], tag_w, ke.data);
 
-		if (i < (int)strlen("http://") || i < ke.data) {
+		if (i < ke.data) {
+			printf("%s ", strerror(errno));
+			printf("read error occurred line: %d\n", __LINE__);
 			fclose(pkg_write);
-			printf("read error occurred ");
-			printf("line: %d\n", __LINE__);
+			_exit(1);
+		}
+
+		if (i <= (int)strlen("http://")) {
+			printf("read <= \"http://\": %d\n", __LINE__);
+			fclose(pkg_write);
 			_exit(1);
 		}
 		
@@ -597,9 +607,9 @@ main(int argc, char *argv[])
 
 		i = fwrite(tag_w, 1, ke.data + 1, pkg_write);
 		if (i < ke.data + 1) {
+			printf("%s ", strerror(errno));
+			printf("write error occurred line: %d\n", __LINE__);
 			fclose(pkg_write);
-			printf("write error occurred ");
-			printf("line: %d\n", __LINE__);
 			_exit(1);
 		}
 		fclose(pkg_write);
@@ -621,7 +631,7 @@ main(int argc, char *argv[])
 	
 	
 	
-	if (pledge("stdio proc exec", NULL) == -1)
+	if (pledge("stdio exec proc", NULL) == -1)
 		err(1, "pledge, line: %d", __LINE__);
 
 
@@ -985,8 +995,8 @@ main(int argc, char *argv[])
 		errx(1, "fdopen ftp_out, line: %d", __LINE__);
 	}
 
-	/* if the index for line[] exceeds 254, it will error out */
-	line = malloc(256);
+	/* if the index for line[] can exceed 254, it will error out */
+	line = malloc(255);
 	if (line == NULL) {
 		kill(ftp_pid, SIGKILL);
 		errx(1, "malloc");
@@ -1012,7 +1022,7 @@ main(int argc, char *argv[])
 
 
 	while ((c = getc(input)) != EOF) {
-		if (pos >= 254) {
+		if (pos >= 253) {
 			kill(ftp_pid, SIGKILL);
 			line[pos] = '\0';
 			printf("line: %s\n", line);
@@ -1429,6 +1439,9 @@ main(int argc, char *argv[])
 		printf("\t/* CODE BEGINS HERE */\n");
 		printf("\tchar *ftp_list[%d] = {\n", se + 1);
 		for (c = 0; c <= se; ++c) {
+			
+			/* This printf() comments the -g output */
+			/* and can be excised or commented out */
 			printf("\n\t/* %s : %.9Lf */\n",
 			    array[c]->label, array[c]->diff);
 			    
@@ -1513,7 +1526,7 @@ main(int argc, char *argv[])
 		if (override == 0)
 			printf("Perhaps try the -O option?\n");
 			
-		printf("Perhaps try with a larger -s than %.9Lf\n", s0);
+		printf("Perhaps try with a larger -s than %.9Lf\n", s);
 
 		return 1;
 	}
