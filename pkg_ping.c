@@ -1325,7 +1325,7 @@ main(int argc, char *argv[])
 			kill(ftp_pid, SIGKILL);
 			errx(1, "kevent register fail, line: %d", __LINE__);
 		}
-		clock_gettime(CLOCK_UPTIME, &tv_start);
+		clock_gettime(CLOCK_REALTIME, &tv_start);
 
 		close(block_pipe[STDOUT_FILENO]);
 
@@ -1360,7 +1360,7 @@ main(int argc, char *argv[])
 			continue;
 		}
 
-		clock_gettime(CLOCK_UPTIME, &tv_end);
+		clock_gettime(CLOCK_REALTIME, &tv_end);
 
 		array[c]->diff =
 		    (long double)(tv_end.tv_sec - tv_start.tv_sec) +
