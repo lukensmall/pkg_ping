@@ -646,24 +646,24 @@ main(int argc, char *argv[])
 
 	char *ftp_list[51] = {
 
-	"openbsd.mirror.netelligent.ca", "openbsd.mirror.constant.com", 
-	"mirrors.gigenet.com", "mirror.csclub.uwaterloo.ca", "mirror.vdms.com", 
-	"cloudflare.cdn.openbsd.org", "mirror.esc7.net", "ftp.usa.openbsd.org", 
-	"ftp4.usa.openbsd.org", "mirrors.mit.edu", "mirrors.sonic.net", 
-	"cdn.openbsd.org", "ftp.OpenBSD.org", "mirrors.syringanetworks.net", 
-	"mirrors.dalenys.com", "mirror.exonetric.net", "www.mirrorservice.org", 
-	"mirrors.ucr.ac.cr", "mirror.bytemark.co.uk", "ftp.fr.openbsd.org", 
-	"openbsd.cs.toronto.edu", "*artfiles.org/openbsd", "ftp.hostserver.de", 
-	"ftp.spline.de", "mirror.yandex.ru", "mirror.one.com", 
-	"mirrors.pidginhost.com", "mirror.ungleich.ch", "mirrors.nav.ro", 
-	"ftp.fau.de", "ftp.eu.openbsd.org", "mirror.hs-esslingen.de", 
-	"openbsd.mirror.garr.it", "ftp.bytemine.net", "mirror.litnet.lt", 
-	"ftp.fsn.hu", "ftp.eenet.ee", "ftp.halifax.rwth-aachen.de", 
-	"ftp.rnl.tecnico.ulisboa.pt", "openbsd.c3sl.ufpr.br", 
-	"mirrors.dotsrc.org", "openbsd.hk", "ftp.cc.uoc.gr", 
-	"mirror.fsmg.org.nz", "ftp.riken.jp", "mirror.linux.pizza", 
-	"ftp.icm.edu.pl", "mirror.labkom.id", "ftp.bit.nl", "ftp.nluug.nl", 
-	"ftp.yzu.edu.tw"
+	"cloudflare.cdn.openbsd.org", "mirrors.gigenet.com", 
+	"openbsd.mirror.constant.com", "openbsd.mirror.netelligent.ca", 
+	"mirror.esc7.net", "openbsd.cs.toronto.edu", "ftp.usa.openbsd.org", 
+	"ftp4.usa.openbsd.org", "mirror.vdms.com", "mirrors.mit.edu", 
+	"mirror.csclub.uwaterloo.ca", "mirrors.sonic.net", 
+	"mirrors.syringanetworks.net", "www.mirrorservice.org", "ftp.nluug.nl", 
+	"ftp.bytemine.net", "mirror.bytemark.co.uk", "ftp.fr.openbsd.org", 
+	"ftp.halifax.rwth-aachen.de", "mirror.hs-esslingen.de", "ftp.bit.nl", 
+	"ftp.hostserver.de", "mirror.exonetric.net", "mirror.ungleich.ch", 
+	"mirrors.ucr.ac.cr", "mirror.linux.pizza", "mirror.one.com", 
+	"ftp.OpenBSD.org", "mirrors.nav.ro", "ftp.spline.de", "ftp.fsn.hu", 
+	"mirrors.dotsrc.org", "*artfiles.org/openbsd", "ftp.fau.de", 
+	"ftp.eu.openbsd.org", "ftp.eenet.ee", "ftp.rnl.tecnico.ulisboa.pt", 
+	"openbsd.mirror.garr.it", "mirror.litnet.lt", "mirrors.pidginhost.com", 
+	"ftp.cc.uoc.gr", "openbsd.c3sl.ufpr.br", "openbsd.hk", 
+	"cdn.openbsd.org", "ftp.riken.jp", "mirror.fsmg.org.nz", 
+	"ftp.icm.edu.pl", "mirror.labkom.id", "mirror.yandex.ru", 
+	"mirrors.dalenys.com", "ftp.yzu.edu.tw"
 	};
 
 	int index = arc4random_uniform(51);
@@ -1316,7 +1316,7 @@ main(int argc, char *argv[])
 				
 			n += strlen(array[c]->http) + 4 - strlen("https://");
 
-			if ( (n + (c < se) - 1) > 80 ) {
+			if (n - ((c == se) + 1) > 80) {
 				
 				printf("\n\t");
 				
