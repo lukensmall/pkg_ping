@@ -646,27 +646,28 @@ main(int argc, char *argv[])
 
 	char *ftp_list[51] = {
 
-	"cloudflare.cdn.openbsd.org", "openbsd.cs.toronto.edu", 
-	"openbsd.mirror.constant.com", "ftp4.usa.openbsd.org", 
-	"mirrors.mit.edu", "cdn.openbsd.org", "openbsd.mirror.netelligent.ca", 
-	"ftp.usa.openbsd.org", "mirror.vdms.com", "mirrors.sonic.net", 
-	"mirrors.syringanetworks.net", "ftp.OpenBSD.org", "ftp.hostserver.de", 
-	"mirrors.dalenys.com", "ftp.fr.openbsd.org", "mirror.bytemark.co.uk", 
-	"*artfiles.org/openbsd", "mirror.exonetric.net", "ftp.bit.nl", 
-	"mirrors.ucr.ac.cr", "mirrors.gigenet.com", "mirror.hs-esslingen.de", 
-	"mirror.one.com", "ftp.nluug.nl", "www.mirrorservice.org", 
-	"mirrors.pidginhost.com", "ftp.fsn.hu", "mirrors.dotsrc.org", 
-	"ftp.spline.de", "mirror.ungleich.ch", "ftp.halifax.rwth-aachen.de", 
-	"ftp.eu.openbsd.org", "ftp.fau.de", "mirrors.nav.ro", 
-	"mirror.linux.pizza", "openbsd.mirror.garr.it", 
-	"ftp.rnl.tecnico.ulisboa.pt", "ftp.cc.uoc.gr", "mirror.esc7.net", 
-	"openbsd.hk", "openbsd.c3sl.ufpr.br", "mirror.litnet.lt", 
-	"ftp.eenet.ee", "mirror.yandex.ru", "mirror.csclub.uwaterloo.ca", 
-	"ftp.riken.jp", "ftp.bytemine.net", "mirror.fsmg.org.nz", 
-	"ftp.icm.edu.pl", "mirror.labkom.id", "ftp.yzu.edu.tw"
+	"openbsd.mirror.netelligent.ca", "openbsd.mirror.constant.com", 
+	"mirrors.gigenet.com", "mirror.csclub.uwaterloo.ca", "mirror.vdms.com", 
+	"cloudflare.cdn.openbsd.org", "mirror.esc7.net", "ftp.usa.openbsd.org", 
+	"ftp4.usa.openbsd.org", "mirrors.mit.edu", "mirrors.sonic.net", 
+	"cdn.openbsd.org", "ftp.OpenBSD.org", "mirrors.syringanetworks.net", 
+	"mirrors.dalenys.com", "mirror.exonetric.net", "www.mirrorservice.org", 
+	"mirrors.ucr.ac.cr", "mirror.bytemark.co.uk", "ftp.fr.openbsd.org", 
+	"openbsd.cs.toronto.edu", "*artfiles.org/openbsd", "ftp.hostserver.de", 
+	"ftp.spline.de", "mirror.yandex.ru", "mirror.one.com", 
+	"mirrors.pidginhost.com", "mirror.ungleich.ch", "mirrors.nav.ro", 
+	"ftp.fau.de", "ftp.eu.openbsd.org", "mirror.hs-esslingen.de", 
+	"openbsd.mirror.garr.it", "ftp.bytemine.net", "mirror.litnet.lt", 
+	"ftp.fsn.hu", "ftp.eenet.ee", "ftp.halifax.rwth-aachen.de", 
+	"ftp.rnl.tecnico.ulisboa.pt", "openbsd.c3sl.ufpr.br", 
+	"mirrors.dotsrc.org", "openbsd.hk", "ftp.cc.uoc.gr", 
+	"mirror.fsmg.org.nz", "ftp.riken.jp", "mirror.linux.pizza", 
+	"ftp.icm.edu.pl", "mirror.labkom.id", "ftp.bit.nl", "ftp.nluug.nl", 
+	"ftp.yzu.edu.tw"
 	};
 
 	int index = arc4random_uniform(51);
+
 
 	exit_line = __LINE__;
 
@@ -1330,7 +1331,6 @@ main(int argc, char *argv[])
 			
 			if (!cut) printf("*");
 			
-			
 			printf("%s\"", array[c]->http + strlen("https://"));
 			
 			if (c < se) printf(", ");
@@ -1338,7 +1338,7 @@ main(int argc, char *argv[])
 		printf("\n\t};\n\n");
 		printf("\tint index = arc4random_uniform(%d);\n\n\n", se + 1);
 		
-		printf("\tReplace section after line: %d, but ", entry_line);
+		printf("Replace section after line: %d, but ", entry_line);
 		printf("before line: %d with the code above.\n\n", exit_line);
 
 
