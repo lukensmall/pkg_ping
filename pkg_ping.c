@@ -645,59 +645,26 @@ main(int argc, char *argv[])
 
 
 	char *ftp_list[51] = {
-	"openbsd.cs.toronto.edu",
-	"openbsd.mirror.netelligent.ca",
-	"mirror.esc7.net",
-	"mirrors.gigenet.com",
-	"ftp4.usa.openbsd.org",
-	"openbsd.mirror.constant.com",
-	"ftp.usa.openbsd.org",
-	"mirrors.mit.edu",
-	"mirrors.syringanetworks.net",
-	"ftp.OpenBSD.org",
-	"mirrors.sonic.net",
-	"mirror.csclub.uwaterloo.ca",
-	"cloudflare.cdn.openbsd.org",
-	"mirrors.ucr.ac.cr",
-	"mirrors.dalenys.com",
-	"mirror.vdms.com",
-	"ftp.fr.openbsd.org",
-	"ftp.bytemine.net",
-	"*artfiles.org/openbsd",
-	"ftp.nluug.nl",
-	"ftp.hostserver.de",
-	"www.mirrorservice.org",
-	"ftp.bit.nl",
-	"cdn.openbsd.org",
-	"ftp.fsn.hu",
-	"mirrors.dotsrc.org",
-	"mirror.bytemark.co.uk",
-	"ftp.fau.de",
-	"ftp.spline.de",
-	"mirror.linux.pizza",
-	"mirrors.pidginhost.com",
-	"mirror.yandex.ru",
-	"mirror.exonetric.net",
-	"mirrors.nav.ro",
-	"ftp.halifax.rwth-aachen.de",
-	"mirror.ungleich.ch",
-	"ftp.eenet.ee",
-	"mirror.litnet.lt",
-	"openbsd.mirror.garr.it",
-	"ftp.cc.uoc.gr",
-	"mirror.hs-esslingen.de",
-	"mirror.one.com",
-	"ftp.eu.openbsd.org",
-	"ftp.rnl.tecnico.ulisboa.pt",
-	"openbsd.hk",
-	"mirror.fsmg.org.nz",
-	"ftp.riken.jp",
-	"ftp.icm.edu.pl",
-	"mirror.labkom.id",
-	"ftp.yzu.edu.tw",
-	"openbsd.c3sl.ufpr.br"
-	};
 
+	"cloudflare.cdn.openbsd.org", "openbsd.cs.toronto.edu", 
+	"openbsd.mirror.constant.com", "ftp4.usa.openbsd.org", 
+	"mirrors.mit.edu", "cdn.openbsd.org", "openbsd.mirror.netelligent.ca", 
+	"ftp.usa.openbsd.org", "mirror.vdms.com", "mirrors.sonic.net", 
+	"mirrors.syringanetworks.net", "ftp.OpenBSD.org", "ftp.hostserver.de", 
+	"mirrors.dalenys.com", "ftp.fr.openbsd.org", "mirror.bytemark.co.uk", 
+	"*artfiles.org/openbsd", "mirror.exonetric.net", "ftp.bit.nl", 
+	"mirrors.ucr.ac.cr", "mirrors.gigenet.com", "mirror.hs-esslingen.de", 
+	"mirror.one.com", "ftp.nluug.nl", "www.mirrorservice.org", 
+	"mirrors.pidginhost.com", "ftp.fsn.hu", "mirrors.dotsrc.org", 
+	"ftp.spline.de", "mirror.ungleich.ch", "ftp.halifax.rwth-aachen.de", 
+	"ftp.eu.openbsd.org", "ftp.fau.de", "mirrors.nav.ro", 
+	"mirror.linux.pizza", "openbsd.mirror.garr.it", 
+	"ftp.rnl.tecnico.ulisboa.pt", "ftp.cc.uoc.gr", "mirror.esc7.net", 
+	"openbsd.hk", "openbsd.c3sl.ufpr.br", "mirror.litnet.lt", 
+	"ftp.eenet.ee", "mirror.yandex.ru", "mirror.csclub.uwaterloo.ca", 
+	"ftp.riken.jp", "ftp.bytemine.net", "mirror.fsmg.org.nz", 
+	"ftp.icm.edu.pl", "mirror.labkom.id", "ftp.yzu.edu.tw"
+	};
 
 	int index = arc4random_uniform(51);
 
@@ -1329,29 +1296,47 @@ main(int argc, char *argv[])
 
 		char *cut;
 
-
+		
 		printf("\n\n");
 		printf("\t/* CODE BEGINS HERE */\n");
 		printf("\tchar *ftp_list[%d] = {\n", se + 1);
+		
+		n = 8;
+		printf("\n\t");
 		for (c = 0; c <= se; ++c) {
 			
-			/* This printf() comments the -g output */
-			/* and can be excised or commented out */
 			//~ printf("\n\t/* %s : %.9Lf */\n",
 			    //~ array[c]->label, array[c]->diff);
 			    
-			printf("\t\"");
 			cut = strstr(array[c]->http, "/pub/OpenBSD");
-			
+			    
 			if (cut) *cut = '\0';
-			else printf("*");
+			else ++n;
+				
+			n += strlen(array[c]->http) + 4 - strlen("https://");
+
+			if ( (n + (c < se) - 1) > 80 ) {
+				
+				printf("\n\t");
+				
+				if (cut) n = 8;
+				else n = 9;
+				
+				n += strlen(array[c]->http) + 4
+				    - strlen("https://");
+			}
+			
+			printf("\"");
+			
+			if (!cut) printf("*");
+			
 			
 			printf("%s\"", array[c]->http + strlen("https://"));
 			
-			if (c < se) printf(",\n");
+			if (c < se) printf(", ");
 		}
-		printf("\n\t};\n\n\n");
-		printf("\tint index = arc4random_uniform(%d);\n\n", se + 1);
+		printf("\n\t};\n\n");
+		printf("\tint index = arc4random_uniform(%d);\n\n\n", se + 1);
 		
 		printf("\tReplace section after line: %d, but ", entry_line);
 		printf("before line: %d with the code above.\n\n", exit_line);
