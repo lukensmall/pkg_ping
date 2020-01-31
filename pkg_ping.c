@@ -72,7 +72,7 @@ struct mirror_st {
 };
 
 static int
-diff_cmp(const void *a, const void *b)
+diff_cmp1(const void *a, const void *b)
 {
 	struct mirror_st *one = *( (struct mirror_st **)a );
 	struct mirror_st *two = *( (struct mirror_st **)b );
@@ -81,7 +81,30 @@ diff_cmp(const void *a, const void *b)
 		return -1;
 	if (one->diff > two->diff)
 		return 1;
-	return 0;
+
+	/* list the USA mirrors first */
+	int8_t temp = (strstr(one->label, "USA") != NULL);
+	if (temp != (strstr(two->label, "USA") != NULL)) {
+		if (temp)
+			return -1;
+		return 1;
+	}
+
+	/* will reverse subsort */
+	return strcmp(two->label, one->label);
+}
+
+static int
+diff_cmp2(const void *a, const void *b)
+{
+	struct mirror_st *one = *( (struct mirror_st **)a );
+	struct mirror_st *two = *( (struct mirror_st **)b );
+
+	if (one->diff < two->diff)
+		return -1;
+	if (one->diff > two->diff)
+		return 1;
+	return strcmp(one->http, two->http);
 }
 
 static int
@@ -99,24 +122,6 @@ label_cmp(const void *a, const void *b)
 	}
 
 	return strcmp(one->label, two->label);
-}
-
-static int
-label_rev_cmp(const void *a, const void *b)
-{
-	struct mirror_st *one = *( (struct mirror_st **)a );
-	struct mirror_st *two = *( (struct mirror_st **)b );
-
-	/* list the USA mirrors first */
-	int8_t temp = (strstr(one->label, "USA") != NULL);
-	if (temp != (strstr(two->label, "USA") != NULL)) {
-		if (temp)
-			return -1;
-		return 1;
-	}
-
-	/* will reverse subsort */
-	return strcmp(two->label, one->label);
 }
 
 static void
@@ -592,13 +597,13 @@ main(int argc, char *argv[])
 
 		if (i < ke.data) {
 			printf("%s ", strerror(errno));
-			printf("read error occurred line: %d\n", __LINE__);
+			printf("read error occurred, line: %d\n", __LINE__);
 			fclose(pkg_write);
 			_exit(1);
 		}
 
 		if (i <= (int)strlen("http://")) {
-			printf("read <= \"http://\": %d\n", __LINE__);
+			printf("read <= \"http://\", line: %d\n", __LINE__);
 			fclose(pkg_write);
 			_exit(1);
 		}
@@ -608,7 +613,7 @@ main(int argc, char *argv[])
 		i = fwrite(tag_w, 1, ke.data + 1, pkg_write);
 		if (i < ke.data + 1) {
 			printf("%s ", strerror(errno));
-			printf("write error occurred line: %d\n", __LINE__);
+			printf("write error occurred, line: %d\n", __LINE__);
 			fclose(pkg_write);
 			_exit(1);
 		}
@@ -646,24 +651,24 @@ main(int argc, char *argv[])
 
 	char *ftp_list[51] = {
 
-	"cloudflare.cdn.openbsd.org", "mirrors.gigenet.com", 
-	"openbsd.mirror.constant.com", "openbsd.mirror.netelligent.ca", 
-	"mirror.esc7.net", "openbsd.cs.toronto.edu", "ftp.usa.openbsd.org", 
-	"ftp4.usa.openbsd.org", "mirror.vdms.com", "mirrors.mit.edu", 
-	"mirror.csclub.uwaterloo.ca", "mirrors.sonic.net", 
-	"mirrors.syringanetworks.net", "www.mirrorservice.org", "ftp.nluug.nl", 
-	"ftp.bytemine.net", "mirror.bytemark.co.uk", "ftp.fr.openbsd.org", 
-	"ftp.halifax.rwth-aachen.de", "mirror.hs-esslingen.de", "ftp.bit.nl", 
-	"ftp.hostserver.de", "mirror.exonetric.net", "mirror.ungleich.ch", 
-	"mirrors.ucr.ac.cr", "mirror.linux.pizza", "mirror.one.com", 
-	"ftp.OpenBSD.org", "mirrors.nav.ro", "ftp.spline.de", "ftp.fsn.hu", 
-	"mirrors.dotsrc.org", "*artfiles.org/openbsd", "ftp.fau.de", 
-	"ftp.eu.openbsd.org", "ftp.eenet.ee", "ftp.rnl.tecnico.ulisboa.pt", 
-	"openbsd.mirror.garr.it", "mirror.litnet.lt", "mirrors.pidginhost.com", 
-	"ftp.cc.uoc.gr", "openbsd.c3sl.ufpr.br", "openbsd.hk", 
-	"cdn.openbsd.org", "ftp.riken.jp", "mirror.fsmg.org.nz", 
-	"ftp.icm.edu.pl", "mirror.labkom.id", "mirror.yandex.ru", 
-	"mirrors.dalenys.com", "ftp.yzu.edu.tw"
+	"ftp.bit.nl", "ftp.fau.de", "ftp.fsn.hu", "openbsd.hk", "ftp.eenet.ee", 
+	"ftp.nluug.nl", "ftp.riken.jp", "ftp.cc.uoc.gr", "ftp.spline.de", 
+	"ftp.icm.edu.pl", "ftp.yzu.edu.tw", "mirror.one.com", "mirrors.nav.ro", 
+	"cdn.openbsd.org", "ftp.OpenBSD.org", "mirror.esc7.net", 
+	"mirror.vdms.com", "mirrors.mit.edu", "ftp.bytemine.net", 
+	"mirror.labkom.id", "mirror.litnet.lt", "mirror.yandex.ru", 
+	"ftp.hostserver.de", "mirrors.sonic.net", "mirrors.ucr.ac.cr", 
+	"ftp.eu.openbsd.org", "ftp.fr.openbsd.org", "mirror.fsmg.org.nz", 
+	"mirror.linux.pizza", "mirror.ungleich.ch", "mirrors.dotsrc.org", 
+	"ftp.usa.openbsd.org", "mirrors.dalenys.com", "mirrors.gigenet.com", 
+	"ftp4.usa.openbsd.org", "mirror.exonetric.net", "openbsd.c3sl.ufpr.br", 
+	"*artfiles.org/openbsd", "mirror.bytemark.co.uk", 
+	"www.mirrorservice.org", "mirror.hs-esslingen.de", 
+	"mirrors.pidginhost.com", "openbsd.cs.toronto.edu", 
+	"openbsd.mirror.garr.it", "cloudflare.cdn.openbsd.org", 
+	"ftp.halifax.rwth-aachen.de", "ftp.rnl.tecnico.ulisboa.pt", 
+	"mirror.csclub.uwaterloo.ca", "mirrors.syringanetworks.net", 
+	"openbsd.mirror.constant.com", "openbsd.mirror.netelligent.ca"
 	};
 
 	int index = arc4random_uniform(51);
@@ -1266,7 +1271,7 @@ main(int argc, char *argv[])
 	}
 
 
-	qsort(array, array_length, sizeof(struct mirror_st *), diff_cmp);
+	qsort(array, array_length, sizeof(struct mirror_st *), diff_cmp1);
 
 	if (verbose >= 1) {
 		
@@ -1294,10 +1299,18 @@ main(int argc, char *argv[])
 			
 		if(se < 0) errx(1, "\n\nno good mirrors");
 
-
 		char *cut;
-
 		
+		/* load diff with relative size */
+		for (c = 0; c <= se; ++c) {
+			cut = strstr(array[c]->http, "/pub/OpenBSD");
+			if (cut) array[c]->diff = cut - array[c]->http;
+			else array[c]->diff = strlen(array[c]->http) + 1;
+		}
+
+		/* sort by size, subsort alphabetically */
+		qsort(array, se + 1, sizeof(struct mirror_st *), diff_cmp2);
+		    
 		printf("\n\n");
 		printf("\t/* CODE BEGINS HERE */\n");
 		printf("\tchar *ftp_list[%d] = {\n", se + 1);
@@ -1305,10 +1318,7 @@ main(int argc, char *argv[])
 		n = 8;
 		printf("\n\t");
 		for (c = 0; c <= se; ++c) {
-			
-			//~ printf("\n\t/* %s : %.9Lf */\n",
-			    //~ array[c]->label, array[c]->diff);
-			    
+
 			cut = strstr(array[c]->http, "/pub/OpenBSD");
 			    
 			if (cut) *cut = '\0';
@@ -1345,16 +1355,7 @@ main(int argc, char *argv[])
 		return 0;
 
 		generate_jump:
-		
-		if (de > ds) {
-			qsort(array + ds, 1 + de - ds, 
-			    sizeof(struct mirror_st *), label_rev_cmp);
-		}
-		
-		if (te > ts) {
-			qsort(array + ts, 1 + te - ts,
-			    sizeof(struct mirror_st *), label_rev_cmp);
-		}
+	
 
 		c = array_length - 1;
 		
