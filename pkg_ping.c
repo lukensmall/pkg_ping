@@ -72,7 +72,7 @@ struct mirror_st {
 };
 
 static int
-diff_cmp1(const void *a, const void *b)
+diff_cmp(const void *a, const void *b)
 {
 	struct mirror_st *one = *( (struct mirror_st **)a );
 	struct mirror_st *two = *( (struct mirror_st **)b );
@@ -95,7 +95,7 @@ diff_cmp1(const void *a, const void *b)
 }
 
 static int
-diff_cmp2(const void *a, const void *b)
+diff_cmp_g(const void *a, const void *b)
 {
 	struct mirror_st *one = *( (struct mirror_st **)a );
 	struct mirror_st *two = *( (struct mirror_st **)b );
@@ -649,29 +649,27 @@ main(int argc, char *argv[])
 	entry_line = __LINE__;
 
 
-	char *ftp_list[51] = {
+char *ftp_list[52] = {
 
-	"ftp.bit.nl", "ftp.fau.de", "ftp.fsn.hu", "openbsd.hk", "ftp.eenet.ee", 
-	"ftp.nluug.nl", "ftp.riken.jp", "ftp.cc.uoc.gr", "ftp.spline.de", 
-	"ftp.icm.edu.pl", "ftp.yzu.edu.tw", "mirror.one.com", "mirrors.nav.ro", 
-	"cdn.openbsd.org", "ftp.OpenBSD.org", "mirror.esc7.net", 
-	"mirror.vdms.com", "mirrors.mit.edu", "ftp.bytemine.net", 
-	"mirror.labkom.id", "mirror.litnet.lt", "mirror.yandex.ru", 
-	"ftp.hostserver.de", "mirrors.sonic.net", "mirrors.ucr.ac.cr", 
-	"ftp.eu.openbsd.org", "ftp.fr.openbsd.org", "mirror.fsmg.org.nz", 
-	"mirror.linux.pizza", "mirror.ungleich.ch", "mirrors.dotsrc.org", 
-	"ftp.usa.openbsd.org", "mirrors.dalenys.com", "mirrors.gigenet.com", 
-	"ftp4.usa.openbsd.org", "mirror.exonetric.net", "openbsd.c3sl.ufpr.br", 
-	"*artfiles.org/openbsd", "mirror.bytemark.co.uk", 
-	"www.mirrorservice.org", "mirror.hs-esslingen.de", 
-	"mirrors.pidginhost.com", "openbsd.cs.toronto.edu", 
-	"openbsd.mirror.garr.it", "cloudflare.cdn.openbsd.org", 
-	"ftp.halifax.rwth-aachen.de", "ftp.rnl.tecnico.ulisboa.pt", 
-	"mirror.csclub.uwaterloo.ca", "mirrors.syringanetworks.net", 
-	"openbsd.mirror.constant.com", "openbsd.mirror.netelligent.ca"
-	};
+"ftp.bit.nl","ftp.fau.de","ftp.fsn.hu","openbsd.hk","ftp.eenet.ee",
+"ftp.nluug.nl","ftp.riken.jp","ftp.cc.uoc.gr","ftp.spline.de","ftp.icm.edu.pl",
+"ftp.yzu.edu.tw","mirror.one.com","mirrors.nav.ro","cdn.openbsd.org",
+"ftp.OpenBSD.org","mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu",
+"ftp.bytemine.net","mirror.labkom.id","mirror.litnet.lt","mirror.yandex.ru",
+"ftp.hostserver.de","mirrors.sonic.net","mirrors.ucr.ac.cr",
+"ftp.eu.openbsd.org","ftp.fr.openbsd.org","mirror.fsmg.org.nz",
+"mirror.linux.pizza","mirror.ungleich.ch","mirrors.dotsrc.org",
+"ftp.usa.openbsd.org","mirror.leaseweb.com","mirrors.dalenys.com",
+"mirrors.gigenet.com","ftp4.usa.openbsd.org","mirror.exonetric.net",
+"openbsd.c3sl.ufpr.br","*artfiles.org/openbsd","mirror.bytemark.co.uk",
+"www.mirrorservice.org","mirror.hs-esslingen.de","mirrors.pidginhost.com",
+"openbsd.cs.toronto.edu","openbsd.mirror.garr.it","cloudflare.cdn.openbsd.org",
+"ftp.halifax.rwth-aachen.de","ftp.rnl.tecnico.ulisboa.pt",
+"mirror.csclub.uwaterloo.ca","mirrors.syringanetworks.net",
+"openbsd.mirror.constant.com","openbsd.mirror.netelligent.ca"
+};
 
-	int index = arc4random_uniform(51);
+int index = arc4random_uniform(52);
 
 
 	exit_line = __LINE__;
@@ -1271,7 +1269,8 @@ main(int argc, char *argv[])
 	}
 
 
-	qsort(array, array_length, sizeof(struct mirror_st *), diff_cmp1);
+	/* sort by time, reverse subsort label */
+	qsort(array, array_length, sizeof(struct mirror_st *), diff_cmp);
 
 	if (verbose >= 1) {
 		
@@ -1301,22 +1300,22 @@ main(int argc, char *argv[])
 
 		char *cut;
 		
-		/* load diff with relative size */
+		/* load diff with relative http lengths */
 		for (c = 0; c <= se; ++c) {
 			cut = strstr(array[c]->http, "/pub/OpenBSD");
 			if (cut) array[c]->diff = cut - array[c]->http;
 			else array[c]->diff = strlen(array[c]->http) + 1;
 		}
 
-		/* sort by size, subsort alphabetically */
-		qsort(array, se + 1, sizeof(struct mirror_st *), diff_cmp2);
+		/* sort by size, subsort http alphabetically */
+		qsort(array, se + 1, sizeof(struct mirror_st *), diff_cmp_g);
 		    
 		printf("\n\n");
-		printf("\t/* CODE BEGINS HERE */\n");
-		printf("\tchar *ftp_list[%d] = {\n", se + 1);
+		printf("/* CODE BEGINS HERE */\n");
+		printf("char *ftp_list[%d] = {\n", se + 1);
 		
-		n = 8;
-		printf("\n\t");
+		n = 0;
+		printf("\n");
 		for (c = 0; c <= se; ++c) {
 
 			cut = strstr(array[c]->http, "/pub/OpenBSD");
@@ -1324,14 +1323,14 @@ main(int argc, char *argv[])
 			if (cut) *cut = '\0';
 			else ++n;
 				
-			n += strlen(array[c]->http) + 4 - strlen("https://");
+			n += strlen(array[c]->http) + 3 - strlen("https://");
 
-			if (n - ((c == se) + 1) > 80) {
+			if (n - (c == se) > 80) {
 				
-				printf("\n\t");
+				printf("\n");
 				
-				if (cut) n = 8;
-				else n = 9;
+				if (cut) n = 0;
+				else n = 1;
 				
 				n += strlen(array[c]->http) + 4
 				    - strlen("https://");
@@ -1343,10 +1342,10 @@ main(int argc, char *argv[])
 			
 			printf("%s\"", array[c]->http + strlen("https://"));
 			
-			if (c < se) printf(", ");
+			if (c < se) printf(",");
 		}
-		printf("\n\t};\n\n");
-		printf("\tint index = arc4random_uniform(%d);\n\n\n", se + 1);
+		printf("\n};\n\n");
+		printf("int index = arc4random_uniform(%d);\n\n\n", se + 1);
 		
 		printf("Replace section after line: %d, but ", entry_line);
 		printf("before line: %d with the code above.\n\n", exit_line);
