@@ -649,7 +649,7 @@ main(int argc, char *argv[])
 	entry_line = __LINE__;
 
 
-char *ftp_list[52] = {
+char *ftp_list[55] = {
 
 "ftp.bit.nl","ftp.fau.de","ftp.fsn.hu","openbsd.hk","ftp.eenet.ee",
 "ftp.nluug.nl","ftp.riken.jp","ftp.cc.uoc.gr","ftp.spline.de","ftp.icm.edu.pl",
@@ -659,9 +659,10 @@ char *ftp_list[52] = {
 "ftp.hostserver.de","mirrors.sonic.net","mirrors.ucr.ac.cr",
 "ftp.eu.openbsd.org","ftp.fr.openbsd.org","mirror.fsmg.org.nz",
 "mirror.linux.pizza","mirror.ungleich.ch","mirrors.dotsrc.org",
-"ftp.usa.openbsd.org","mirror.leaseweb.com","mirrors.dalenys.com",
-"mirrors.gigenet.com","ftp4.usa.openbsd.org","mirror.exonetric.net",
-"openbsd.c3sl.ufpr.br","*artfiles.org/openbsd","mirror.bytemark.co.uk",
+"openbsd.ipacct.com","ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
+"mirror.leaseweb.com","mirrors.dalenys.com","mirrors.gigenet.com",
+"ftp4.usa.openbsd.org","mirror.exonetric.net","openbsd.c3sl.ufpr.br",
+"*artfiles.org/openbsd","mirror.bytemark.co.uk","mirror.planetunix.net",
 "www.mirrorservice.org","mirror.hs-esslingen.de","mirrors.pidginhost.com",
 "openbsd.cs.toronto.edu","openbsd.mirror.garr.it","cloudflare.cdn.openbsd.org",
 "ftp.halifax.rwth-aachen.de","ftp.rnl.tecnico.ulisboa.pt",
@@ -669,7 +670,7 @@ char *ftp_list[52] = {
 "openbsd.mirror.constant.com","openbsd.mirror.netelligent.ca"
 };
 
-int index = arc4random_uniform(52);
+int index = arc4random_uniform(55);
 
 
 	exit_line = __LINE__;
