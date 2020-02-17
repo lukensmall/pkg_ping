@@ -502,10 +502,10 @@ main(int argc, char *argv[])
 			printf("\n");
 		}
 
-		if (six_available == 0)
-			i = write(dns_cache_d_socket[0], "0", 1);
+		if (six_available)
+			i = write(dns_cache_d_socket[0], "1", 1);
 		else		
-			i = write(dns_cache_d_socket[0], "1", 1);		
+			i = write(dns_cache_d_socket[0], "0", 1);		
 		
 		if (i < 1)
 			_exit(1);
@@ -581,6 +581,12 @@ main(int argc, char *argv[])
 		/* fopen(... "w") truncates the file */
 		pkg_write = fopen("/etc/installurl", "w");
 
+		if (pledge("stdio", NULL) == -1) {
+			printf("%s ", strerror(errno));
+			printf("pledge, line: %d\n", __LINE__);
+			_exit(1);
+		}
+
 		if (pkg_write == NULL) {
 			printf("%s ", strerror(errno));
 			printf("/etc/installurl not opened.\n");
@@ -649,7 +655,7 @@ main(int argc, char *argv[])
 	entry_line = __LINE__;
 
 
-char *ftp_list[55] = {
+char *ftp_list[54] = {
 
 "ftp.bit.nl","ftp.fau.de","ftp.fsn.hu","openbsd.hk","ftp.eenet.ee",
 "ftp.nluug.nl","ftp.riken.jp","ftp.cc.uoc.gr","ftp.spline.de","ftp.icm.edu.pl",
@@ -663,14 +669,14 @@ char *ftp_list[55] = {
 "mirror.leaseweb.com","mirrors.dalenys.com","mirrors.gigenet.com",
 "ftp4.usa.openbsd.org","mirror.exonetric.net","openbsd.c3sl.ufpr.br",
 "*artfiles.org/openbsd","mirror.bytemark.co.uk","mirror.planetunix.net",
-"www.mirrorservice.org","mirror.hs-esslingen.de","mirrors.pidginhost.com",
-"openbsd.cs.toronto.edu","openbsd.mirror.garr.it","cloudflare.cdn.openbsd.org",
+"mirror.hs-esslingen.de","mirrors.pidginhost.com","openbsd.cs.toronto.edu",
+"openbsd.mirror.garr.it","cloudflare.cdn.openbsd.org",
 "ftp.halifax.rwth-aachen.de","ftp.rnl.tecnico.ulisboa.pt",
 "mirror.csclub.uwaterloo.ca","mirrors.syringanetworks.net",
 "openbsd.mirror.constant.com","openbsd.mirror.netelligent.ca"
 };
 
-int index = arc4random_uniform(55);
+int index = arc4random_uniform(54);
 
 
 	exit_line = __LINE__;
@@ -851,7 +857,6 @@ int index = arc4random_uniform(55);
 	}
 	if (i == 0) {
 		kill(ftp_pid, SIGKILL);
-		printf("restarting...\n");
 		goto restart;
 	}
 	
