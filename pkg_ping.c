@@ -1338,7 +1338,7 @@ int index = arc4random_uniform(54);
 				if (cut) n = 0;
 				else n = 1;
 				
-				n += strlen(array[c]->http) + 4
+				n += strlen(array[c]->http) + 3
 				    - strlen("https://");
 			}
 			
