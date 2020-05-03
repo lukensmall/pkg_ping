@@ -54,7 +54,7 @@ It uses several commandline options:
 
 -V will stop all output except error messages. It overrides all -v instances; useful if run inside of a daemon.
 
-pkg_ping will shorten the timeout period to the download time of the fastest previos mirror throughout execution
+pkg_ping will shorten the timeout period to the download time of the fastest previous mirror throughout execution
 if no -v or if -V is used, so if you want the fastest results, use either no -v or use -V
 
 cc pkg_ping.c -o pkg_ping
