@@ -1,7 +1,6 @@
-pkg_ping_AMD64 is an amd64 compatible compiled executable I created on my machine, if you're brave!
+pkg_ping_AMD64 is a compiled executable I created on my amd64-based OpenBSD machine, IF YOU'RE BRAVE!
 
-
-It uses pledge and unveil for OpenBSD version 6.4 and later.
+pkg_ping uses pledge and unveil for OpenBSD version 6.4 and later.
 
 It determines and prints the fastest OpenBSD mirror for your version and architecture for the /etc/installurl file and if run 
 as root, will write it to disk unless the -f flag is used.
