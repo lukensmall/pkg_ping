@@ -21,7 +21,7 @@ It uses several commandline options:
 
 -6 causes it to only lookup ipv6 addresses on mirrors.
 
--d causes DNS caching to be skipped.
+-d causes the fork()ed DNS caching process to be skipped.
 
 -f prohibits a fork()ed process from writing the fastest mirror to file even if it has the power to do so as root.
 
@@ -35,10 +35,9 @@ It uses several commandline options:
 
 -s will accept floating-point timeout like 1.5 seconds using strtod() and handrolled validation, eg. "-s 1.5", default 5.
 
--S (“Secure only”) option will only choose https mirrors. Otherwise, http and ftp mirrors will be chosen. The ftp mirrors
-   are turned into http mirror listings and deduplicated. http/ftp mirrors are faster than most https mirror selections, however 
-   they pass over the internet without encryption. Integrity is still preserved by not using -S, but it will not provide
-   secrecy.
+-S (“Secure only”) option will only choose https mirrors. Otherwise, http mirrors will be chosen. http mirrors are faster than
+   most https mirror selections, however they pass over the internet without encryption. Integrity is still preserved by not 
+   using -S, but it will not provide secrecy.
 
 -u will make it search for only non-USA mirrors for export encryption compliance if you are searching from outside of the USA.
 
