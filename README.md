@@ -1,4 +1,4 @@
-pkg_ping_AMD64 is an amd64 compatible compiled executable I created on my machine!
+pkg_ping_AMD64 is an amd64 compatible compiled executable I created on my machine, if you're brave!
 
 
 It uses pledge and unveil for OpenBSD version 6.4 and later.
