@@ -37,23 +37,25 @@ It uses several commandline options:
 
 -S (“Secure only”) option will only choose https mirrors. Otherwise, http mirrors will be chosen. http mirrors are faster than
    most https mirror selections, however they pass over the internet without encryption. Integrity is still preserved by not 
-   using -S, but it will not provide secrecy.
+   using -S, but it will not provide secrecy...maybe you don't want the internets to know you're downloading hot-babe! LOL
 
--u will make it search for only non-USA mirrors for export encryption compliance if you are searching from outside of the USA.
+-u will make it search for only non-USA mirrors for export encryption
+   compliance if you are searching from outside of the USA and Canada.
 
--v will show when it is fetching "ftplist" from one of the many mirrors hard coded from running the -g option, print out the
-   results sorted in reverse order by time or if timed out, or download error, alphabetically and print a line that you can
-   copy and paste into a root terminal to install that mirror.
+-v will show when it is fetching "ftplist" from one of the many hard coded mirrors, prints out the results 
+   sorted in reverse order by time or if it is timed out, or a download error,
+   alphabetically, print a line that you can copy and paste into a root terminal to "install" that mirror.
    
    -vv will also make it print out the information of the mirrors in real time.
    
-   -vvv will also show verboseness in the ftp calls to mirrors.
+   -vvv will also show ftp call output to mirrors; which includes a progress bar.
    
    -vvvv will also show dns lookup output.
 
--V will stop all output except error messages. It overrides all -v instances.
+-V will stop all output except error messages. It overrides all -v instances. useful if run inside of a daemon.
 
-It will shorten the timeout period to the download time of the fastest mirror throughout execution if no -v or if -V is used.
+pkg_ping will shorten the timeout period to the download time of the fastest previos mirror throughout execution
+if no -v or if -V is used, so if you want the fastest results, use either no -v or use -V
 
 cc pkg_ping.c -o pkg_ping
 
