@@ -46,10 +46,10 @@
  *	indent pkg_ping.c -bap -br -ce -ci4 -cli0 -d0 -di0 -i8 \
  *	-ip -l79 -nbc -ncdb -ndj -ei -nfc1 -nlp -npcs -psl -sc -sob
  *
- *	cc pkg_ping.c -pipe -Os -o pkg_ping
+ *	cc pkg_ping.c -pipe -o pkg_ping
  *
  * 	On big-endian systems like sparc64, you may need:
- * 	cc pkg_ping.c -mlittle-endian -pipe -Os -o pkg_ping
+ * 	cc pkg_ping.c -mlittle-endian -pipe -o pkg_ping
  */
 
 #include <err.h>
