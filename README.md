@@ -1,4 +1,4 @@
-pkg_ping_AMD64 is pkg_ping compiled on my amd64 OpenBSD machine: IF YOU'RE BRAVE!
+pkg_ping_AMD64 is pkg_ping.c compiled on my amd64 OpenBSD machine: IF YOU'RE BRAVE!
 
 pkg_ping uses pledge and unveil for OpenBSD version 6.4 and later.
 
