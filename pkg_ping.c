@@ -221,6 +221,12 @@ main(int argc, char *argv[])
 		current = 1;
 
 	free(version);
+	
+	for(i = 1; i < argc; ++i)
+	{
+		if (strlen(argv[i]) >= 20)
+			errx(1, "limit arguments to less than length 20");
+	}
 
 	while ((c = getopt(argc, argv, "6dfghOSs:uvV")) != -1) {
 		switch (c) {
@@ -250,8 +256,6 @@ main(int argc, char *argv[])
 			secure = 1;
 			break;
 		case 's':
-			if (strlen(optarg) > 10)
-				errx(1, "too many characters in -s");
 			c = -1;
 			i = n = 0;
 			while (optarg[++c] != '\0') {
@@ -586,7 +590,8 @@ jump_dns:
 			_exit(1);
 		}
 		
-		/* fopen(... "w") truncates the file */
+		/* unlink() to prevent possible symlinks by...root? */
+		unlink("/etc/installurl");
 		pkg_write = fopen("/etc/installurl", "w");
 
 		if (pledge("stdio", NULL) == -1) {
@@ -932,6 +937,10 @@ jump_f:
 			if (secure) {
 				strlcpy(array[array_length]->http + 1,
 				    line, pos - 1);
+				    
+				if (pos - 1 <= 5)
+					errx(1, "bad mirror received.");
+				    
 				memcpy(array[array_length]->http,
 				    "https", 5);
 			} else
