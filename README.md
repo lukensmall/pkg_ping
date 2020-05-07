@@ -1,4 +1,4 @@
-pkg_ping is pkg_ping.c compiled on my amd64 OpenBSD machine: IF YOU'RE BRAVE!
+pkg_ping is pkg_ping.c compiled on my amd64 OpenBSD 6.6 machine: IF YOU'RE BRAVE!
 
 (cc pkg_ping.c -pipe -o pkg_ping)
 
