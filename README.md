@@ -1,5 +1,5 @@
 I dug it up from the crypt in case there's a desire to run OpenBSD 5.8 - 6.0
-It still has bugs I got rid of years ago, but if you were worried
+It still has bugs I got rid of years ago, copied and pasted a file I last wrote in early 2017
 
 It determines and prints several of the fastest OpenBSD mirrors.
 As root, will write them all to /etc/pkg.conf and change to user 1000
