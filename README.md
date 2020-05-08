@@ -18,7 +18,7 @@ It uses several commandline options:
 
 -v increases verbosity. Can specify meaningfully up to 3 times
 
--n sets a maximum number of mirrors to specify in /etc/pkg.conf
+-n sets a maximum whole number of mirrors to specify in /etc/pkg.conf
 
 cc pkg_ping.c -o pkg_ping
 
