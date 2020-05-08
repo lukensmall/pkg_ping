@@ -2,7 +2,7 @@ I dug it up from the crypt in case there's a desire to run OpenBSD 5.8 - 6.0
 It still has bugs I got rid of years ago, copied and pasted a file I last wrote in early 2017
 
 It determines and prints several of the fastest OpenBSD mirrors.
-As root, will write them all to /etc/pkg.conf and change to user 1000
+As root, will write them all to /etc/pkg.conf and change to user 1000, which is the standard initial user number.
 
 pkg_ping doesn't use pledge() nor unveil() for OpenBSD, 'cuz they didn't exist yet!
 I don't recommend running it at all. If you're running pre-6.1 are you really that worried?
