@@ -1,5 +1,5 @@
 I dug it up from the crypt in case there's a desire to run OpenBSD 5.8 - 6.0, when installurl(5) didn't exist!
-It still has potential vulnerabilities and inefficiencies I got rid of YEARS AGO.
+It still has potential vulnerabilities and slight inefficiencies I got rid of YEARS AGO.
 I basically copied and pasted a file I last wrote in April 2017.
 
 It determines and prints several of the fastest OpenBSD mirrors.
@@ -10,7 +10,7 @@ I don't recommend running it at all. If you're running pre-6.1 are you really th
 
 If you need to run version 5.8, when pledge() didn't exist, put at the top: #define pledge(x,y) 0
 
-It doesn't have DNS caching, so for the best results, run it twice.
+It doesn't have DNS caching, so for the best results: run it twice.
 
 It uses a few commandline options:
 
