@@ -1,3 +1,5 @@
+This could be useful on the most recent Zaurus, Sparc (not Sparc64), and Vax releases which dropped back when!
+
 I dug it up from the crypt in case there's a desire to run OpenBSD 5.8 - 6.0, when installurl(5) didn't exist!
 It still has potential vulnerabilities and slight inefficiencies I got rid of YEARS AGO.
 I basically copied and pasted a file I last wrote in April 2017.
