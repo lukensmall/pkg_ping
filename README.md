@@ -3,9 +3,9 @@ pkg_ping is pkg_ping.c compiled on my amd64 OpenBSD 6.6 machine: IF YOU'RE BRAVE
 (cc pkg_ping.c -pipe -o pkg_ping)
 
 It determines and prints the fastest OpenBSD mirror for your version and architecture for the /etc/installurl file and if run 
-as root, will write it to disk unless the -f flag is used.
+as root, will write it to disk unless -f is used.
 
-Compiler optimizations for speed is not worth the compile time. Waiting for ftp calls will take up the vast majority of the
+Compiler optimizations for speed is not worth the compile time. Waiting for ftp calls and dns queries will take up the vast majority of the
 run-time; everything else happens in the blink of an eye.
 
 pledge() is updated throughout. Because of how unveil() is designed, unveil() limits are created up front and
@@ -13,8 +13,8 @@ immediately takes away the possibility to unveil() any further.
 
 It automatically discovers whether you are running a release vs a current or beta snapshot!
 
-It defaults to precaching your dns server by looking up the mirror's ip address(es);
-this way, there is no inconsistency caused by ftp timed with inconsistent dns loading times.
+It defaults to precaching your dns server by looking up a mirror's ip address(es);
+this way, there is no inconsistency caused by ftp timed with inconsistent dns query times.
 
 It restarts for most initial ftp call error cases which can be fixed with a different random number.
 
@@ -24,15 +24,16 @@ I don't recommend running it altered without pledge() or unveil(). /etc/installu
 It uses several commandline options:
 
 -6 causes it to only lookup ipv6 addresses on mirrors.
-   Maybe you want to make a ipv6 only box, but want to test it with ipv4 connected first?
+   Maybe you want to make an ipv6 only box, but want to test it with ipv4 connected first?
 
 -d causes the fork()ed DNS caching process to be skipped.
 
 -f prohibits a fork()ed process from writing the fastest mirror to file even if it has the power to do so as root.
 
 -g generates the massive https list from which to retrieve and parse "ftplist", which you no doubt, noticed when you look at the
-   source code. It downloads an 11 byte timestamp which is in all mirrors, whereas not all mirrors might have snapshots or your
-   architecture or version. It presets options such as minimum verboseness -f -v, -S, and -f.
+   source code. It downloads an 11 byte timestamp which is in all mirrors, whereas not all mirrors might have snapshots of your
+   architecture or version. It presets options such as minimum verboseness of -v, -f, and finally: -S because otherwise the mirror
+   list is otherwise impossible to determine its validity.
 
 -h will print the "help" options.
 
@@ -41,9 +42,9 @@ It uses several commandline options:
 
 -s will accept floating-point timeout like 1.5 seconds using strtod() and handrolled validation, eg. "-s 1.5", default 5.
 
--S (“Secure only”) option will only choose https mirrors. Otherwise, http mirrors will be chosen. http mirrors are faster than
+-S (“Secure only”) option will convert the http mirrors to https mirrors. Otherwise, http mirrors will be chosen. http mirrors are faster than
    most https mirror selections, however they pass over the internet without encryption. Integrity is still preserved by not 
-   using -S, but it will not provide secrecy...maybe you don't want the internets to know you're downloading hot-babe! LOL
+   using -S, but it will not provide secrecy...maybe you don't want the internets to know you're downloading hot-babe! LOL!
 
 -u will make it search for only non-USA mirrors for export encryption
    compliance if you are searching from outside of the USA and Canada.
@@ -56,9 +57,10 @@ It uses several commandline options:
 
 -vvv (an additional -v) will also show ftp call output to mirrors; which includes a progress bar.
 
--vvvv (an additional -v) will also show dns lookup output.
+-vvvv (an additional -v) will also show dns lookup output if -d is not used.
 
--V will stop all output except error messages. It overrides all -v instances; useful if run from a script.
+-V will stop all output except error messages. It overrides all -v instances.
+   It's useful I suppose, if run from a script or daemon as root.
 
 pkg_ping will shorten the timeout period to the download time of the fastest previous mirror throughout execution
 if no -v or if -V is used, so if you want the fastest single result, don't use -v or run pkg_ping as root and choose -V 
