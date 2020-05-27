@@ -1,7 +1,7 @@
 /*
  * BSD 2-Clause License
  *
- * Copyright (c) 2016 - 2020, Luke N Small, lukensmall@gmail.com
+ * Copyright (c) 2017 - 2020, Luke N Small, lukensmall@gmail.com
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -135,7 +135,7 @@ manpage(char a[])
 
 	printf("[-f (don't write to File even if run as root)]\n");
 
-	printf("[-g (generate source ftp list)]\n");
+	printf("[-g (Generate source ftp list)]\n");
 
 	printf("[-h (print this Help message and exit)]\n");
 
@@ -176,7 +176,7 @@ main(int argc, char *argv[])
 	struct timespec timeout0 = { 20, 0 };
 	char *line;
 
-	if (pledge("stdio exec proc cpath wpath dns unveil", NULL) == -1)
+	if (pledge("stdio exec proc cpath wpath dns id unveil", NULL) == -1)
 		err(1, "pledge, line: %d", __LINE__);
 
 	if (unveil("/usr/bin/ftp", "x") == -1)
@@ -191,10 +191,10 @@ main(int argc, char *argv[])
 		if (unveil("/etc/installurl", "cw") == -1)
 			err(1, "unveil, line: %d", __LINE__);
 
-		if (pledge("stdio exec proc cpath wpath dns", NULL) == -1)
+		if (pledge("stdio exec proc cpath wpath dns id", NULL) == -1)
 			err(1, "pledge, line: %d", __LINE__);
 	} else {
-		if (pledge("stdio exec proc dns", NULL) == -1)
+		if (pledge("stdio exec proc dns id", NULL) == -1)
 			err(1, "pledge, line: %d", __LINE__);
 	}
 
@@ -239,7 +239,7 @@ main(int argc, char *argv[])
 		case 'f':
 			if (f == 0)
 				break;
-			if (pledge("stdio exec proc dns", NULL) == -1)
+			if (pledge("stdio exec proc dns id", NULL) == -1)
 				err(1, "pledge, line: %d", __LINE__);
 			f = 0;
 			break;
@@ -311,7 +311,7 @@ main(int argc, char *argv[])
 		secure = 1;
 		dns_cache_d = 1;
 		f = 0;
-		if (pledge("stdio exec proc dns", NULL) == -1)
+		if (pledge("stdio exec proc dns id", NULL) == -1)
 			err(1, "pledge, line: %d", __LINE__);
 	}
 
@@ -328,6 +328,7 @@ main(int argc, char *argv[])
 	pid_t dns_cache_d_pid = fork();
 	if (dns_cache_d_pid == (pid_t) 0) {
 
+			
 		if (pledge("stdio dns", NULL) == -1) {
 			printf("%s ", strerror(errno));
 			printf("dns_cache_d pledge, line: %d\n", __LINE__);
@@ -536,7 +537,7 @@ jump_dns:
 	if (f == 0)
 		goto jump_f;
 
-	if (pledge("stdio exec proc cpath wpath", NULL) == -1)
+	if (pledge("stdio exec proc cpath wpath id", NULL) == -1)
 		err(1, "pledge, line: %d", __LINE__);
 
 	if (pipe2(parent_to_write, O_CLOEXEC) == -1)
@@ -654,9 +655,13 @@ jump_dns:
 jump_f:
 
 
-
-	if (pledge("stdio exec proc", NULL) == -1)
-		err(1, "pledge, line: %d", __LINE__);
+	if (getuid() == 0) {
+		if (pledge("stdio exec proc id", NULL) == -1)
+			err(1, "pledge, line: %d", __LINE__);
+	} else {
+		if (pledge("stdio exec proc", NULL) == -1)
+			err(1, "pledge, line: %d", __LINE__);
+	}
 
 
 	if (pipe(ftp_out) == -1)
@@ -668,32 +673,31 @@ jump_f:
 	entry_line = __LINE__;
 
 
-	char *ftp_list[55] = {
+	char *ftp_list[51] = {
 
 		"ftp.bit.nl","ftp.fau.de","ftp.fsn.hu","openbsd.hk",
 		"ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp","ftp.cc.uoc.gr",
-		"ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp",
-		"ftp.icm.edu.pl","ftp.yzu.edu.tw","mirror.one.com",
+		"ftp.spline.de","www.ftp.ne.jp","mirror.one.com",
 		"mirrors.nav.ro","cdn.openbsd.org","ftp.OpenBSD.org",
 		"mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu",
-		"ftp.bytemine.net","mirror.labkom.id","mirror.litnet.lt",
-		"mirror.yandex.ru","ftp.hostserver.de","mirrors.sonic.net",
-		"mirrors.ucr.ac.cr","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
-		"mirror.fsmg.org.nz","mirror.linux.pizza","mirror.ungleich.ch",
-		"mirrors.dotsrc.org","openbsd.ipacct.com","ftp.usa.openbsd.org",
-		"ftp2.eu.openbsd.org","mirror.leaseweb.com",
+		"ftp.bytemine.net","mirror.litnet.lt","mirror.yandex.ru",
+		"ftp.hostserver.de","mirrors.sonic.net","mirrors.ucr.ac.cr",
+		"ftp.fr.openbsd.org","mirror.fsmg.org.nz","mirror.linux.pizza",
+		"mirror.ungleich.ch","mirrors.dotsrc.org","openbsd.ipacct.com",
+		"ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
+		"mirror.leaseweb.com","mirrors.dalenys.com",
 		"mirrors.gigenet.com","ftp4.usa.openbsd.org",
-		"mirror.aarnet.edu.au","mirror.exonetric.net",
 		"openbsd.c3sl.ufpr.br","*artfiles.org/openbsd",
 		"mirror.bytemark.co.uk","mirror.planetunix.net",
-		"mirror.hs-esslingen.de","mirrors.pidginhost.com",
+		"www.mirrorservice.org","mirror.hs-esslingen.de",
+		"mirrors.pidginhost.com","openbsd.cs.toronto.edu",
 		"openbsd.mirror.garr.it","cloudflare.cdn.openbsd.org",
-		"ftp.rnl.tecnico.ulisboa.pt","mirror.csclub.uwaterloo.ca",
+		"ftp.halifax.rwth-aachen.de","mirror.csclub.uwaterloo.ca",
 		"mirrors.syringanetworks.net","openbsd.mirror.constant.com",
 		"plug-mirror.rcac.purdue.edu","openbsd.mirror.netelligent.ca"
 	};
 
-	int index = arc4random_uniform(55);
+	int index = arc4random_uniform(51);
 
 
 	exit_line = __LINE__;
@@ -702,6 +706,14 @@ jump_f:
 	ftp_pid = fork();
 	if (ftp_pid == (pid_t) 0) {
 
+	
+		
+		if (getuid() == 0) {
+			/* user _pkgfetch */
+			setuid(57);
+			setgid(57);
+		}
+		
 		if (pledge("stdio exec", NULL) == -1) {
 			printf("%s ", strerror(errno));
 			printf("ftp 1 pledge, line: %d\n", __LINE__);
@@ -752,9 +764,9 @@ jump_f:
 			
 			
 		if (verbose >= 2)
-			execl("/usr/bin/ftp", "ftp", "-vmo", "-", line, NULL);
+			execl("/usr/bin/ftp", "ftp", "-vmo-", line, NULL);
 		else
-			execl("/usr/bin/ftp", "ftp", "-VMo", "-", line, NULL);
+			execl("/usr/bin/ftp", "ftp", "-VMo-", line, NULL);
 
 
 		fprintf(stderr, "%s ", strerror(errno));
@@ -1165,6 +1177,12 @@ jump_f:
 		ftp_pid = fork();
 		if (ftp_pid == (pid_t) 0) {
 
+			if (getuid() == 0) {
+				// user _pkgfetch
+				setuid(57);
+				setgid(57);
+			}
+			
 			if (pledge("stdio exec", NULL) == -1) {
 				printf("%s ", strerror(errno));
 				printf("ftp 2 pledge, line: %d\n", __LINE__);
@@ -1175,29 +1193,38 @@ jump_f:
 			read(block_pipe[STDIN_FILENO], &n, sizeof(int));
 			close(block_pipe[STDIN_FILENO]);
 
-			if (verbose <= 2) {
-				i = open("/dev/null", O_WRONLY);
-				if (i != -1)
+			i = open("/dev/null", O_WRONLY);
+			if (i != -1) {
+				dup2(i, STDOUT_FILENO);
+
+				if (verbose <= 2)
 					dup2(i, STDERR_FILENO);
-			}
-			
+			} else
+				printf("can't open /dev/null\n");
+
+
 			if (verbose == 2)
 				printf("Running ftp:\n");
 
-			if (verbose >= 3 && six) {
-				execl("/usr/bin/ftp", "ftp", "-vm6o",
-				    "/dev/null", line, NULL);
-			} else if (six) {
-				execl("/usr/bin/ftp", "ftp", "-VM6o",
-				    "/dev/null", line, NULL);
-			}
-
-			if (verbose >= 3) {
-				execl("/usr/bin/ftp", "ftp", "-vmo",
-				    "/dev/null", line, NULL);
+			if (six) {
+				
+				if (verbose >= 3) {
+					execl("/usr/bin/ftp", "ftp",
+					    "-vm6o-", line, NULL);
+				} else {
+					execl("/usr/bin/ftp", "ftp",
+					    "-VM6o-", line, NULL);
+				}
+				
 			} else {
-				execl("/usr/bin/ftp", "ftp", "-VMo",
-				    "/dev/null", line, NULL);
+				
+				if (verbose >= 3) {
+					execl("/usr/bin/ftp", "ftp",
+					    "-vmo-", line, NULL);
+				} else {
+					execl("/usr/bin/ftp", "ftp",
+					    "-VMo-", line, NULL);
+				}
 			}
 
 			printf("%s ", strerror(errno));
