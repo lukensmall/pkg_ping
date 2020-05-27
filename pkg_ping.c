@@ -673,31 +673,34 @@ jump_f:
 	entry_line = __LINE__;
 
 
-	char *ftp_list[51] = {
+	char *ftp_list[58] = {
 
 		"ftp.bit.nl","ftp.fau.de","ftp.fsn.hu","openbsd.hk",
 		"ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp","ftp.cc.uoc.gr",
-		"ftp.spline.de","www.ftp.ne.jp","mirror.one.com",
+		"ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp",
+		"ftp.icm.edu.pl","ftp.yzu.edu.tw","mirror.one.com",
 		"mirrors.nav.ro","cdn.openbsd.org","ftp.OpenBSD.org",
 		"mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu",
-		"ftp.bytemine.net","mirror.litnet.lt","mirror.yandex.ru",
-		"ftp.hostserver.de","mirrors.sonic.net","mirrors.ucr.ac.cr",
-		"ftp.fr.openbsd.org","mirror.fsmg.org.nz","mirror.linux.pizza",
-		"mirror.ungleich.ch","mirrors.dotsrc.org","openbsd.ipacct.com",
-		"ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
-		"mirror.leaseweb.com","mirrors.dalenys.com",
-		"mirrors.gigenet.com","ftp4.usa.openbsd.org",
+		"ftp.bytemine.net","mirror.labkom.id","mirror.litnet.lt",
+		"mirror.yandex.ru","ftp.hostserver.de","mirrors.sonic.net",
+		"mirrors.ucr.ac.cr","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
+		"mirror.fsmg.org.nz","mirror.linux.pizza","mirror.ungleich.ch",
+		"mirrors.dotsrc.org","openbsd.ipacct.com","ftp.usa.openbsd.org",
+		"ftp2.eu.openbsd.org","mirror.leaseweb.com",
+		"mirrors.dalenys.com","mirrors.gigenet.com",
+		"ftp4.usa.openbsd.org","mirror.aarnet.edu.au",
 		"openbsd.c3sl.ufpr.br","*artfiles.org/openbsd",
 		"mirror.bytemark.co.uk","mirror.planetunix.net",
 		"www.mirrorservice.org","mirror.hs-esslingen.de",
 		"mirrors.pidginhost.com","openbsd.cs.toronto.edu",
 		"openbsd.mirror.garr.it","cloudflare.cdn.openbsd.org",
-		"ftp.halifax.rwth-aachen.de","mirror.csclub.uwaterloo.ca",
-		"mirrors.syringanetworks.net","openbsd.mirror.constant.com",
-		"plug-mirror.rcac.purdue.edu","openbsd.mirror.netelligent.ca"
+		"ftp.halifax.rwth-aachen.de","ftp.rnl.tecnico.ulisboa.pt",
+		"mirror.csclub.uwaterloo.ca","mirrors.syringanetworks.net",
+		"openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
+		"openbsd.mirror.netelligent.ca"
 	};
 
-	int index = arc4random_uniform(51);
+	int index = arc4random_uniform(58);
 
 
 	exit_line = __LINE__;
