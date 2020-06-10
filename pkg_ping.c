@@ -717,10 +717,8 @@ jump_f:
 		 * just to chroot to /var/empty leaving
 		 * read access to an empty directory
 		 */
-			i = setuid(57);
-			i += setgid(57);
-			if (i < 0)
-				errx(1, "root didn't change user");
+			setuid(57);
+			setgid(57);
 		}
 		
 		if (pledge("stdio exec", NULL) == -1) {
@@ -1192,10 +1190,8 @@ jump_f:
 			 * just to chroot to /var/empty leaving
 			 * read access to an empty directory
 			 */
-				i = setuid(57);
-				i += setgid(57);
-				if (i < 0)
-					errx(1, "root didn't change user");
+				setuid(57);
+				setgid(57);
 			}
 			
 			if (pledge("stdio exec", NULL) == -1) {
