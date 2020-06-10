@@ -1,7 +1,7 @@
 /*
  * BSD 2-Clause License
  *
- * Copyright (c) 2017 - 2020, Luke N Small, lukensmall@gmail.com
+ * Copyright (c) 2016 - 2020, Luke N Small, lukensmall@gmail.com
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -322,7 +322,7 @@ main(int argc, char *argv[])
 
 	int dns_cache_d_socket[2];
 	if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC,
-		PF_UNSPEC, dns_cache_d_socket) == -1)
+	    PF_UNSPEC, dns_cache_d_socket) == -1)
 		err(1, "socketpair, line: %d\n", __LINE__);
 
 	pid_t dns_cache_d_pid = fork();
@@ -712,9 +712,15 @@ jump_f:
 	
 		
 		if (getuid() == 0) {
-			/* user _pkgfetch */
-			setuid(57);
-			setgid(57);
+		/* 
+		 * user _pkgfetch: ftp will regain read pledge
+		 * just to chroot to /var/empty leaving
+		 * read access to an empty directory
+		 */
+			i = setuid(57);
+			i += setgid(57);
+			if (i < 0)
+				errx(1, "root didn't change user");
 		}
 		
 		if (pledge("stdio exec", NULL) == -1) {
@@ -767,9 +773,9 @@ jump_f:
 			
 			
 		if (verbose >= 2)
-			execl("/usr/bin/ftp", "ftp", "-vmo-", line, NULL);
+			execl("/usr/bin/ftp", "ftp", "-vimo-", line, NULL);
 		else
-			execl("/usr/bin/ftp", "ftp", "-VMo-", line, NULL);
+			execl("/usr/bin/ftp", "ftp", "-ViMo-", line, NULL);
 
 
 		fprintf(stderr, "%s ", strerror(errno));
@@ -1181,9 +1187,15 @@ jump_f:
 		if (ftp_pid == (pid_t) 0) {
 
 			if (getuid() == 0) {
-				// user _pkgfetch
-				setuid(57);
-				setgid(57);
+			/* 
+			 * user _pkgfetch: ftp will regain read pledge
+			 * just to chroot to /var/empty leaving
+			 * read access to an empty directory
+			 */
+				i = setuid(57);
+				i += setgid(57);
+				if (i < 0)
+					errx(1, "root didn't change user");
 			}
 			
 			if (pledge("stdio exec", NULL) == -1) {
@@ -1213,20 +1225,20 @@ jump_f:
 				
 				if (verbose >= 3) {
 					execl("/usr/bin/ftp", "ftp",
-					    "-vm6o-", line, NULL);
+					    "-vmi6o-", line, NULL);
 				} else {
 					execl("/usr/bin/ftp", "ftp",
-					    "-VM6o-", line, NULL);
+					    "-VMi6o-", line, NULL);
 				}
 				
 			} else {
 				
 				if (verbose >= 3) {
 					execl("/usr/bin/ftp", "ftp",
-					    "-vmo-", line, NULL);
+					    "-vimo-", line, NULL);
 				} else {
 					execl("/usr/bin/ftp", "ftp",
-					    "-VMo-", line, NULL);
+					    "-ViMo-", line, NULL);
 				}
 			}
 
