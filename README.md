@@ -29,10 +29,10 @@ It uses several commandline options:
 
 -f prohibits a fork()ed process from writing the fastest mirror to file even if it has the power to do so as root.
 
--g generates the massive https list from which to retrieve and parse "ftplist", which you no doubt, noticed when you look at the
-   source code. It downloads an 11 byte timestamp which is in all mirrors, whereas not all mirrors might have snapshots of your
-   architecture or version. It presets options such as minimum verboseness of -v, -f, and finally: -S because otherwise the mirror
-   list is otherwise impossible to determine its validity.
+-g generates the massive https list from which to retrieve and parse "ftplist", which you no doubt, noticed when
+   you look at the source code. It downloads an 11 byte timestamp which is in all mirrors, whereas not all mirrors
+   might have snapshots of your architecture or version. It presets options such as minimum verboseness of -v, 
+   -f, and finally: -S because otherwise the mirror list is otherwise impossible to determine its validity.
 
 -h will print the "help" options.
 
