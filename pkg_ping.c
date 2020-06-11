@@ -309,7 +309,7 @@ main(int argc, char *argv[])
 		if (verbose < 1)
 			verbose = 1;
 		secure = 1;
-		dns_cache_d = 0;
+		dns_cache_d = 1;
 		f = 0;
 		if (pledge("stdio exec proc dns id", NULL) == -1)
 			err(1, "pledge, line: %d", __LINE__);
@@ -403,7 +403,10 @@ loop:
 		if (n) {
 			printf("%s ", gai_strerror(n));
 			printf("getaddrinfo() failed\n");
-			_exit(1);
+			i = write(dns_cache_d_socket[0], "0", 1);
+			if (i < 1)
+				_exit(1);
+			goto loop;
 		}
 
 		if (verbose < 4 && !six) {
