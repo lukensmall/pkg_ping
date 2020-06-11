@@ -309,7 +309,6 @@ main(int argc, char *argv[])
 		if (verbose < 1)
 			verbose = 1;
 		secure = 1;
-		dns_cache_d = 1;
 		f = 0;
 		if (pledge("stdio exec proc dns id", NULL) == -1)
 			err(1, "pledge, line: %d", __LINE__);
