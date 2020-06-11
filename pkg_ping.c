@@ -718,7 +718,6 @@ jump_f:
 		 * read access to an empty directory
 		 */
 			setuid(57);
-			setgid(57);
 		}
 		
 		if (pledge("stdio exec", NULL) == -1) {
@@ -1191,7 +1190,6 @@ jump_f:
 			 * read access to an empty directory
 			 */
 				setuid(57);
-				setgid(57);
 			}
 			
 			if (pledge("stdio exec", NULL) == -1) {
