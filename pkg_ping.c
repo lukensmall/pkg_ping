@@ -309,6 +309,7 @@ main(int argc, char *argv[])
 		if (verbose < 1)
 			verbose = 1;
 		secure = 1;
+		dns_cache_d = 1;
 		f = 0;
 		if (pledge("stdio exec proc dns id", NULL) == -1)
 			err(1, "pledge, line: %d", __LINE__);
@@ -402,10 +403,7 @@ loop:
 		if (n) {
 			printf("%s ", gai_strerror(n));
 			printf("getaddrinfo() failed\n");
-			i = write(dns_cache_d_socket[0], "0", 1);
-			if (i < 1)
-				_exit(1);
-			goto loop;
+			_exit(1);
 		}
 
 		if (verbose < 4 && !six) {
@@ -502,7 +500,7 @@ loop:
 					    
 				} else if (suc6[i  ]) {
 					printf("%c%c%c",
-					    table6[suc6[i  ]],
+					    table6[suc6[i  ]     ],
 					    table6[suc6[i|1] >> 4],
 					    table6[suc6[i|1] & 15]);
 					    
@@ -511,7 +509,8 @@ loop:
 					    table6[suc6[i|1] >> 4],
 					    table6[suc6[i|1] & 15]);
 				} else
-					printf("%c", table6[suc6[i|1]]);
+					printf("%c",
+					    table6[suc6[i|1]     ]);
 				
 				if (i < 14) printf(":");
 			}
@@ -675,32 +674,32 @@ jump_f:
 	entry_line = __LINE__;
 
 
-	char *ftp_list[54] = {
+	char *ftp_list[52] = {
 
 		"ftp.bit.nl","ftp.fau.de","ftp.fsn.hu","openbsd.hk",
 		"ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp","ftp.cc.uoc.gr",
 		"ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp",
-		"ftp.icm.edu.pl","ftp.yzu.edu.tw","mirror.one.com",
-		"cdn.openbsd.org","ftp.OpenBSD.org","mirror.esc7.net",
-		"mirror.vdms.com","mirrors.mit.edu","mirror.labkom.id",
-		"mirror.litnet.lt","mirror.yandex.ru","ftp.hostserver.de",
-		"mirrors.sonic.net","mirrors.ucr.ac.cr","ftp.eu.openbsd.org",
-		"ftp.fr.openbsd.org","mirror.linux.pizza","mirror.ungleich.ch",
-		"mirrors.dotsrc.org","openbsd.ipacct.com","ftp2.eu.openbsd.org",
-		"mirror.leaseweb.com","mirrors.dalenys.com",
+		"ftp.icm.edu.pl","mirror.one.com","cdn.openbsd.org",
+		"ftp.OpenBSD.org","mirror.esc7.net","mirror.vdms.com",
+		"mirrors.mit.edu","mirror.labkom.id","mirror.litnet.lt",
+		"mirror.yandex.ru","ftp.hostserver.de","mirrors.sonic.net",
+		"mirrors.ucr.ac.cr","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
+		"mirror.fsmg.org.nz","mirror.ungleich.ch","mirrors.dotsrc.org",
+		"openbsd.ipacct.com","ftp.usa.openbsd.org",
+		"ftp2.eu.openbsd.org","mirror.leaseweb.com",
 		"mirrors.gigenet.com","ftp4.usa.openbsd.org",
 		"mirror.aarnet.edu.au","mirror.exonetric.net",
-		"openbsd.c3sl.ufpr.br","*artfiles.org/openbsd",
-		"mirror.bytemark.co.uk","mirror.planetunix.net",
-		"www.mirrorservice.org","mirror.hs-esslingen.de",
-		"mirrors.pidginhost.com","openbsd.mirror.garr.it",
-		"cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
-		"ftp.rnl.tecnico.ulisboa.pt","mirror.csclub.uwaterloo.ca",
-		"mirrors.syringanetworks.net","openbsd.mirror.constant.com",
-		"plug-mirror.rcac.purdue.edu","openbsd.mirror.netelligent.ca"
+		"*artfiles.org/openbsd","mirror.bytemark.co.uk",
+		"mirror.planetunix.net","www.mirrorservice.org",
+		"mirror.hs-esslingen.de","mirrors.pidginhost.com",
+		"openbsd.cs.toronto.edu","cloudflare.cdn.openbsd.org",
+		"ftp.halifax.rwth-aachen.de","ftp.rnl.tecnico.ulisboa.pt",
+		"mirror.csclub.uwaterloo.ca","mirrors.syringanetworks.net",
+		"openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
+		"openbsd.mirror.netelligent.ca"
 	};
 
-	int index = arc4random_uniform(54);
+	int index = arc4random_uniform(52);
 
 
 	exit_line = __LINE__;
@@ -823,16 +822,14 @@ jump_f:
 		errx(1, "uname, line: %d", __LINE__);
 	}
 	
-	i = strlen(name->release);
-	char *release = malloc(i + 1);
+	char *release = strdup(name->release);
 	if (release == NULL) {
 		kill(ftp_pid, SIGKILL);
-		errx(1, "malloc");
+		errx(1, "strdup");
 	}
-	strlcpy(release, name->release, i + 1);
 
 	if (current == 0) {
-		tag_len = strlen("/") + i + strlen("/") +
+		tag_len = strlen("/") + strlen(release) + strlen("/") +
 		    strlen(name->machine) + strlen("/SHA256");
 	} else {
 		tag_len = strlen("/snapshots/") +
@@ -953,59 +950,50 @@ jump_f:
 			}
 			
 			if (secure) {
-				strlcpy(array[array_length]->http + 1,
-				    line, pos - 1);
-				    
-				if (pos - 1 <= 5)
-					errx(1, "bad mirror received.");
-				    
-				memcpy(array[array_length]->http,
-				    "https", 5);
+				
+				strlcpy(array[array_length]->http,
+				    "https", pos);
+				
+				strlcat(array[array_length]->http,
+				    line + 4, pos);
 			} else
-				strlcpy(array[array_length]->http, line, pos);
+				memcpy(array[array_length]->http, line, pos);
 
 			pos = 0;
 			num = 1;
 			continue;
 		}
 		
-		if (pos == 0) {
-			if (c == ' ')
-				continue;
-		}
+		if (pos == 0 && c == ' ')
+			continue;
 			
 		if (c != '\n') {
 			line[pos++] = c;
 			continue;
 		}
 		
+		line[pos] = '\0';
 		
-		line[pos++] = '\0';
-		if (u) {
-			if (strstr(line, "USA")) {
-				free(array[array_length]->http);
-				num = pos = 0;
-				continue;
-			}
+		pos = 0;
+		
+		if (u && strstr(line, "USA")) {
+			free(array[array_length]->http);
+			num = 0;
+			continue;
 		}
 		
 		/* the Ishikawa mirror reverts to http */
-		if (secure) {
-			if (i) {
-				if (strstr(line, "Ishikawa")) {
-					free(array[array_length]->http);
-					num = pos = i = 0;
-					continue;
-				}
-			}
+		if (secure && i && strstr(line, "Ishikawa")) {
+			free(array[array_length]->http);
+			num = i = 0;
+			continue;
 		}
 		
-		array[array_length]->label = malloc(pos);
+		array[array_length]->label = strdup(line);
 		if (array[array_length]->label == NULL) {
 			kill(ftp_pid, SIGKILL);
-			errx(1, "malloc");
+			errx(1, "strdup");
 		}
-		strlcpy(array[array_length]->label, line, pos);
 
 
 		if (++array_length >= array_max) {
@@ -1024,7 +1012,7 @@ jump_f:
 			kill(ftp_pid, SIGKILL);
 			errx(1, "malloc");
 		}
-		num = pos = 0;
+		num = 0;
 	}
 
 	free(array[array_length]);
