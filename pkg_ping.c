@@ -403,7 +403,10 @@ loop:
 		if (n) {
 			printf("%s ", gai_strerror(n));
 			printf("getaddrinfo() failed\n");
-			_exit(1);
+			i = write(dns_cache_d_socket[0], "0", 1);
+			if (i < 1)
+				_exit(1);
+			goto loop;
 		}
 
 		if (verbose < 4 && !six) {
@@ -674,32 +677,32 @@ jump_f:
 	entry_line = __LINE__;
 
 
-	char *ftp_list[52] = {
+	char *ftp_list[54] = {
 
 		"ftp.bit.nl","ftp.fau.de","ftp.fsn.hu","openbsd.hk",
 		"ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp","ftp.cc.uoc.gr",
 		"ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp",
-		"ftp.icm.edu.pl","mirror.one.com","cdn.openbsd.org",
-		"ftp.OpenBSD.org","mirror.esc7.net","mirror.vdms.com",
-		"mirrors.mit.edu","mirror.labkom.id","mirror.litnet.lt",
-		"mirror.yandex.ru","ftp.hostserver.de","mirrors.sonic.net",
-		"mirrors.ucr.ac.cr","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
-		"mirror.fsmg.org.nz","mirror.ungleich.ch","mirrors.dotsrc.org",
-		"openbsd.ipacct.com","ftp.usa.openbsd.org",
-		"ftp2.eu.openbsd.org","mirror.leaseweb.com",
+		"ftp.icm.edu.pl","ftp.yzu.edu.tw","mirror.one.com",
+		"cdn.openbsd.org","ftp.OpenBSD.org","mirror.esc7.net",
+		"mirror.vdms.com","mirrors.mit.edu","mirror.labkom.id",
+		"mirror.litnet.lt","mirror.yandex.ru","ftp.hostserver.de",
+		"mirrors.sonic.net","mirrors.ucr.ac.cr","ftp.eu.openbsd.org",
+		"ftp.fr.openbsd.org","mirror.linux.pizza","mirror.ungleich.ch",
+		"mirrors.dotsrc.org","openbsd.ipacct.com","ftp2.eu.openbsd.org",
+		"mirror.leaseweb.com","mirrors.dalenys.com",
 		"mirrors.gigenet.com","ftp4.usa.openbsd.org",
 		"mirror.aarnet.edu.au","mirror.exonetric.net",
-		"*artfiles.org/openbsd","mirror.bytemark.co.uk",
-		"mirror.planetunix.net","www.mirrorservice.org",
-		"mirror.hs-esslingen.de","mirrors.pidginhost.com",
-		"openbsd.cs.toronto.edu","cloudflare.cdn.openbsd.org",
-		"ftp.halifax.rwth-aachen.de","ftp.rnl.tecnico.ulisboa.pt",
-		"mirror.csclub.uwaterloo.ca","mirrors.syringanetworks.net",
-		"openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
-		"openbsd.mirror.netelligent.ca"
+		"openbsd.c3sl.ufpr.br","*artfiles.org/openbsd",
+		"mirror.bytemark.co.uk","mirror.planetunix.net",
+		"www.mirrorservice.org","mirror.hs-esslingen.de",
+		"mirrors.pidginhost.com","openbsd.mirror.garr.it",
+		"cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
+		"ftp.rnl.tecnico.ulisboa.pt","mirror.csclub.uwaterloo.ca",
+		"mirrors.syringanetworks.net","openbsd.mirror.constant.com",
+		"plug-mirror.rcac.purdue.edu","openbsd.mirror.netelligent.ca"
 	};
 
-	int index = arc4random_uniform(52);
+	int index = arc4random_uniform(54);
 
 
 	exit_line = __LINE__;
@@ -957,15 +960,17 @@ jump_f:
 				strlcat(array[array_length]->http,
 				    line + 4, pos);
 			} else
-				memcpy(array[array_length]->http, line, pos);
+				strlcpy(array[array_length]->http, line, pos);
 
 			pos = 0;
 			num = 1;
 			continue;
 		}
 		
-		if (pos == 0 && c == ' ')
-			continue;
+		if (pos == 0) {
+			if (c == ' ')
+				continue;
+		}
 			
 		if (c != '\n') {
 			line[pos++] = c;
