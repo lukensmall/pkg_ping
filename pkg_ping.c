@@ -954,51 +954,52 @@ jump_f:
 			
 			if (secure) {
 				
-				strlcpy(array[array_length]->http,
+				n = strlcpy(array[array_length]->http,
 				    "https", pos);
 				
-				strlcat(array[array_length]->http,
-				    line + 4, pos);
+				if (pos < 5)
+					errx(1, "line: %s is too short", line);
+
+				strlcpy(array[array_length]->http + n,
+				    line + 4, pos - n);
 			} else
-				strlcpy(array[array_length]->http, line, pos);
+				memcpy(array[array_length]->http, line, pos);
 
 			pos = 0;
 			num = 1;
 			continue;
 		}
 		
-		if (pos == 0) {
-			if (c == ' ')
-				continue;
-		}
+		if (pos == 0 && c == ' ')
+			continue;
 			
 		if (c != '\n') {
 			line[pos++] = c;
 			continue;
 		}
 		
-		line[pos] = '\0';
-		
-		pos = 0;
+		line[pos++] = '\0';
 		
 		if (u && strstr(line, "USA")) {
 			free(array[array_length]->http);
-			num = 0;
+			pos = num = 0;
 			continue;
 		}
 		
 		/* the Ishikawa mirror reverts to http */
 		if (secure && i && strstr(line, "Ishikawa")) {
 			free(array[array_length]->http);
-			num = i = 0;
+			pos = num = i = 0;
 			continue;
 		}
 		
-		array[array_length]->label = strdup(line);
+		array[array_length]->label = malloc(pos);
 		if (array[array_length]->label == NULL) {
 			kill(ftp_pid, SIGKILL);
 			errx(1, "strdup");
 		}
+		
+		memcpy(array[array_length]->label, line, pos);
 
 
 		if (++array_length >= array_max) {
@@ -1017,7 +1018,7 @@ jump_f:
 			kill(ftp_pid, SIGKILL);
 			errx(1, "malloc");
 		}
-		num = 0;
+		pos = num = 0;
 	}
 
 	free(array[array_length]);
