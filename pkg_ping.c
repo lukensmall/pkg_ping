@@ -355,6 +355,8 @@ main(int argc, char *argv[])
 			printf("malloc\n");
 			_exit(1);
 		}
+		
+		
 loop:
 
 
@@ -388,14 +390,14 @@ loop:
 		host += 3;
 
 		last = strstr(host, "/");
-		if (last != NULL)
+		if (last)
 			*last = '\0';
 
 		if (verbose >= 2)
 			printf("DNS caching: %s\n", host);
 
 
-		bzero(&hints, sizeof(hints));
+		bzero(&hints, sizeof(struct addrinfo));
 		hints.ai_flags = AI_CANONNAME;
 		hints.ai_family = AF_UNSPEC;
 		hints.ai_socktype = SOCK_STREAM;
@@ -515,7 +517,8 @@ loop:
 					printf("%c",
 					    table6[suc6[i|1]     ]);
 				
-				if (i < 14) printf(":");
+				if (i < 14)
+					printf(":");
 			}
 			printf("\n");
 		}
@@ -745,7 +748,7 @@ jump_f:
 			(void)  strlcpy(line,          "https://", 300);
 			
 			if (ftp_list[index][0] == '*')
-				strlcat(line, ftp_list[index] + 1, 300);
+				strlcat(line, 1 + ftp_list[index], 300);
 			else {
 				strlcat(line,     ftp_list[index], 300);
 				strlcat(line,      "/pub/OpenBSD", 300);
@@ -911,7 +914,7 @@ jump_f:
 		errx(1, "calloc");
 	}
 
-	i = 1;
+	i = secure;
 	num = pos = array_length = 0;
 	array[0] = malloc(sizeof(struct mirror_st));
 	if (array[0] == NULL) {
@@ -954,14 +957,15 @@ jump_f:
 			
 			if (secure) {
 				
-				n = strlcpy(array[array_length]->http,
-				    "https", pos);
-				
-				if (pos < 5)
+				if (pos <= 5) {
+					kill(ftp_pid, SIGKILL);
 					errx(1, "line: %s is too short", line);
+				}
 
-				strlcpy(array[array_length]->http + n,
-				    line + 4, pos - n);
+				memcpy(array[array_length]->http, "https", 5);
+				
+				memcpy(5 + array[array_length]->http,
+				    strlen("http") + line, pos - 5);
 			} else
 				memcpy(array[array_length]->http, line, pos);
 
@@ -986,20 +990,18 @@ jump_f:
 			continue;
 		}
 		
-		/* the Ishikawa mirror reverts to http */
-		if (secure && i && strstr(line, "Ishikawa")) {
+		/* https connection to Ishikawa mirror reverts to http */
+		if (i && strstr(line, "Ishikawa")) {
 			free(array[array_length]->http);
 			pos = num = i = 0;
 			continue;
 		}
 		
-		array[array_length]->label = malloc(pos);
+		array[array_length]->label = strdup(line);
 		if (array[array_length]->label == NULL) {
 			kill(ftp_pid, SIGKILL);
 			errx(1, "strdup");
 		}
-		
-		memcpy(array[array_length]->label, line, pos);
 
 
 		if (++array_length >= array_max) {
@@ -1023,8 +1025,6 @@ jump_f:
 
 	free(array[array_length]);
 
-	free(line);
-
 	fclose(input);
 	close(ftp_out[STDIN_FILENO]);
 
@@ -1045,9 +1045,9 @@ jump_f:
 	
 	pos_max += tag_len;
 
-	line = malloc(pos_max);
+	line = realloc(line, pos_max);
 	if (line == NULL)
-		errx(1, "malloc");
+		errx(1, "realloc");
 
 
 	array = reallocarray(array, array_length, sizeof(struct mirror_st *));
