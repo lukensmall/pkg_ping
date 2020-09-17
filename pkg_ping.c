@@ -1023,6 +1023,7 @@ jump_f:
 		pos = num = 0;
 	}
 
+	free(line);
 	free(array[array_length]);
 
 	fclose(input);
@@ -1045,9 +1046,9 @@ jump_f:
 	
 	pos_max += tag_len;
 
-	line = realloc(line, pos_max);
+	line = malloc(pos_max);
 	if (line == NULL)
-		errx(1, "realloc");
+		errx(1, "malloc");
 
 
 	array = reallocarray(array, array_length, sizeof(struct mirror_st *));
