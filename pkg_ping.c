@@ -680,32 +680,31 @@ jump_f:
 	entry_line = __LINE__;
 
 
-	char *ftp_list[52] = {
+	char *ftp_list[51] = {
 
 		"ftp.bit.nl","ftp.fau.de","ftp.fsn.hu","openbsd.hk",
 		"ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp","ftp.cc.uoc.gr",
 		"ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp",
 		"ftp.icm.edu.pl","mirror.one.com","cdn.openbsd.org",
 		"ftp.OpenBSD.org","mirror.esc7.net","mirror.vdms.com",
-		"mirrors.mit.edu","mirror.labkom.id","mirror.litnet.lt",
-		"mirror.yandex.ru","ftp.hostserver.de","mirrors.sonic.net",
-		"mirrors.ucr.ac.cr","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
-		"mirror.fsmg.org.nz","mirror.ungleich.ch","mirrors.dotsrc.org",
-		"openbsd.ipacct.com","ftp.usa.openbsd.org",
-		"ftp2.eu.openbsd.org","mirror.leaseweb.com",
-		"mirrors.gigenet.com","ftp4.usa.openbsd.org",
-		"mirror.aarnet.edu.au","mirror.exonetric.net",
-		"*artfiles.org/openbsd","mirror.bytemark.co.uk",
-		"mirror.planetunix.net","www.mirrorservice.org",
-		"mirror.hs-esslingen.de","mirrors.pidginhost.com",
-		"openbsd.cs.toronto.edu","cloudflare.cdn.openbsd.org",
-		"ftp.halifax.rwth-aachen.de","ftp.rnl.tecnico.ulisboa.pt",
-		"mirror.csclub.uwaterloo.ca","mirrors.syringanetworks.net",
-		"openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
-		"openbsd.mirror.netelligent.ca"
+		"mirrors.mit.edu","mirror.labkom.id","mirror.yandex.ru",
+		"ftp.hostserver.de","mirrors.sonic.net","mirrors.ucr.ac.cr",
+		"ftp.eu.openbsd.org","ftp.fr.openbsd.org","mirror.fsmg.org.nz",
+		"mirror.ungleich.ch","mirrors.dotsrc.org","openbsd.ipacct.com",
+		"ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
+		"mirror.leaseweb.com","mirrors.gigenet.com",
+		"ftp4.usa.openbsd.org","mirror.aarnet.edu.au",
+		"mirror.exonetric.net","*artfiles.org/openbsd",
+		"mirror.bytemark.co.uk","mirror.planetunix.net",
+		"www.mirrorservice.org","mirror.hs-esslingen.de",
+		"mirrors.pidginhost.com","openbsd.cs.toronto.edu",
+		"cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
+		"ftp.rnl.tecnico.ulisboa.pt","mirror.csclub.uwaterloo.ca",
+		"mirrors.syringanetworks.net","openbsd.mirror.constant.com",
+		"plug-mirror.rcac.purdue.edu","openbsd.mirror.netelligent.ca"
 	};
 
-	int index = arc4random_uniform(52);
+	int index = arc4random_uniform(51);
 
 
 	exit_line = __LINE__;
@@ -890,6 +889,8 @@ jump_f:
 	}
 	if (i == 0) {
 		kill(ftp_pid, SIGKILL);
+		free(tag);
+		free(release);
 		goto restart;
 	}
 	
@@ -1069,8 +1070,8 @@ jump_f:
 	for (c = 0; c < array_length; ++c) {
 
 		pos = strlcpy(line, array[c]->http, pos_max);
-		strlcpy(line + pos, tag, pos_max - pos);
-
+		memcpy(pos + line, tag, tag_len + 1);
+		
 		if (verbose >= 2) {
 			if (verbose == 4 && dns_cache_d)
 				printf("\n\n\n");
@@ -1121,17 +1122,17 @@ jump_f:
 			}
 			
 			if (i < 1) {
-
-				if (f)
-					close(parent_to_write[STDOUT_FILENO]);
-
+				
+				free(tag);
+				free(line);
+				free(release);
 				waitpid(dns_cache_d_pid, NULL, 0);
-
+				
 				if (pledge("stdio exec", NULL) == -1)
 					err(1, "pledge, line: %d", __LINE__);
 
 				if (verbose >= 2)
-					printf("getaddrinfo() failed again.\n");
+					printf("dns_cache process failed.\n");
 				else if (verbose >= 0) {
 					n = array_length - c;
 					do {
@@ -1141,21 +1142,17 @@ jump_f:
 					fflush(stdout);
 				}
 
-				free(line);
-				free(tag);
-	restart:
-
-				printf("restarting...\n");
+restart:
+				if (verbose >= 0)
+					printf("restarting...\n");
 
 				arg_list = calloc(argc + 1, sizeof(char *));
 				if (arg_list == NULL)
 					errx(1, "calloc");
 				for (i = 0; i < argc; ++i) {
-					n = strlen(argv[i]) + 1;
-					arg_list[i] = malloc(n);
+					arg_list[i] = strdup(argv[i]);
 					if (arg_list[i] == NULL)
-						errx(1, "malloc");
-					memcpy(arg_list[i], argv[i], n);
+						errx(1, "strdup");
 				}
 				execv(arg_list[0], arg_list);
 				err(1, "execv failed, line: %d", __LINE__);
@@ -1313,7 +1310,10 @@ jump_f:
 	free(tag);
 	close(kq);
 
-	/* identical to (verbose == 0 || verbose == 1) */
+	/* 
+	 * identical to (verbose == 0 || verbose == 1)
+	 * but it's done in 2 operations instead of 3
+	 */
 	if (verbose == (verbose & 1)) {
 		printf("\b \b");
 		fflush(stdout);
@@ -1354,7 +1354,7 @@ jump_f:
 			goto generate_jump;
 
 		if (se < 0)
-			errx(1, "\n\nno good mirrors");
+			errx(1, "\n\nThere are ZERO good mirrors!");
 
 		char *cut;
 
@@ -1364,7 +1364,7 @@ jump_f:
 			if (cut)
 				array[c]->diff = cut - array[c]->http;
 			else
-				array[c]->diff = strlen(array[c]->http) + 1;
+				array[c]->diff = 1 + strlen(array[c]->http);
 		}
 
 		/* sort by size, subsort http alphabetically */
@@ -1372,7 +1372,8 @@ jump_f:
 
 		printf("\n\n");
 		printf("\t/* CODE BEGINS HERE */\n\n\n");
-		printf("\tchar *ftp_list[%d] = {\n\n\t\t", se + 1);
+		printf("\tchar *ftp_list[%d] = {\n\n", se + 1);
+		printf("\t\t");
 
 		n = 0;
 		for (c = 0; c <= se; ++c) {
@@ -1483,6 +1484,7 @@ generate_jump:
 
 		if (i < (int) strlen(array[0]->http)) {
 			printf("not all of mirror sent\n");
+			free(release);
 			goto restart;
 		}
 		waitpid(write_pid, &i, 0);
