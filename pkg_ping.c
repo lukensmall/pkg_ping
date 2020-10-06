@@ -237,11 +237,9 @@ main(int argc, char *argv[])
 			dns_cache_d = 0;
 			break;
 		case 'f':
-			if (f == 0)
-				break;
+			f = 0;
 			if (pledge("stdio exec proc dns id", NULL) == -1)
 				err(1, "pledge, line: %d", __LINE__);
-			f = 0;
 			break;
 		case 'g':
 			generate = 1;
@@ -393,8 +391,13 @@ loop:
 		if (last)
 			*last = '\0';
 
-		if (verbose >= 2)
+		if (verbose > 2)
 			printf("DNS caching: %s\n", host);
+			
+		if (verbose == 2) {
+			printf("DNS caching: %s\n*", host);
+			fflush(stdout);
+		}
 
 
 		bzero(&hints, sizeof(struct addrinfo));
@@ -403,9 +406,11 @@ loop:
 		hints.ai_socktype = SOCK_STREAM;
 		n = getaddrinfo(host, line, &hints, &res0);
 		if (n) {
-			printf("%s ", gai_strerror(n));
-			printf("getaddrinfo() failed\n");
-			i = write(dns_cache_d_socket[0], "0", 1);
+			// if (verbose == 4) {
+				// printf("%s ", gai_strerror(n));
+				// printf("getaddrinfo() failed\n");
+			// }
+			i = write(dns_cache_d_socket[0], "f", 1);
 			if (i < 1)
 				_exit(1);
 			goto loop;
@@ -756,7 +761,7 @@ jump_f:
 			
 			n   =   strlcat(line,          "/ftplist", 300);
 			
-			if (n > 300) {
+			if (n >= 300) {
 				printf("'line' too long, line: %d\n", __LINE__);
 				_exit(1);
 			}
@@ -1116,7 +1121,7 @@ jump_f:
 
 			i = read(dns_cache_d_socket[1], &v, 1);
 
-			if (verbose == (verbose & 1)) {
+			if (verbose >= 0 && verbose < 3) {
 				printf("\b \b");
 				fflush(stdout);
 			}
@@ -1161,6 +1166,12 @@ restart:
 			if (six && v == '0') {
 				if (verbose >= 2)
 					printf("No ipv6 address found.\n");
+				array[c]->diff = s + 1;
+				continue;
+			}
+			if (v == 'f') {
+				if (verbose >= 2)
+					printf("DNS caching failed.\n");
 				array[c]->diff = s + 1;
 				continue;
 			}
