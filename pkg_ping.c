@@ -1106,6 +1106,7 @@ jump_f:
 
 		if (dns_cache_d) {
 		
+			/* (verbose == 0 || verbose == 1) */
 			if (verbose == (verbose & 1)) {
 				printf("*");
 				fflush(stdout);
@@ -1319,10 +1320,7 @@ restart:
 	free(tag);
 	close(kq);
 
-	/* 
-	 * identical to (verbose == 0 || verbose == 1)
-	 * but it's done in 2 operations instead of 3
-	 */
+	/* (verbose == 0 || verbose == 1) */
 	if (verbose == (verbose & 1)) {
 		printf("\b \b");
 		fflush(stdout);
