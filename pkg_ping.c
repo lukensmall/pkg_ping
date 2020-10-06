@@ -427,7 +427,7 @@ loop:
 		}
 
 		if (verbose < 4 && !six) {
-			i = write(dns_cache_d_socket[0], "0", 1);
+			i = write(dns_cache_d_socket[0], "1", 1);
 			if (i < 1)
 				_exit(1);
 			freeaddrinfo(res0);
@@ -604,13 +604,15 @@ jump_dns:
 			_exit(1);
 		}
 		close(kq);
+		
+		int received = ke.data;
 
 		/* parent exited before sending data */
-		if (ke.data == 0) {
+		if (received == 0) {
 			printf("/etc/installurl not written.\n");
 			_exit(1);
 		}
-		if (ke.data > 300) {
+		if (received > 300) {
 			printf("received mirror is too large\n");
 			printf("/etc/installurl not written.\n");
 			_exit(1);
@@ -632,17 +634,23 @@ jump_dns:
 			_exit(1);
 		}
 		
-		tag_w = malloc(ke.data + 1 + 1);
+		tag_w = malloc(received + 1 + 1);
 		if (tag_w == NULL) {
 			printf("malloc\n");
 			_exit(1);
 		}
 			
-		i = read(parent_to_write[STDIN_FILENO], tag_w, ke.data);
+		i = read(parent_to_write[STDIN_FILENO], tag_w, received);
 
-		if (i < ke.data) {
+		if (i < 0) {
 			printf("%s ", strerror(errno));
 			printf("read error occurred, line: %d\n", __LINE__);
+			fclose(pkg_write);
+			_exit(1);
+		}
+
+		if (i < received) {
+			printf("didn't read from buffer, line: %d\n", __LINE__);
 			fclose(pkg_write);
 			_exit(1);
 		}
@@ -653,10 +661,10 @@ jump_dns:
 			_exit(1);
 		}
 		
-		strlcpy(tag_w + ke.data, "\n", 1 + 1);
+		memcpy(tag_w + received, "\n", 1 + 1);
 
-		i = fwrite(tag_w, 1, ke.data + 1, pkg_write);
-		if (i < ke.data + 1) {
+		i = fwrite(tag_w, 1, received + 1, pkg_write);
+		if (i < received + 1) {
 			printf("%s ", strerror(errno));
 			printf("write error occurred, line: %d\n", __LINE__);
 			fclose(pkg_write);
@@ -666,6 +674,7 @@ jump_dns:
 
 		if (verbose >= 0)
 			printf("/etc/installurl: %s", tag_w);
+		free(tag_w);
 
 		_exit(0);
 
@@ -748,8 +757,8 @@ jump_f:
 		}
 		close(ftp_out[STDIN_FILENO]);
 
-
-		line = malloc(300);
+		n = 300;
+		line = malloc(n);
 		if (line == NULL) {
 			printf("malloc");
 			_exit(1);
@@ -757,23 +766,23 @@ jump_f:
 		
 		if (generate) {
 			
-      strlcpy(line, "https://cdn.openbsd.org/pub/OpenBSD/ftplist", 300);
+      strlcpy(line, "https://cdn.openbsd.org/pub/OpenBSD/ftplist", n);
 		
 		} else {
 			
-			(void)  strlcpy(line,          "https://", 300);
+			(void)  strlcpy(line,          "https://", n);
 			
 			if (ftp_list[index][0] == '*')
-				strlcat(line, 1 + ftp_list[index], 300);
+				strlcat(line, 1 + ftp_list[index], n);
 			else {
-				strlcat(line,     ftp_list[index], 300);
-				strlcat(line,      "/pub/OpenBSD", 300);
+				strlcat(line,     ftp_list[index], n);
+				strlcat(line,      "/pub/OpenBSD", n);
 			}
 			
-			n   =   strlcat(line,          "/ftplist", 300);
+			i   =   strlcat(line,          "/ftplist", n);
 			
-			if (n >= 300) {
-				printf("'line' too long, line: %d\n", __LINE__);
+			if (i >= n) {
+				printf("'line' >= %d, line: %d\n", n, __LINE__);
 				_exit(1);
 			}
 		}
@@ -857,35 +866,32 @@ jump_f:
 		tag_len = strlen("/snapshots/") +
 		    strlen(name->machine) + strlen("/SHA256");
 	}
+	
+	n = tag_len + 1;
 
-	char *tag = malloc(tag_len + 1);
+	char *tag = malloc(n);
 	if (tag == NULL) {
 		kill(ftp_pid, SIGKILL);
 		errx(1, "malloc");
 	}
 
-	if (current == 0) {
-		strlcpy(tag,           "/", tag_len + 1);
-		strlcat(tag,       release, tag_len + 1);
-		strlcat(tag,           "/", tag_len + 1);
-	} else
-		strlcpy(tag, "/snapshots/", tag_len + 1);
-
-	(void)  strlcat(tag, name->machine, tag_len + 1);
-	(void)  strlcat(tag,     "/SHA256", tag_len + 1);
+	if (current == 0)
+		snprintf(tag, n, "/%s/%s/SHA256", release, name->machine);
+	else
+		snprintf(tag, n, "/snapshots/%s/SHA256", name->machine);
 
 	free(name);
 
 	if (generate) {
 		free(tag);
 
-		tag_len = strlen("/timestamp");
-
-		tag     = strdup("/timestamp");
+		tag = strdup("/timestamp");
 		if (tag == NULL) {
 			kill(ftp_pid, SIGKILL);
 			errx(1, "strdup");
 		}
+
+		tag_len = strlen(tag);
 	}
 
 	kq = kqueue();
@@ -1067,6 +1073,7 @@ jump_f:
 	if (array == NULL)
 		errx(1, "reallocarray");
 
+	/* sort by label, but USA mirrors first */
 	qsort(array, array_length, sizeof(struct mirror_st *), label_cmp);
 
 	S = s;
@@ -1337,7 +1344,7 @@ restart:
 	}
 
 
-	/* sort by time, reverse subsort label */
+	/* sort by time, subsort by USA mirror, then reverse subsort label */
 	qsort(array, array_length, sizeof(struct mirror_st *), diff_cmp);
 
 	if (verbose >= 1) {
@@ -1366,20 +1373,24 @@ restart:
 			goto generate_jump;
 
 		if (se < 0)
-			errx(1, "\n\nThere are ZERO good mirrors!");
+			goto no_good;
 
 		char *cut;
+		int8_t h = strlen("https://");
 
-		/* load diff with relative http lengths */
+		/* 
+		 * load diff with what will be relative printed http lengths.
+		 * the "https://" is included in every length but not printed
+		 */
 		for (c = 0; c <= se; ++c) {
 			cut = strstr(array[c]->http, "/pub/OpenBSD");
 			if (cut)
-				array[c]->diff = cut - array[c]->http;
+				array[c]->diff = cut - array[c]->http - h;
 			else
-				array[c]->diff = 1 + strlen(array[c]->http);
+				array[c]->diff = 1 + strlen(h + array[c]->http);
 		}
 
-		/* sort by size, subsort http alphabetically */
+		/* sort by printed length, subsort http alphabetically */
 		qsort(array, se + 1, sizeof(struct mirror_st *), diff_cmp_g);
 
 		printf("\n\n");
@@ -1394,24 +1405,28 @@ restart:
 
 			if (cut)
 				*cut = '\0';
-			else
-				++n;
 
-			n += strlen(array[c]->http) + 3 - strlen("https://");
+			/* 
+			 * the 3 is the size of the printed: "",
+			 * if (c == se) it doesn't print the: ,
+			 */
+			 
+			i = (cut == NULL) + strlen(array[c]->http) + 3
+			    - (h + (c == se));
 
-			if (n - (c == se) > 64) {
-
+			/* 
+			 * more than one mirror will not exceed 80 characters
+			 * with 2 tabs of length 8
+			 */
+			if ((n += i) > 80 - 8 * 2) {
+				n = i;
 				printf("\n\t\t");
-
-				n = strlen(array[c]->http) + 3
-				    + (cut == NULL) - strlen("https://");
 			}
-			printf("\"");
 
 			if (cut == NULL)
-				printf("*");
-
-			printf("%s\"", strlen("https://") + array[c]->http);
+				printf("\"*%s\"", h + array[c]->http);
+			else
+				printf( "\"%s\"", h + array[c]->http);
 
 			if (c < se)
 				printf(",");
@@ -1467,6 +1482,8 @@ generate_jump:
 
 	if (array[0]->diff >= s) {
 		
+no_good:
+		
 		printf("No successful mirrors found.\n\n");
 
 		if (current == 0 && override == 0) {
@@ -1488,19 +1505,30 @@ generate_jump:
 	
 	
 	if (to_file) {
+		
+		n = strlen(array[0]->http);
 
 		i = write(parent_to_write[STDOUT_FILENO],
-		    array[0]->http, strlen(array[0]->http));
+		    array[0]->http, n);
 
-		if (i < (int) strlen(array[0]->http)) {
+		if (i < n) {
 			printf("not all of mirror sent\n");
 			free(time);
 			free(release);
 			goto restart;
 		}
+		
+		
 		waitpid(write_pid, &i, 0);
 
-		return i;
+		if (i != 0) {
+			printf("write error.\n");
+			free(time);
+			free(release);
+			goto restart;
+		}
+
+		return 0;
 	}
 
 	if (verbose >= 0) {
