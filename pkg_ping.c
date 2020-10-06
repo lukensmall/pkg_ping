@@ -685,11 +685,10 @@ jump_f:
 	entry_line = __LINE__;
 
 
-	char *ftp_list[52] = {
+	char *ftp_list[47] = {
 
-		"ftp.bit.nl","ftp.fau.de","openbsd.hk","ftp.eenet.ee",
-		"ftp.nluug.nl","ftp.riken.jp","ftp.cc.uoc.gr","ftp.heanet.ie",
-		"ftp.spline.de","www.ftp.ne.jp","ftp.icm.edu.pl",
+		"ftp.fau.de","ftp.fsn.hu","openbsd.hk","ftp.riken.jp",
+		"ftp.cc.uoc.gr","ftp.spline.de","www.ftp.ne.jp",
 		"mirror.one.com","cdn.openbsd.org","ftp.OpenBSD.org",
 		"mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu",
 		"mirror.labkom.id","mirror.litnet.lt","mirror.yandex.ru",
@@ -699,18 +698,17 @@ jump_f:
 		"ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
 		"mirror.leaseweb.com","mirrors.gigenet.com",
 		"ftp4.usa.openbsd.org","mirror.aarnet.edu.au",
-		"mirror.exonetric.net","mirror.fsrv.services",
-		"*artfiles.org/openbsd","mirror.bytemark.co.uk",
-		"mirror.planetunix.net","www.mirrorservice.org",
-		"mirror.hs-esslingen.de","mirrors.pidginhost.com",
-		"openbsd.cs.toronto.edu","cloudflare.cdn.openbsd.org",
-		"ftp.halifax.rwth-aachen.de","ftp.rnl.tecnico.ulisboa.pt",
-		"mirror.csclub.uwaterloo.ca","mirrors.syringanetworks.net",
-		"openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
-		"openbsd.mirror.netelligent.ca"
+		"mirror.exonetric.net","*artfiles.org/openbsd",
+		"mirror.bytemark.co.uk","mirror.planetunix.net",
+		"www.mirrorservice.org","mirror.hs-esslingen.de",
+		"mirrors.pidginhost.com","openbsd.cs.toronto.edu",
+		"cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
+		"ftp.rnl.tecnico.ulisboa.pt","mirror.csclub.uwaterloo.ca",
+		"mirrors.syringanetworks.net","openbsd.mirror.constant.com",
+		"plug-mirror.rcac.purdue.edu","openbsd.mirror.netelligent.ca"
 	};
 
-	int index = arc4random_uniform(52);
+	int index = arc4random_uniform(47);
 
 
 	exit_line = __LINE__;
@@ -1402,20 +1400,15 @@ restart:
 
 				printf("\n\t\t");
 
-				if (cut)
-					n = 0;
-				else
-					n = 1;
-
-				n += strlen(array[c]->http) + 3
-				    - strlen("https://");
+				n = strlen(array[c]->http) + 3
+				    + (cut == NULL) - strlen("https://");
 			}
 			printf("\"");
 
-			if (!cut)
+			if (cut == NULL)
 				printf("*");
 
-			printf("%s\"", array[c]->http + strlen("https://"));
+			printf("%s\"", strlen("https://") + array[c]->http);
 
 			if (c < se)
 				printf(",");
