@@ -165,12 +165,14 @@ main(int argc, char *argv[])
 	int8_t generate, override, dns_cache_d, six;
 	long double s, S;
 	pid_t ftp_pid, write_pid;
-	int kq, i, pos, c, n, array_max, array_length, tag_len;
+	int kq, i, pos, c, n, array_max, array_length, tag_len, pos_max;
 	int parent_to_write[2], ftp_out[2], block_pipe[2];
 	FILE *input;
 	struct mirror_st **array;
 	struct kevent ke;
-	struct timespec tv_start, tv_end, timeout;
+	struct timespec start, end, timeout;
+	char **arg_list;
+	char *time = NULL;
 
 	/* 20 seconds and 0 nanoseconds */
 	struct timespec timeout0 = { 20, 0 };
@@ -198,6 +200,11 @@ main(int argc, char *argv[])
 			err(1, "pledge, line: %d", __LINE__);
 	}
 
+	for(i = 1; i < argc; ++i)
+	{
+		if (strlen(argv[i]) >= 50)
+			errx(1, "limit arguments to less than length 50");
+	}
 
 	u = verbose = secure = current = override = six = generate = 0;
 	dns_cache_d = 1;
@@ -219,14 +226,6 @@ main(int argc, char *argv[])
 		current = 1;
 	else if (strstr(version, "beta"))
 		current = 1;
-
-	free(version);
-	
-	for(i = 1; i < argc; ++i)
-	{
-		if (strlen(argv[i]) >= 20)
-			errx(1, "limit arguments to less than length 20");
-	}
 
 	while ((c = getopt(argc, argv, "6dfghOSs:uvV")) != -1) {
 		switch (c) {
@@ -278,8 +277,14 @@ main(int argc, char *argv[])
 				err(1, "strtold, line: %d", __LINE__);
 			if (s > (long double) 1000)
 				errx(1, "-s should be <= 1000");
-			if (s < (long double) 0.01)
-				errx(1, "-s should be >= 0.01");
+			if (s < (long double) 0.015625)
+				errx(1, "-s should be >= 0.015625 (1/64)");
+				
+			free(time);
+			time = strdup(optarg);
+			if (time == NULL)
+				errx(1, "strdup");
+				
 			break;
 		case 'u':
 			u = 1;
@@ -303,6 +308,15 @@ main(int argc, char *argv[])
 		errx(1, "non-option ARGV-element: %s", argv[optind]);
 	}
 	
+	if (time == NULL) {
+		snprintf(version, len, "%Lf", s);
+		time = strdup(version);
+		if (time == NULL)
+			errx(1, "strdup");
+	}
+	free(version);
+
+	
 	if (generate) {
 		if (verbose < 1)
 			verbose = 1;
@@ -312,7 +326,6 @@ main(int argc, char *argv[])
 		if (pledge("stdio exec proc dns id", NULL) == -1)
 			err(1, "pledge, line: %d", __LINE__);
 	}
-
 
 
 	if (dns_cache_d == 0)
@@ -354,9 +367,7 @@ main(int argc, char *argv[])
 			_exit(1);
 		}
 		
-		
 loop:
-
 
 		i = read(dns_cache_d_socket[0], line, line_max + 1);
 		if (i == 0)
@@ -406,7 +417,7 @@ loop:
 		hints.ai_socktype = SOCK_STREAM;
 		n = getaddrinfo(host, line, &hints, &res0);
 		if (n) {
-			// if (verbose == 4) {
+			// if (verbose >= 2) {
 				// printf("%s ", gai_strerror(n));
 				// printf("getaddrinfo() failed\n");
 			// }
@@ -666,7 +677,6 @@ jump_dns:
 	close(parent_to_write[STDIN_FILENO]);
 
 
-
 jump_f:
 
 
@@ -923,16 +933,12 @@ jump_f:
 	}
 
 	i = secure;
-	num = pos = array_length = 0;
+	num = pos = array_length = pos_max = 0;
 	array[0] = malloc(sizeof(struct mirror_st));
 	if (array[0] == NULL) {
 		kill(ftp_pid, SIGKILL);
 		errx(1, "malloc");
 	}
-
-
-	int pos_max = 0;
-
 
 	while ((c = getc(input)) != EOF) {
 		if (pos >= 253) {
@@ -1043,7 +1049,6 @@ jump_f:
 		errx(1, "There was a download error. Try again.\n");
 
 
-
 	if (dns_cache_d) {
 		uint8_t length = pos_max;
 		i = write(dns_cache_d_socket[1], &length, 1);
@@ -1070,8 +1075,6 @@ jump_f:
 	timeout.tv_nsec =
 	    (long) ((s - (long double) timeout.tv_sec) *
 	    (long double) 1000000000);
-
-	char **arg_list;
 
 	for (c = 0; c < array_length; ++c) {
 
@@ -1123,7 +1126,7 @@ jump_f:
 
 			i = read(dns_cache_d_socket[1], &v, 1);
 
-			if (verbose >= 0 && verbose < 3) {
+			if (verbose >= 0 && verbose <= 2) {
 				printf("\b \b");
 				fflush(stdout);
 			}
@@ -1150,6 +1153,7 @@ jump_f:
 				}
 
 restart:
+
 				if (verbose >= 0)
 					printf("restarting...\n");
 
@@ -1258,7 +1262,7 @@ restart:
 			kill(ftp_pid, SIGKILL);
 			errx(1, "kevent register fail, line: %d", __LINE__);
 		}
-		clock_gettime(CLOCK_REALTIME, &tv_start);
+		clock_gettime(CLOCK_REALTIME, &start);
 
 		close(block_pipe[STDOUT_FILENO]);
 
@@ -1292,11 +1296,11 @@ restart:
 			continue;
 		}
 
-		clock_gettime(CLOCK_REALTIME, &tv_end);
+		clock_gettime(CLOCK_REALTIME, &end);
 
 		array[c]->diff =
-		    (long double) (tv_end.tv_sec - tv_start.tv_sec) +
-		    (long double) (tv_end.tv_nsec - tv_start.tv_nsec) /
+		    (long double) (end.tv_sec - start.tv_sec) +
+		    (long double) (end.tv_nsec - start.tv_nsec) /
 		    (long double) 1000000000;
 
 		if (verbose >= 2) {
@@ -1442,18 +1446,18 @@ generate_jump:
 			else
 				printf("%2d", c + 1);
 
-			printf(" : %s:\n\techo ", array[c]->label);
-			printf("\"%s\" > /etc/installurl", array[c]->http);
-
+			printf(" : %s:\n\t", array[c]->label);
+			printf("echo \"%s\" > /etc/installurl", array[c]->http);
+			
 			if (c <= se)
 				printf(" : %.9Lf\n\n", array[c]->diff);
 			else if (c <= te) {
-				/* printf(" Timeout"); */
+				/* printf(" : Timed Out"); */
 				printf("\n\n");
 				if (c == ts && se != -1)
 					printf("\nSUCCESSFUL MIRRORS:\n\n\n");
 			} else {
-				/* printf(" Download Error"); */
+				/* printf(" : Download Error"); */
 				printf("\n\n");
 				if (c == ds && ts != -1)
 					printf("\nTIMEOUT MIRRORS:\n\n\n");
@@ -1465,18 +1469,21 @@ generate_jump:
 
 	if (array[0]->diff >= s) {
 		
-		if (current == 0 && !six) {
-			printf("\n\nNo mirrors. It doesn't appear that the ");
-			printf("%s release is present yet.\n", release);
-		} else
-			printf("No successful mirrors found.\n");
+		printf("No successful mirrors found.\n\n");
 
+		if (current == 0 && override == 0) {
+			printf("Perhaps the %s release isn't present yet?\n",
+			    release);
+			printf("The OpenBSD team tests prereleases ");
+			printf("by marking them as release kernels before\n");
+			printf("the appropriate release mirrors are ");
+			printf("available to hash out any issues.\n");
+			printf("This is solved by using the -O option\n\n");
+		}
 		if (six)
-			printf("Perhaps try losing the -6 option?\n");
-		if (override == 0)
-			printf("Perhaps try the -O option?\n");
+			printf("Try losing the -6 option?\n");
 
-		printf("Perhaps try with a larger -s than %.9Lf\n", s);
+		printf("Perhaps try with a larger -s than %s\n", time);
 
 		return 1;
 	}
