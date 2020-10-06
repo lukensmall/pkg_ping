@@ -160,7 +160,7 @@ manpage(char a[])
 int
 main(int argc, char *argv[])
 {
-	int8_t f = (getuid() == 0) ? 1 : 0;
+	int8_t to_file = (getuid() == 0) ? 1 : 0;
 	int8_t num, current, secure, usa, verbose;
 	int8_t generate, override, dns_cache_d, six;
 	long double s, S;
@@ -174,8 +174,8 @@ main(int argc, char *argv[])
 	char **arg_list;
 	char *time = NULL;
 
-	/* 20 seconds and 0 nanoseconds */
-	struct timespec timeout0 = { 20, 0 };
+	/* 4 seconds and 0 nanoseconds to download ftplist */
+	struct timespec timeout0 = { 4, 0 };
 	char *line;
 
 	if (pledge("stdio exec proc cpath wpath dns id unveil", NULL) == -1)
@@ -188,7 +188,7 @@ main(int argc, char *argv[])
 		err(1, "unveil, line: %d", __LINE__);
 
 
-	if (f) {
+	if (to_file) {
 
 		if (unveil("/etc/installurl", "cw") == -1)
 			err(1, "unveil, line: %d", __LINE__);
@@ -200,8 +200,7 @@ main(int argc, char *argv[])
 			err(1, "pledge, line: %d", __LINE__);
 	}
 
-	for(i = 1; i < argc; ++i)
-	{
+	for(i = 1; i < argc; ++i) {
 		if (strlen(argv[i]) >= 50)
 			errx(1, "limit arguments to less than length 50");
 	}
@@ -236,7 +235,7 @@ main(int argc, char *argv[])
 			dns_cache_d = 0;
 			break;
 		case 'f':
-			f = 0;
+			to_file = 0;
 			if (pledge("stdio exec proc dns id", NULL) == -1)
 				err(1, "pledge, line: %d", __LINE__);
 			break;
@@ -322,7 +321,7 @@ main(int argc, char *argv[])
 			verbose = 1;
 		secure = 1;
 		dns_cache_d = 1;
-		f = 0;
+		to_file = 0;
 		if (pledge("stdio exec proc dns id", NULL) == -1)
 			err(1, "pledge, line: %d", __LINE__);
 	}
@@ -560,7 +559,7 @@ loop:
 
 jump_dns:
 
-	if (f == 0)
+	if (to_file == 0)
 		goto jump_f;
 
 	if (pledge("stdio exec proc cpath wpath id", NULL) == -1)
@@ -1223,9 +1222,6 @@ restart:
 				printf("can't open /dev/null\n");
 
 
-			if (verbose == 2)
-				printf("Running ftp:\n");
-
 			if (six) {
 				
 				if (verbose >= 3) {
@@ -1247,8 +1243,9 @@ restart:
 				}
 			}
 
-			printf("%s ", strerror(errno));
-			printf("ftp 2 execl() failed, line: %d\n", __LINE__);
+			fprintf(stderr, "%s ", strerror(errno));
+			fprintf(stderr, "ftp 2 execl() failed, ");
+			fprintf(stderr, "line: %d\n", __LINE__);
 			_exit(1);
 		}
 		if (ftp_pid == -1)
@@ -1490,7 +1487,7 @@ generate_jump:
 	}
 	
 	
-	if (f) {
+	if (to_file) {
 
 		i = write(parent_to_write[STDOUT_FILENO],
 		    array[0]->http, strlen(array[0]->http));
