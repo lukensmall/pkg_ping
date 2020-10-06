@@ -789,8 +789,8 @@ jump_f:
 			printf("ftp STDOUT dup2, line: %d\n", __LINE__);
 			_exit(1);
 		}
-			
-			
+
+
 		if (verbose >= 2)
 			execl("/usr/bin/ftp", "ftp", "-vimo-", line, NULL);
 		else
@@ -882,12 +882,11 @@ jump_f:
 
 		tag_len = strlen("/timestamp");
 
-		tag = malloc(tag_len + 1);
+		tag     = strdup("/timestamp");
 		if (tag == NULL) {
 			kill(ftp_pid, SIGKILL);
-			errx(1, "malloc");
+			errx(1, "strdup");
 		}
-		strlcpy(tag, "/timestamp", tag_len + 1);
 	}
 
 	kq = kqueue();
@@ -908,6 +907,7 @@ jump_f:
 	if (i == 0) {
 		kill(ftp_pid, SIGKILL);
 		free(tag);
+		free(time);
 		free(release);
 		goto restart;
 	}
@@ -1136,6 +1136,7 @@ jump_f:
 				
 				free(tag);
 				free(line);
+				free(time);
 				free(release);
 				waitpid(dns_cache_d_pid, NULL, 0);
 				
@@ -1263,12 +1264,13 @@ restart:
 			kill(ftp_pid, SIGKILL);
 			errx(1, "kevent register fail, line: %d", __LINE__);
 		}
-		clock_gettime(CLOCK_REALTIME, &start);
-
 		close(block_pipe[STDOUT_FILENO]);
 
 
+		clock_gettime(CLOCK_REALTIME, &start);
 		i = kevent(kq, NULL, 0, &ke, 1, &timeout);
+		clock_gettime(CLOCK_REALTIME, &end);
+		
 		if (i == -1) {
 			printf("%s ", strerror(errno));
 			kill(ftp_pid, SIGKILL);
@@ -1297,10 +1299,8 @@ restart:
 			continue;
 		}
 
-		clock_gettime(CLOCK_REALTIME, &end);
-
 		array[c]->diff =
-		    (long double) (end.tv_sec - start.tv_sec) +
+		    (long double) (end.tv_sec  - start.tv_sec) +
 		    (long double) (end.tv_nsec - start.tv_nsec) /
 		    (long double) 1000000000;
 
@@ -1497,6 +1497,7 @@ generate_jump:
 
 		if (i < (int) strlen(array[0]->http)) {
 			printf("not all of mirror sent\n");
+			free(time);
 			free(release);
 			goto restart;
 		}
