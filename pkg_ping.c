@@ -161,7 +161,7 @@ int
 main(int argc, char *argv[])
 {
 	int8_t f = (getuid() == 0) ? 1 : 0;
-	int8_t num, current, secure, u, verbose;
+	int8_t num, current, secure, usa, verbose;
 	int8_t generate, override, dns_cache_d, six;
 	long double s, S;
 	pid_t ftp_pid, write_pid;
@@ -206,8 +206,8 @@ main(int argc, char *argv[])
 			errx(1, "limit arguments to less than length 50");
 	}
 
-	u = verbose = secure = current = override = six = generate = 0;
-	dns_cache_d = 1;
+	verbose = secure = current = override = six = generate = 0;
+	usa = dns_cache_d = 1;
 	s = 5;
 
 	char *version;
@@ -287,7 +287,7 @@ main(int argc, char *argv[])
 				
 			break;
 		case 'u':
-			u = 1;
+			usa = 0;
 			break;
 		case 'v':
 			if (verbose < 0)
@@ -698,30 +698,31 @@ jump_f:
 	entry_line = __LINE__;
 
 
-	char *ftp_list[47] = {
+	char *ftp_list[48] = {
 
 		"ftp.fau.de","ftp.fsn.hu","openbsd.hk","ftp.riken.jp",
 		"ftp.cc.uoc.gr","ftp.spline.de","www.ftp.ne.jp",
-		"mirror.one.com","cdn.openbsd.org","ftp.OpenBSD.org",
-		"mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu",
-		"mirror.labkom.id","mirror.litnet.lt","mirror.yandex.ru",
-		"ftp.hostserver.de","mirrors.sonic.net","mirrors.ucr.ac.cr",
-		"ftp.eu.openbsd.org","ftp.fr.openbsd.org","mirror.fsmg.org.nz",
-		"mirror.ungleich.ch","mirrors.dotsrc.org","openbsd.ipacct.com",
-		"ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
-		"mirror.leaseweb.com","mirrors.gigenet.com",
-		"ftp4.usa.openbsd.org","mirror.aarnet.edu.au",
-		"mirror.exonetric.net","*artfiles.org/openbsd",
-		"mirror.bytemark.co.uk","mirror.planetunix.net",
-		"www.mirrorservice.org","mirror.hs-esslingen.de",
-		"mirrors.pidginhost.com","openbsd.cs.toronto.edu",
-		"cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
-		"ftp.rnl.tecnico.ulisboa.pt","mirror.csclub.uwaterloo.ca",
-		"mirrors.syringanetworks.net","openbsd.mirror.constant.com",
-		"plug-mirror.rcac.purdue.edu","openbsd.mirror.netelligent.ca"
+		"ftp.icm.edu.pl","mirror.one.com","cdn.openbsd.org",
+		"ftp.OpenBSD.org","mirror.esc7.net","mirror.vdms.com",
+		"mirrors.mit.edu","mirror.labkom.id","mirror.litnet.lt",
+		"mirror.yandex.ru","ftp.hostserver.de","mirrors.sonic.net",
+		"mirrors.ucr.ac.cr","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
+		"mirror.fsmg.org.nz","mirror.ungleich.ch","mirrors.dotsrc.org",
+		"openbsd.ipacct.com","ftp.usa.openbsd.org",
+		"ftp2.eu.openbsd.org","mirror.leaseweb.com",
+		"mirrors.gigenet.com","ftp4.usa.openbsd.org",
+		"mirror.aarnet.edu.au","mirror.exonetric.net",
+		"*artfiles.org/openbsd","mirror.bytemark.co.uk",
+		"mirror.planetunix.net","www.mirrorservice.org",
+		"mirror.hs-esslingen.de","mirrors.pidginhost.com",
+		"openbsd.cs.toronto.edu","cloudflare.cdn.openbsd.org",
+		"ftp.halifax.rwth-aachen.de","ftp.rnl.tecnico.ulisboa.pt",
+		"mirror.csclub.uwaterloo.ca","mirrors.syringanetworks.net",
+		"openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
+		"openbsd.mirror.netelligent.ca"
 	};
 
-	int index = arc4random_uniform(47);
+	int index = arc4random_uniform(48);
 
 
 	exit_line = __LINE__;
@@ -998,7 +999,7 @@ jump_f:
 		
 		line[pos++] = '\0';
 		
-		if (u && strstr(line, "USA")) {
+		if (usa == 0 && strstr(line, "USA")) {
 			free(array[array_length]->http);
 			pos = num = 0;
 			continue;
