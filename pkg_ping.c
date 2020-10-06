@@ -488,7 +488,10 @@ loop:
 				}
 			}
 
-			/* 'i' is even so I can use "i|1" instead of "i+1" */
+			/* 
+			 * 'i' is even so I can use "i|1" instead of "i+1"
+			 *              which may be faster
+			 */
 			for (i = 0; i < 16; i += 2) {
 
 				if (i == i_max) {
