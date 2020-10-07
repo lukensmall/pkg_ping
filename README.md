@@ -45,8 +45,7 @@ It uses several commandline options:
 
 -S (“Secure only”) option will convert the http mirrors to https mirrors. Otherwise, http mirrors will be chosen.
    http mirrors are likely faster than all https mirror selections, however they pass over the internet without encryption.
-   Integrity is still preserved by not using -S, but it will not provide secrecy
-   ...maybe you don't want the internets to know you're downloading hot-babe! LOL!
+   Integrity is still preserved by not using -S, but it will not provide secrecy...maybe you don't want the internets to know you're downloading hot-babe! LOL!
 
 -u will make it search for only non-USA mirrors for export encryption
    compliance if you are searching from outside of the USA and Canada.
