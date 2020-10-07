@@ -34,7 +34,7 @@ It uses several commandline options:
 -g generates the massive https list from which to retrieve and parse "ftplist", which you no doubt, noticed when
    you look at the source code. It downloads an 11 byte timestamp which is in all mirrors, whereas not all mirrors
    might have snapshots of your architecture or version. It presets options such as minimum verboseness of -v, 
-   -f, and finally: -S because otherwise the mirror list is otherwise impossible to determine its validity.
+   -f, and finally: -S because the mirror list needs to be securely downloaded.
 
 -h will print the "help" options.
 
