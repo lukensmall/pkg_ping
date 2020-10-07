@@ -18,11 +18,9 @@ this way, there is no inconsistency caused by ftp timed with inconsistent dns qu
 
 It restarts for most initial ftp call error cases which can be fixed with a different random number.
 
-pkg_ping uses pledge and unveil for OpenBSD version 6.4 and later.
-I don't recommend running it altered without pledge() or unveil().
-/etc/installurl use, which came about in 6.1 is also required. 
-OpenBSD 5.8-6.0 is supported in the "ancient" branch which uses pkg.conf(5)
-and starting with 5.9 uses pledge().
+pkg_ping uses pledge and unveil for OpenBSD version 6.4 and later. I don't recommend running it altered without pledge() or unveil().
+The use of /etc/installurl came about in 6.1 is also required. 
+OpenBSD 5.8-6.0 is supported in the "ancient" branch which uses pkg.conf(5) and starting with 5.9 uses pledge().
 
 It uses several commandline options:
 
@@ -45,28 +43,36 @@ It uses several commandline options:
 
 -s will accept floating-point timeout like 1.5 seconds using strtod() and handrolled validation, eg. "-s 1.5", default 5.
 
--S (“Secure only”) option will convert the http mirrors to https mirrors. Otherwise, http mirrors will be chosen. http mirrors are faster than
-   most https mirror selections, however they pass over the internet without encryption. Integrity is still preserved by not 
-   using -S, but it will not provide secrecy...maybe you don't want the internets to know you're downloading hot-babe! LOL!
+-S (“Secure only”) option will convert the http mirrors to https mirrors. Otherwise, http mirrors will be chosen.
+   http mirrors are likely faster than all https mirror selections, however they pass over the internet without encryption.
+   Integrity is still preserved by not using -S, but it will not provide secrecy
+   ...maybe you don't want the internets to know you're downloading hot-babe! LOL!
 
 -u will make it search for only non-USA mirrors for export encryption
    compliance if you are searching from outside of the USA and Canada.
 
 -v will show when it is fetching "ftplist" from one of the many hard coded mirrors, prints out the results 
    sorted in reverse order by time or if it is timed out, or a download error,
-   alphabetically, print a line that you can copy and paste into a root terminal to "install" that mirror.
+   subsorts whether it is a USA mirror, further subsorts alphabetically.
+   prints a line for each mirror which you can copy and paste into a root terminal to "install" a mirror.
    
 -vv (an additional -v) will also make it print out the information of the mirrors in real time.
 
 -vvv (an additional -v) will also show ftp call output to mirrors; which includes a progress bar.
+     The progress bar could be interesting if you are on dial-up. Is that still a thing?
 
 -vvvv (an additional -v) will also show dns lookup output if -d is not used.
 
 -V will stop all output except error messages. It overrides all -v instances.
-   It's useful I suppose, if run from a script or daemon as root.
+   It's useful I suppose, if run from a script or daemon as root so that it writes the result to file.
+   I won't stop you if you run ./pkg_ping -Vf .... Maybe you need to heat your house?
 
-pkg_ping will shorten the timeout period to the download time of the fastest previous mirror throughout execution
-if no -v or if -V is used, so if you want the fastest single result, don't use -v or run pkg_ping as root and choose -V 
+pkg_ping will shorten the timeout period to the download time of the fastest previous mirror throughout ftp timing calls
+if no -v or if -V is used, so if you want the fastest single result, don't use -v or you could use -V, but it won't print the result to the screen.
+
+If it is run as root, it will make ftp calls run as user pkg_fetch.
+
+If the parent process spins up dns caching, file writing and is calling ftp, it can run 4 processes at one time, all with very different pledge() sets.
 
 cc pkg_ping.c -o pkg_ping
 
