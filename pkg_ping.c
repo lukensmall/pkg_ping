@@ -167,12 +167,12 @@ main(int argc, char *argv[])
 	pid_t ftp_pid, write_pid;
 	int kq, i, pos, c, n, array_max, array_length, tag_len, pos_max;
 	int parent_to_write[2], ftp_out[2], block_pipe[2];
-	FILE *input;
 	struct mirror_st **array;
 	struct kevent ke;
 	struct timespec start, end, timeout;
 	char **arg_list;
 	char *time = NULL;
+	char v;
 
 	/* 4 seconds and 0 nanoseconds to download ftplist */
 	struct timespec timeout0 = { 4, 0 };
@@ -276,8 +276,8 @@ main(int argc, char *argv[])
 				err(1, "strtold, line: %d", __LINE__);
 			if (s > (long double) 1000)
 				errx(1, "-s should be <= 1000");
-			if (s < (long double) 0.015625)
-				errx(1, "-s should be >= 0.015625 (1/64)");
+			if (s < (long double) 0.0078125)
+				errx(1, "-s should be >= 0.0078125 (1/128)");
 				
 			free(time);
 			time = strdup(optarg);
@@ -314,6 +314,26 @@ main(int argc, char *argv[])
 			errx(1, "strdup");
 	}
 	free(version);
+	
+	i = 0;
+	if (strstr(time, ".")) {
+		n = strlen(time);
+		while (time[--n] != '.') {
+			if (time[n] != '0')
+				goto jump_time;
+			i = n;
+		}
+		i = n;
+	}
+
+jump_time:
+	
+	if (i > 0) {
+		time[i] = '\0';
+		time = realloc(time, i + 1);
+		if (time == NULL)
+			errx(1, "realloc");
+	}
 
 	
 	if (generate) {
@@ -345,13 +365,12 @@ main(int argc, char *argv[])
 			_exit(1);
 		}
 		
-		const char table6[16] = { '0','1','2','3',
-					  '4','5','6','7',
-					  '8','9','a','b',
-					  'c','d','e','f' };
+		const char hex[16] = { '0','1','2','3',
+				       '4','5','6','7',
+				       '8','9','a','b',
+				       'c','d','e','f' };
 					  
 		close(dns_cache_d_socket[1]);
-		char *host, *last;
 
 		uint8_t line_max;
 		struct addrinfo hints, *res0, *res;
@@ -384,28 +403,11 @@ loop:
 		}
 		line[i] = '\0';
 
-		host = strstr(line, "://");
-		if (host == NULL) {
-			printf("strstr(%s, \"://\")", line);
-			printf(" == NULL line: %d\n", __LINE__);
-			_exit(1);
-		}
+		if (verbose >= 2)
+			printf("DNS caching: %s\n", line);
 		
-		/* null terminator for 'line' in getaddrinfo() */
-		/* 'line' will resolve to either "http" or "https" */
-		*host = '\0';
-
-		host += 3;
-
-		last = strstr(host, "/");
-		if (last)
-			*last = '\0';
-
-		if (verbose > 2)
-			printf("DNS caching: %s\n", host);
-			
-		if (verbose == 2) {
-			printf("DNS caching: %s\n*", host);
+		if (verbose >= 0 && verbose <= 2) {
+			printf("*");
 			fflush(stdout);
 		}
 
@@ -414,7 +416,7 @@ loop:
 		hints.ai_flags = AI_CANONNAME;
 		hints.ai_family = AF_UNSPEC;
 		hints.ai_socktype = SOCK_STREAM;
-		n = getaddrinfo(host, line, &hints, &res0);
+		n = getaddrinfo(line, "http", &hints, &res0);
 		if (n) {
 			// if (verbose >= 2) {
 				// printf("%s ", gai_strerror(n));
@@ -435,7 +437,7 @@ loop:
 		}
 			
 		if (verbose == 4 && res0->ai_canonname) {
-			if (strcmp(res0->ai_canonname, host))
+			if (strcmp(res0->ai_canonname, line))
 				printf("canon name: %s\n", res0->ai_canonname);
 		}
 
@@ -445,7 +447,8 @@ loop:
 		struct sockaddr_in6 *sa6;
 		unsigned char *suc6;
 
-		int8_t j, max, h, i_temp, i_max, six_available = 0;
+		int8_t j, max, h, i_temp, i_max;
+		char six_available = '0';
 
 		for (res = res0; res; res = res->ai_next) {
 
@@ -462,9 +465,16 @@ loop:
 				continue;
 			}
 			
+			/* 
+			 * In case anybody wondered, I wrote this section
+			 *       from scratch with a little googling
+			 *           on ipv6 address formatting
+			 *    I didn't steal it from ftp() or anything
+			 */
+			
 			/* res->ai_family == AF_INET6 */
 
-			six_available = 1;
+			six_available = '1';
 			if (verbose < 4)
 				break;
 
@@ -516,24 +526,24 @@ loop:
 				
 				if (suc6[i  ] >> 4) {
 					printf("%c%c%c%c",
-					    table6[suc6[i  ] >> 4],
-					    table6[suc6[i  ] & 15],
-					    table6[suc6[i|1] >> 4],
-					    table6[suc6[i|1] & 15]);
+					    hex[suc6[i  ] >> 4],
+					    hex[suc6[i  ] & 15],
+					    hex[suc6[i|1] >> 4],
+					    hex[suc6[i|1] & 15]);
 					    
 				} else if (suc6[i  ]) {
 					printf("%c%c%c",
-					    table6[suc6[i  ]     ],
-					    table6[suc6[i|1] >> 4],
-					    table6[suc6[i|1] & 15]);
+					    hex[suc6[i  ]     ],
+					    hex[suc6[i|1] >> 4],
+					    hex[suc6[i|1] & 15]);
 					    
 				} else if (suc6[i|1] >> 4) {
 					printf("%c%c",
-					    table6[suc6[i|1] >> 4],
-					    table6[suc6[i|1] & 15]);
+					    hex[suc6[i|1] >> 4],
+					    hex[suc6[i|1] & 15]);
 				} else
 					printf("%c",
-					    table6[suc6[i|1]     ]);
+					    hex[suc6[i|1]     ]);
 				
 				if (i < 14)
 					printf(":");
@@ -541,10 +551,7 @@ loop:
 			printf("\n");
 		}
 
-		if (six_available)
-			i = write(dns_cache_d_socket[0], "1", 1);
-		else
-			i = write(dns_cache_d_socket[0], "0", 1);
+		i = write(dns_cache_d_socket[0], &six_available, 1);
 
 		if (i < 1)
 			_exit(1);
@@ -674,7 +681,6 @@ jump_dns:
 
 		if (verbose >= 0)
 			printf("/etc/installurl: %s", tag_w);
-		free(tag_w);
 
 		_exit(0);
 
@@ -766,28 +772,27 @@ jump_f:
 		
 		if (generate) {
 			
-      strlcpy(line, "https://cdn.openbsd.org/pub/OpenBSD/ftplist", n);
+			i = strlcpy(line,
+			    "https://cdn.openbsd.org/pub/OpenBSD/ftplist", n);
 		
 		} else {
 			
-			(void)  strlcpy(line,          "https://", n);
-			
-			if (ftp_list[index][0] == '*')
-				strlcat(line, 1 + ftp_list[index], n);
-			else {
-				strlcat(line,     ftp_list[index], n);
-				strlcat(line,      "/pub/OpenBSD", n);
-			}
-			
-			i   =   strlcat(line,          "/ftplist", n);
-			
-			if (i >= n) {
-				printf("'line' >= %d, line: %d\n", n, __LINE__);
-				_exit(1);
+			if (ftp_list[index][0] == '*') {
+				i = snprintf(line, n,
+				    "https://%s/ftplist",
+				    1 + ftp_list[index]);
+			} else {
+				i = snprintf(line, n,
+				    "https://%s/pub/OpenBSD/ftplist",
+				    ftp_list[index]);
 			}
 		}
 
-
+		if (i >= n) {
+			printf("'line' length >= %d, line: %d\n", n, __LINE__);
+			_exit(1);
+		}
+		
 		if (verbose >= 2)
 			printf("%s\n", line);
 
@@ -916,13 +921,6 @@ jump_f:
 		free(release);
 		goto restart;
 	}
-	
-	input = fdopen(ftp_out[STDIN_FILENO], "r");
-	if (input == NULL) {
-		printf("%s ", strerror(errno));
-		kill(ftp_pid, SIGKILL);
-		errx(1, "fdopen ftp_out, line: %d", __LINE__);
-	}
 
 	/* if the index for line[] can exceed 254, it will error out */
 	line = malloc(255);
@@ -946,7 +944,8 @@ jump_f:
 		errx(1, "malloc");
 	}
 
-	while ((c = getc(input)) != EOF) {
+	c = ftp_out[STDIN_FILENO];
+	while (read(c, &v, 1) == 1) {
 		if (pos >= 253) {
 			kill(ftp_pid, SIGKILL);
 			line[pos] = '\0';
@@ -956,11 +955,16 @@ jump_f:
 		
 		if (num == 0) {
 
-			if (c != ' ') {
-				line[pos++] = c;
+			if (v != ' ') {
+				line[pos++] = v;
 				continue;
 			}
 			line[pos++] = '\0';
+			
+			if (strncmp(line, "http://", strlen("http://")) != 0) {
+				kill(ftp_pid, SIGKILL);
+				errx(1, "bad http format, line: %d", __LINE__);
+			}				
 
 			if (secure)
 				++pos;
@@ -974,14 +978,10 @@ jump_f:
 				kill(ftp_pid, SIGKILL);
 				errx(1, "malloc");
 			}
+				
 			
 			if (secure) {
 				
-				if (pos <= 5) {
-					kill(ftp_pid, SIGKILL);
-					errx(1, "line: %s is too short", line);
-				}
-
 				memcpy(array[array_length]->http, "https", 5);
 				
 				memcpy(5 + array[array_length]->http,
@@ -994,11 +994,11 @@ jump_f:
 			continue;
 		}
 		
-		if (pos == 0 && c == ' ')
+		if (pos == 0 && v == ' ')
 			continue;
 			
-		if (c != '\n') {
-			line[pos++] = c;
+		if (v != '\n') {
+			line[pos++] = v;
 			continue;
 		}
 		
@@ -1046,7 +1046,6 @@ jump_f:
 	free(line);
 	free(array[array_length]);
 
-	fclose(input);
 	close(ftp_out[STDIN_FILENO]);
 
 	waitpid(ftp_pid, &n, 0);
@@ -1085,8 +1084,8 @@ jump_f:
 
 	for (c = 0; c < array_length; ++c) {
 
-		pos = strlcpy(line, array[c]->http, pos_max);
-		memcpy(pos + line, tag, tag_len + 1);
+		n = strlcpy(line, array[c]->http, pos_max);
+		memcpy(line + n, tag, tag_len + 1);
 		
 		if (verbose >= 2) {
 			if (verbose == 4 && dns_cache_d)
@@ -1119,17 +1118,13 @@ jump_f:
 
 		if (dns_cache_d) {
 		
-			/* (verbose == 0 || verbose == 1) */
-			if (verbose == (verbose & 1)) {
-				printf("*");
-				fflush(stdout);
-			}
+			char *host = strlen("http://") + secure + line;
+			n = strstr(host, "/") - host;
 
-			i = write(dns_cache_d_socket[1], line, pos);
-			if (i < pos)
+			i = write(dns_cache_d_socket[1], host, n);
+			if (i < n)
 				err(1, "response not sent");
 
-			char v;
 
 			i = read(dns_cache_d_socket[1], &v, 1);
 
