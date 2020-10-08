@@ -161,7 +161,7 @@ int
 main(int argc, char *argv[])
 {
 	int8_t to_file = (getuid() == 0) ? 1 : 0;
-	int8_t num, current, secure, usa, verbose;
+	int8_t num, current, secure, usa, verbose, s_set;
 	int8_t generate, override, dns_cache_d, six;
 	long double s, S;
 	pid_t ftp_pid, write_pid;
@@ -174,8 +174,8 @@ main(int argc, char *argv[])
 	char *time = NULL;
 	char v;
 
-	/* 4 seconds and 0 nanoseconds to download ftplist */
-	struct timespec timeout0 = { 4, 0 };
+	/* 10 seconds and 0 nanoseconds to download ftplist */
+	struct timespec timeout0 = { 10, 0 };
 	char *line;
 
 	if (pledge("stdio exec proc cpath wpath dns id unveil", NULL) == -1)
@@ -274,10 +274,6 @@ main(int argc, char *argv[])
 			s = strtold(optarg, NULL);
 			if (errno)
 				err(1, "strtold, line: %d", __LINE__);
-			if (s > (long double) 1000)
-				errx(1, "-s should be <= 1000");
-			if (s < (long double) 0.0078125)
-				errx(1, "-s should be >= 0.0078125 (1/128)");
 				
 			free(time);
 			time = strdup(optarg);
@@ -307,35 +303,48 @@ main(int argc, char *argv[])
 		errx(1, "non-option ARGV-element: %s", argv[optind]);
 	}
 	
+	if (s > 1000)
+		errx(1, "try an -s less than or equal to 1000");
+	if (s < 0.015625)
+		errx(1, "try an -s greater than or equal to 0.015625 (1/64)");
+	
+	if (s > (long double)timeout0.tv_sec) {
+		timeout0.tv_sec = (time_t) s;
+		timeout0.tv_nsec =
+		    (long) ((s - (long double) timeout0.tv_sec) *
+		    (long double) 1000000000);
+	}
+	
 	if (time == NULL) {
+		s_set = 0;
 		snprintf(version, len, "%Lf", s);
 		time = strdup(version);
 		if (time == NULL)
 			errx(1, "strdup");
-	}
+	} else
+		s_set = 1;
+		
 	free(version);
-	
-	i = 0;
-	if (strstr(time, ".")) {
+		
+	if (strstr(time, ".") != NULL) {
+		i = 0;
 		n = strlen(time);
-		while (time[--n] != '.') {
-			if (time[n] != '0')
-				goto jump_time;
+		while (time[--n] == '0')
 			i = n;
+			
+		if (time[n] == '.')
+			i = n;
+			
+		if (i > 0) {
+			time[i] = '\0';
+			time = realloc(time, i + 1);
+			if (time == NULL)
+				errx(1, "realloc");
 		}
-		i = n;
-	}
 
-jump_time:
-	
-	if (i > 0) {
-		time[i] = '\0';
-		time = realloc(time, i + 1);
-		if (time == NULL)
-			errx(1, "realloc");
 	}
-
 	
+
 	if (generate) {
 		if (verbose < 1)
 			verbose = 1;
@@ -403,10 +412,9 @@ loop:
 		}
 		line[i] = '\0';
 
-		if (verbose >= 2)
+		if (verbose == 4)
 			printf("DNS caching: %s\n", line);
-		
-		if (verbose >= 0 && verbose <= 2) {
+		else if (verbose >= 0) {
 			printf("*");
 			fflush(stdout);
 		}
@@ -1129,7 +1137,7 @@ jump_f:
 
 			i = read(dns_cache_d_socket[1], &v, 1);
 
-			if (verbose >= 0 && verbose <= 2) {
+			if (verbose >= 0 && verbose < 4) {
 				printf("\b \b");
 				fflush(stdout);
 			}
@@ -1340,7 +1348,7 @@ restart:
 	}
 
 
-	/* sort by time, subsort by USA mirror, then reverse subsort label */
+	/* sort by time, subsort by USA label, then reverse subsort label */
 	qsort(array, array_length, sizeof(struct mirror_st *), diff_cmp);
 
 	if (verbose >= 1) {
@@ -1489,12 +1497,17 @@ no_good:
 			printf("by marking them as release kernels before\n");
 			printf("the appropriate release mirrors are ");
 			printf("available to hash out any issues.\n");
-			printf("This is solved by using the -O option\n\n");
+			printf("This is solved by using the -O option ");
+			printf("to retrieve snapshot mirrors.\n\n");
 		}
 		if (six)
 			printf("Try losing the -6 option?\n");
 
-		printf("Perhaps try with a larger -s than %s\n", time);
+		if (s_set == 0) {
+			printf("Perhaps try the -s option and choose a timeout");
+			printf(" larger than the default: -s %s\n", time);
+		} else
+			printf("Perhaps try with a larger -s than %s\n", time);
 
 		return 1;
 	}
