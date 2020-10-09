@@ -315,35 +315,6 @@ main(int argc, char *argv[])
 		    (long double) 1000000000);
 	}
 	
-	if (time == NULL) {
-		s_set = 0;
-		snprintf(version, len, "%Lf", s);
-		time = strdup(version);
-		if (time == NULL)
-			errx(1, "strdup");
-	} else
-		s_set = 1;
-		
-	free(version);
-		
-	if (strstr(time, ".") != NULL) {
-		i = 0;
-		n = strlen(time);
-		while (time[--n] == '0')
-			i = n;
-			
-		if (time[n] == '.')
-			i = n;
-			
-		if (i > 0) {
-			time[i] = '\0';
-			time = realloc(time, i + 1);
-			if (time == NULL)
-				errx(1, "realloc");
-		}
-
-	}
-	
 
 	if (generate) {
 		if (verbose < 1)
@@ -455,7 +426,7 @@ loop:
 		struct sockaddr_in6 *sa6;
 		unsigned char *suc6;
 
-		int8_t j, max, h, i_temp, i_max;
+		int8_t max, i_temp, i_max;
 		char six_available = '0';
 
 		for (res = res0; res; res = res->ai_next) {
@@ -477,7 +448,6 @@ loop:
 			 * In case anybody wondered, I wrote this section
 			 *       from scratch with a little googling
 			 *           on ipv6 address formatting
-			 *    I didn't steal it from ftp() or anything
 			 */
 			
 			/* res->ai_family == AF_INET6 */
@@ -491,8 +461,7 @@ loop:
 			sa6 = (struct sockaddr_in6 *) res->ai_addr;
 			suc6 = sa6->sin6_addr.s6_addr;
 
-			j = 0;
-			max = 1;
+			c = max = 0;
 			i_max = -1;
 
 			/* load largest >1 gap beginning into i_max */
@@ -500,25 +469,26 @@ loop:
 
 				/* suc6[i] || suc6[i + 1] */
 				if (  *( (uint16_t*)(suc6 + i) )  ) {
-					j = 0;
+					c = 0;
 					continue;
 				}
 				
-				if (j == 0) {
+				if (c == 0) {
 					i_temp = i;
-					j = h = 1;
+					c = 1;
 					continue;
 				}
 				
-				if (max < ++h) {
-					max = h;
+				if (max < ++c) {
+					max = c;
 					i_max = i_temp;
 				}
 			}
 
 			/* 
 			 * 'i' is even so I can use "i|1" instead of "i+1"
-			 *              which may be faster
+			 *          which may be more efficient
+			 *           and I think it's prettier
 			 */
 			for (i = 0; i < 16; i += 2) {
 
@@ -549,9 +519,10 @@ loop:
 					printf("%c%c",
 					    hex[suc6[i|1] >> 4],
 					    hex[suc6[i|1] & 15]);
-				} else
+				} else {
 					printf("%c",
 					    hex[suc6[i|1]     ]);
+				}
 				
 				if (i < 14)
 					printf(":");
@@ -586,7 +557,7 @@ jump_dns:
 	write_pid = fork();
 	if (write_pid == (pid_t) 0) {
 
-		char *tag_w;
+		char *file_w;
 		FILE *pkg_write;
 
 		if (pledge("stdio cpath wpath", NULL) == -1) {
@@ -649,13 +620,13 @@ jump_dns:
 			_exit(1);
 		}
 		
-		tag_w = malloc(received + 1 + 1);
-		if (tag_w == NULL) {
+		file_w = malloc(received + 1 + 1);
+		if (file_w == NULL) {
 			printf("malloc\n");
 			_exit(1);
 		}
 			
-		i = read(parent_to_write[STDIN_FILENO], tag_w, received);
+		i = read(parent_to_write[STDIN_FILENO], file_w, received);
 
 		if (i < 0) {
 			printf("%s ", strerror(errno));
@@ -676,9 +647,9 @@ jump_dns:
 			_exit(1);
 		}
 		
-		memcpy(tag_w + received, "\n", 1 + 1);
+		memcpy(file_w + received, "\n", 1 + 1);
 
-		i = fwrite(tag_w, 1, received + 1, pkg_write);
+		i = fwrite(file_w, 1, received + 1, pkg_write);
 		if (i < received + 1) {
 			printf("%s ", strerror(errno));
 			printf("write error occurred, line: %d\n", __LINE__);
@@ -688,7 +659,7 @@ jump_dns:
 		fclose(pkg_write);
 
 		if (verbose >= 0)
-			printf("/etc/installurl: %s", tag_w);
+			printf("/etc/installurl: %s", file_w);
 
 		_exit(0);
 
@@ -715,41 +686,7 @@ jump_f:
 		err(1, "pipe, line: %d", __LINE__);
 
 
-
 	int entry_line, exit_line;
-	entry_line = __LINE__;
-
-
-	char *ftp_list[52] = {
-
-		"ftp.bit.nl","ftp.fau.de","ftp.fsn.hu","openbsd.hk",
-		"ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp","ftp.cc.uoc.gr",
-		"ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp",
-		"ftp.icm.edu.pl","mirror.one.com","cdn.openbsd.org",
-		"ftp.OpenBSD.org","mirror.vdms.com","mirrors.mit.edu",
-		"mirror.labkom.id","mirror.litnet.lt","mirror.yandex.ru",
-		"ftp.hostserver.de","mirrors.sonic.net","mirrors.ucr.ac.cr",
-		"ftp.eu.openbsd.org","ftp.fr.openbsd.org","mirror.fsmg.org.nz",
-		"mirror.ungleich.ch","mirrors.dotsrc.org","openbsd.ipacct.com",
-		"ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
-		"mirror.leaseweb.com","mirrors.gigenet.com",
-		"ftp4.usa.openbsd.org","mirror.aarnet.edu.au",
-		"mirror.exonetric.net","mirror.fsrv.services",
-		"*artfiles.org/openbsd","mirror.bytemark.co.uk",
-		"mirror.planetunix.net","www.mirrorservice.org",
-		"mirror.hs-esslingen.de","mirrors.pidginhost.com",
-		"openbsd.cs.toronto.edu","cloudflare.cdn.openbsd.org",
-		"ftp.halifax.rwth-aachen.de","ftp.rnl.tecnico.ulisboa.pt",
-		"mirror.csclub.uwaterloo.ca","mirrors.syringanetworks.net",
-		"openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
-		"openbsd.mirror.netelligent.ca"
-	};
-
-	int index = arc4random_uniform(52);
-
-
-	exit_line = __LINE__;
-
 
 	ftp_pid = fork();
 	if (ftp_pid == (pid_t) 0) {
@@ -771,14 +708,62 @@ jump_f:
 			_exit(1);
 		}
 		close(ftp_out[STDIN_FILENO]);
+		free(version);
 
 		n = 300;
 		line = malloc(n);
 		if (line == NULL) {
-			printf("malloc");
+			printf("malloc\n");
 			_exit(1);
 		}
 		
+		entry_line = __LINE__;
+
+
+		char *ftp_list[53] = {
+
+		"ftp.bit.nl","ftp.fau.de","ftp.fsn.hu","openbsd.hk",
+		"ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp","ftp.cc.uoc.gr",
+		"ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp",
+		"ftp.icm.edu.pl","mirror.one.com","cdn.openbsd.org",
+		"ftp.OpenBSD.org","mirror.esc7.net","mirror.vdms.com",
+		"mirrors.mit.edu","mirror.labkom.id","mirror.litnet.lt",
+		"mirror.yandex.ru","ftp.hostserver.de","mirrors.sonic.net",
+		"mirrors.ucr.ac.cr","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
+		"mirror.fsmg.org.nz","mirror.ungleich.ch","mirrors.dotsrc.org",
+		"openbsd.ipacct.com","ftp.usa.openbsd.org",
+		"ftp2.eu.openbsd.org","mirror.leaseweb.com",
+		"mirrors.gigenet.com","ftp4.usa.openbsd.org",
+		"mirror.aarnet.edu.au","mirror.exonetric.net",
+		"mirror.fsrv.services","*artfiles.org/openbsd",
+		"mirror.bytemark.co.uk","mirror.planetunix.net",
+		"www.mirrorservice.org","mirror.hs-esslingen.de",
+		"mirrors.pidginhost.com","openbsd.cs.toronto.edu",
+		"cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
+		"ftp.rnl.tecnico.ulisboa.pt","mirror.csclub.uwaterloo.ca",
+		"mirrors.syringanetworks.net","openbsd.mirror.constant.com",
+		"plug-mirror.rcac.purdue.edu","openbsd.mirror.netelligent.ca"
+		};
+
+		int index = arc4random_uniform(53);
+
+
+		exit_line = __LINE__;
+
+
+		c = ftp_out[STDOUT_FILENO];
+		
+		if (write(c, &entry_line, sizeof(int)) < sizeof(int)) {
+			printf("%s ", strerror(errno));
+			printf("ftp write entry_line, line: %d\n", __LINE__);
+			_exit(1);
+		}
+		if (write(c, &exit_line, sizeof(int)) < sizeof(int)) {
+			printf("%s ", strerror(errno));
+			printf("ftp write exit_line, line: %d\n", __LINE__);
+			_exit(1);
+		}
+
 		if (generate) {
 			
 			i = strlcpy(line,
@@ -806,7 +791,7 @@ jump_f:
 			printf("%s\n", line);
 
 
-		if (dup2(ftp_out[STDOUT_FILENO], STDOUT_FILENO) == -1) {
+		if (dup2(c, STDOUT_FILENO) == -1) {
 			printf("%s ", strerror(errno));
 			printf("ftp STDOUT dup2, line: %d\n", __LINE__);
 			_exit(1);
@@ -829,7 +814,40 @@ jump_f:
 	close(ftp_out[STDOUT_FILENO]);
 
 
+	/* Let's do some work while ftp is downloading ftplist */
+	
+	if (time == NULL) {
+		s_set = 0;
+		snprintf(version, len, "%Lf", s);
+		time = strdup(version);
+		if (time == NULL) {
+			kill(ftp_pid, SIGKILL);
+			errx(1, "strdup");
+		}
+	} else
+		s_set = 1;
+		
+	free(version);
+		
+	if (strstr(time, ".") != NULL) {
+		i = 0;
+		n = strlen(time);
+		while (time[--n] == '0')
+			i = n;
+			
+		if (time[n] == '.')
+			i = n;
+			
+		if (i > 0) {
+			time[i] = '\0';
+			time = realloc(time, i + 1);
+			if (time == NULL) {
+				kill(ftp_pid, SIGKILL);
+				errx(1, "malloc");
+			}
+		}
 
+	}
 
 
 	if (verbose >= 2) {
@@ -914,6 +932,23 @@ jump_f:
 		kill(ftp_pid, SIGKILL);
 		errx(1, "kq! line: %d", __LINE__);
 	}
+	
+	c = ftp_out[STDIN_FILENO];
+	
+	i = read(c, &entry_line, sizeof(int));
+	if (i < sizeof(int)) {
+		printf("%s ", strerror(errno));
+		kill(ftp_pid, SIGKILL);
+		errx(1, "read line: %d", __LINE__);
+	}
+		
+	i = read(c, &exit_line, sizeof(int));
+	if (i < sizeof(int)) {
+		printf("%s ", strerror(errno));
+		kill(ftp_pid, SIGKILL);
+		errx(1, "read line: %d", __LINE__);
+	}
+
 	EV_SET(&ke, ftp_out[STDIN_FILENO], EVFILT_READ,
 	    EV_ADD | EV_ONESHOT, 0, 0, NULL);
 	i = kevent(kq, &ke, 1, &ke, 1, &timeout0);
@@ -953,7 +988,6 @@ jump_f:
 		errx(1, "malloc");
 	}
 
-	c = ftp_out[STDIN_FILENO];
 	while (read(c, &v, 1) == 1) {
 		if (pos >= 253) {
 			kill(ftp_pid, SIGKILL);
@@ -982,7 +1016,6 @@ jump_f:
 				pos_max = pos;
 
 			array[array_length]->http = malloc(pos);
-
 			if (array[array_length]->http == NULL) {
 				kill(ftp_pid, SIGKILL);
 				errx(1, "malloc");
@@ -1398,8 +1431,8 @@ restart:
 		qsort(array, se + 1, sizeof(struct mirror_st *), diff_cmp_g);
 
 		printf("\n\n");
-		printf("\t/* CODE BEGINS HERE */\n\n\n");
-		printf("\tchar *ftp_list[%d] = {\n\n", se + 1);
+		printf("\t\t/* CODE BEGINS HERE */\n\n\n");
+		printf("\t\tchar *ftp_list[%d] = {\n\n", se + 1);
 		printf("\t\t");
 
 		n = 0;
@@ -1435,10 +1468,11 @@ restart:
 			if (c < se)
 				printf(",");
 		}
-		printf("\n\t};\n\n");
-		printf("\tint index = arc4random_uniform(%d);\n\n\n", se + 1);
+		printf("\n");
+		printf("\t\t};\n\n");
+		printf("\t\tint index = arc4random_uniform(%d);\n\n\n", se + 1);
 
-		printf("\t/* CODE ENDS HERE */\n\n");
+		printf("\t\t/* CODE ENDS HERE */\n\n");
 		printf("Replace section after line: %d, but ", entry_line);
 		printf("before line: %d with the code above.\n\n", exit_line);
 
