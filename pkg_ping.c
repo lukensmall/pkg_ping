@@ -1452,7 +1452,8 @@ restart:
 			    - (h + (c == se));
 
 			/* 
-			 * more than one mirror will not exceed 80 characters
+			 * mirrors printed on the current line
+			 * will not exceed 80 characters
 			 * with 2 tabs of length 8
 			 */
 			if ((n += i) > 80 - 8 * 2) {
