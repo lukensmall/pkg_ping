@@ -385,10 +385,6 @@ loop:
 
 		if (verbose == 4)
 			printf("DNS caching: %s\n", line);
-		else if (verbose >= 0) {
-			printf("*");
-			fflush(stdout);
-		}
 
 
 		bzero(&hints, sizeof(struct addrinfo));
@@ -753,13 +749,16 @@ jump_f:
 
 		c = ftp_out[STDOUT_FILENO];
 		
-		if (write(c, &entry_line, sizeof(int)) < sizeof(int)) {
-			printf("%s ", strerror(errno));
+		errno = 0;
+		if ((ulong)write(c, &entry_line, sizeof(int)) < sizeof(int)) {
+			if (errno)
+				printf("%s ", strerror(errno));
 			printf("ftp write entry_line, line: %d\n", __LINE__);
 			_exit(1);
 		}
-		if (write(c, &exit_line, sizeof(int)) < sizeof(int)) {
-			printf("%s ", strerror(errno));
+		if ((ulong)write(c, &exit_line, sizeof(int)) < sizeof(int)) {
+			if (errno)
+				printf("%s ", strerror(errno));
 			printf("ftp write exit_line, line: %d\n", __LINE__);
 			_exit(1);
 		}
@@ -768,6 +767,7 @@ jump_f:
 			
 			i = strlcpy(line,
 			    "https://cdn.openbsd.org/pub/OpenBSD/ftplist", n);
+			
 		
 		} else {
 			
@@ -829,7 +829,7 @@ jump_f:
 		
 	free(version);
 		
-	if (strstr(time, ".") != NULL) {
+	if (strchr(time, '.') != NULL) {
 		i = 0;
 		n = strlen(time);
 		while (time[--n] == '0')
@@ -936,14 +936,14 @@ jump_f:
 	c = ftp_out[STDIN_FILENO];
 	
 	i = read(c, &entry_line, sizeof(int));
-	if (i < sizeof(int)) {
+	if ((ulong)i < sizeof(int)) {
 		printf("%s ", strerror(errno));
 		kill(ftp_pid, SIGKILL);
 		errx(1, "read line: %d", __LINE__);
 	}
 		
 	i = read(c, &exit_line, sizeof(int));
-	if (i < sizeof(int)) {
+	if ((ulong)i < sizeof(int)) {
 		printf("%s ", strerror(errno));
 		kill(ftp_pid, SIGKILL);
 		errx(1, "read line: %d", __LINE__);
@@ -1167,10 +1167,19 @@ jump_f:
 			if (i < n)
 				err(1, "response not sent");
 
+			/* 
+			 * (verbose >= 0 && verbose <= 3)
+			 * 0-3 need first 2 bits to store
+			 * all other values require extra bits
+			 */
+			if ((verbose >> 2) == 0) {
+				printf("*");
+				fflush(stdout);
+			}
 
 			i = read(dns_cache_d_socket[1], &v, 1);
 
-			if (verbose >= 0 && verbose < 4) {
+			if ((verbose >> 2) == 0) {
 				printf("\b \b");
 				fflush(stdout);
 			}
@@ -1183,9 +1192,6 @@ jump_f:
 				free(release);
 				waitpid(dns_cache_d_pid, NULL, 0);
 				
-				if (pledge("stdio exec", NULL) == -1)
-					err(1, "pledge, line: %d", __LINE__);
-
 				if (verbose >= 2)
 					printf("dns_cache process failed.\n");
 				else if (verbose >= 0) {
@@ -1198,6 +1204,9 @@ jump_f:
 				}
 
 restart:
+
+				if (pledge("stdio exec", NULL) == -1)
+					err(1, "pledge, line: %d", __LINE__);
 
 				if (verbose >= 0)
 					printf("restarting...\n");
@@ -1370,7 +1379,7 @@ restart:
 	close(kq);
 
 	/* (verbose == 0 || verbose == 1) */
-	if (verbose == (verbose & 1)) {
+	if ((verbose >> 1) == 0) {
 		printf("\b \b");
 		fflush(stdout);
 	}
@@ -1392,13 +1401,15 @@ restart:
 			if (array[c]->diff < s) {
 				se = c;
 				break;
-			} else if (array[c]->diff == s) {
-				if (ts == -1)
+			}
+			
+			if (array[c]->diff == s) {
+				if (te == -1)
 					ts = te = c;
 				else
 					ts = c;
 			} else {
-				if (ds == -1)
+				if (de == -1)
 					ds = de = c;
 				else
 					ds = c;
@@ -1415,16 +1426,22 @@ restart:
 		char *cut;
 		int8_t h = strlen("https://");
 
-		/* 
-		 * load diff with what will be relative printed http lengths.
-		 * the "https://" is included in every length but not printed
-		 */
+		/* load diff with what will be printed http lengths */
 		for (c = 0; c <= se; ++c) {
 			cut = strstr(array[c]->http, "/pub/OpenBSD");
-			if (cut)
+			if (cut) {
 				array[c]->diff = cut - array[c]->http - h;
-			else
-				array[c]->diff = 1 + strlen(h + array[c]->http);
+				*cut = '\0';
+			} else {
+				n = 1 + strlen(h + array[c]->http) + 1;
+				cut = malloc(n);
+				if (cut == NULL)
+					errx(1, "malloc");
+				snprintf(cut, n, "*%s", h + array[c]->http);
+				free(array[c]->http);
+				array[c]->http = cut;
+				array[c]->diff = n - 1;
+			}
 		}
 
 		/* sort by printed length, subsort http alphabetically */
@@ -1438,38 +1455,30 @@ restart:
 		n = 0;
 		for (c = 0; c <= se; ++c) {
 
-			cut = strstr(array[c]->http, "/pub/OpenBSD");
-
-			if (cut)
-				*cut = '\0';
-
 			/* 
 			 * the 3 is the size of the printed: "",
-			 * if (c == se) it doesn't print the: ,
+			 * at the end, operating on when
+			 * (c == se) it erases the last ','
 			 */
 			 
-			i = (cut == NULL) + strlen(array[c]->http) + 3
-			    - (h + (c == se));
+			i = array[c]->diff + 3 - (c == se);
 
 			/* 
 			 * mirrors printed on the current line
 			 * will not exceed 80 characters
 			 * with 2 tabs of length 8
 			 */
-			if ((n += i) > 80 - 8 * 2) {
+			if ((n += i) > 80 - 2 * 8) {
 				n = i;
 				printf("\n\t\t");
 			}
 
-			if (cut == NULL)
-				printf("\"*%s\"", h + array[c]->http);
+			if (array[c]->http[0] == '*')
+				printf("\"%s\",", array[c]->http);
 			else
-				printf( "\"%s\"", h + array[c]->http);
-
-			if (c < se)
-				printf(",");
+				printf( "\"%s\",", h + array[c]->http);
 		}
-		printf("\n");
+		printf("\b \n");
 		printf("\t\t};\n\n");
 		printf("\t\tint index = arc4random_uniform(%d);\n\n\n", se + 1);
 
