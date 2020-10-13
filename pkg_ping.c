@@ -171,12 +171,11 @@ main(int argc, char *argv[])
 	struct kevent ke;
 	struct timespec start, end, timeout;
 	char **arg_list;
-	char *time = NULL;
+	char *line0, *line, *time = NULL;
 	char v;
 
 	/* 10 seconds and 0 nanoseconds to download ftplist */
 	struct timespec timeout0 = { 10, 0 };
-	char *line;
 
 	if (pledge("stdio exec proc cpath wpath dns id unveil", NULL) == -1)
 		err(1, "pledge, line: %d", __LINE__);
@@ -988,6 +987,8 @@ jump_f:
 		errx(1, "malloc");
 	}
 
+	int8_t h = strlen("http://");
+
 	while (read(c, &v, 1) == 1) {
 		if (pos >= 253) {
 			kill(ftp_pid, SIGKILL);
@@ -1004,7 +1005,7 @@ jump_f:
 			}
 			line[pos++] = '\0';
 			
-			if (strncmp(line, "http://", strlen("http://")) != 0) {
+			if (strncmp(line, "http://", h)) {
 				kill(ftp_pid, SIGKILL);
 				errx(1, "bad http format, line: %d", __LINE__);
 			}				
@@ -1124,11 +1125,32 @@ jump_f:
 	    (long) ((s - (long double) timeout.tv_sec) *
 	    (long double) 1000000000);
 
+
+
+	if (six == 0 && verbose >= 3)
+		line0 = strdup("-vimo-");
+	else if (six == 0)
+		line0 = strdup("-ViMo-");
+	else if (verbose >= 3)
+		line0 = strdup("-vim6o-");
+	else
+		line0 = strdup("-ViM6o-");
+
+	if (line0 == NULL)
+		errx(1, "strdup");
+
+
+	if (secure == 0)
+		h = strlen("http://");
+	else
+		h = strlen("https://");
+
+
 	for (c = 0; c < array_length; ++c) {
 
 		n = strlcpy(line, array[c]->http, pos_max);
 		memcpy(line + n, tag, tag_len + 1);
-		
+
 		if (verbose >= 2) {
 			if (verbose == 4 && dns_cache_d)
 				printf("\n\n\n");
@@ -1160,12 +1182,12 @@ jump_f:
 
 		if (dns_cache_d) {
 		
-			char *host = strlen("http://") + secure + line;
-			n = strstr(host, "/") - host;
+			char *host = h + line;
+			n = strchr(host, '/') - host;
 
 			i = write(dns_cache_d_socket[1], host, n);
 			if (i < n)
-				err(1, "response not sent");
+				err(1, "address not sent");
 
 			/* 
 			 * (verbose >= 0 && verbose <= 3)
@@ -1183,12 +1205,13 @@ jump_f:
 				printf("\b \b");
 				fflush(stdout);
 			}
-			
+
 			if (i < 1) {
 				
 				free(tag);
-				free(line);
 				free(time);
+				free(line);
+				free(line0);
 				free(release);
 				waitpid(dns_cache_d_pid, NULL, 0);
 				
@@ -1261,44 +1284,34 @@ restart:
 				_exit(1);
 			}
 
-			close(block_pipe[STDOUT_FILENO]);
-			read(block_pipe[STDIN_FILENO], &n, sizeof(int));
-			close(block_pipe[STDIN_FILENO]);
-
 			i = open("/dev/null", O_WRONLY);
+			n = dup(STDERR_FILENO);
 			if (i != -1) {
 				dup2(i, STDOUT_FILENO);
 
 				if (verbose <= 2)
 					dup2(i, STDERR_FILENO);
 			} else
-				printf("can't open /dev/null\n");
+				printf("can't open \"/dev/null\"\n");
 
 
-			if (six) {
-				
-				if (verbose >= 3) {
-					execl("/usr/bin/ftp", "ftp",
-					    "-vim6o-", line, NULL);
-				} else {
-					execl("/usr/bin/ftp", "ftp",
-					    "-ViM6o-", line, NULL);
-				}
-				
-			} else {
-				
-				if (verbose >= 3) {
-					execl("/usr/bin/ftp", "ftp",
-					    "-vimo-", line, NULL);
-				} else {
-					execl("/usr/bin/ftp", "ftp",
-					    "-ViMo-", line, NULL);
-				}
-			}
+			/* 
+			 * this read() is just to assure that the process
+			 * is alive for the parent kevent calls,
+			 * it standardizes the timing of the ftp calling
+			 * process, and it is written as an efficient way 
+			 * to signal the process to resume without ugly code.
+			 */
+			close(block_pipe[STDOUT_FILENO]);
+			read(block_pipe[STDIN_FILENO], &v, 1);
+			close(block_pipe[STDIN_FILENO]);
+			
 
-			fprintf(stderr, "%s ", strerror(errno));
-			fprintf(stderr, "ftp 2 execl() failed, ");
-			fprintf(stderr, "line: %d\n", __LINE__);
+			execl("/usr/bin/ftp", "ftp", line0, line, NULL);
+
+			dprintf(n, "%s ", strerror(errno));
+			dprintf(n, "ftp 2 execl() failed, ");
+			dprintf(n, "line: %d\n", __LINE__);
 			_exit(1);
 		}
 		if (ftp_pid == -1)
@@ -1374,8 +1387,9 @@ restart:
 	if (pledge("stdio exec", NULL) == -1)
 		err(1, "pledge, line: %d", __LINE__);
 
-	free(line);
 	free(tag);
+	free(line);
+	free(line0);
 	close(kq);
 
 	/* (verbose == 0 || verbose == 1) */
@@ -1424,23 +1438,21 @@ restart:
 			goto no_good;
 
 		char *cut;
-		int8_t h = strlen("https://");
+		/* h = strlen("https://"); */
 
-		/* load diff with what will be printed http lengths */
+		/* 
+		 * load diff with what will be printed http lengths
+		 * and reformat http
+		 */
 		for (c = 0; c <= se; ++c) {
-			cut = strstr(array[c]->http, "/pub/OpenBSD");
+			cut = strstr(array[c]->http += h, "/pub/OpenBSD");
 			if (cut) {
-				array[c]->diff = cut - array[c]->http - h;
 				*cut = '\0';
+				array[c]->diff = cut - array[c]->http;
 			} else {
-				n = 1 + strlen(h + array[c]->http) + 1;
-				cut = malloc(n);
-				if (cut == NULL)
-					errx(1, "malloc");
-				snprintf(cut, n, "*%s", h + array[c]->http);
-				free(array[c]->http);
-				array[c]->http = cut;
-				array[c]->diff = n - 1;
+				array[c]->http -= 1;
+				array[c]->http[0] = '*';
+				array[c]->diff = strlen(array[c]->http);
 			}
 		}
 
@@ -1457,7 +1469,7 @@ restart:
 
 			/* 
 			 * the 3 is the size of the printed: "",
-			 * at the end, operating on when
+			 * outside the loop, operating on when
 			 * (c == se) it erases the last ','
 			 */
 			 
@@ -1473,10 +1485,7 @@ restart:
 				printf("\n\t\t");
 			}
 
-			if (array[c]->http[0] == '*')
-				printf("\"%s\",", array[c]->http);
-			else
-				printf( "\"%s\",", h + array[c]->http);
+			printf("\"%s\",", array[c]->http);
 		}
 		printf("\b \n");
 		printf("\t\t};\n\n");
