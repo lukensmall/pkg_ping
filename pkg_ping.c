@@ -576,6 +576,13 @@ jump_dns:
 			_exit(1);
 		}
 		
+		/* 
+		 * It probably seems like overkill to use kevent() for
+		 * a single file descriptor, but it means that 
+		 * I don't have to guess about how much data will
+		 * be sent down the pipe. I can allocate the perfect
+		 * amount of buffer space AFTER the pipe receives it!
+		 */
 		EV_SET(&ke, parent_to_write[STDIN_FILENO], EVFILT_READ,
 		    EV_ADD | EV_ONESHOT, 0, 0, NULL);
 		if (kevent(kq, &ke, 1, &ke, 1, NULL) == -1) {
@@ -631,7 +638,8 @@ jump_dns:
 		}
 
 		if (i < received) {
-			printf("didn't read from buffer, line: %d\n", __LINE__);
+			printf("didn't fully read from pipe, ");
+			printf("line: %d\n", __LINE__);
 			fclose(pkg_write);
 			_exit(1);
 		}
