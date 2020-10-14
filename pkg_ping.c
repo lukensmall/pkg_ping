@@ -1477,7 +1477,7 @@ restart:
 
 		/* 
 		 * load diff with what will be printed http lengths
-		 * and reformat http
+		 *                and reformat http
 		 */
 		for (c = 0; c <= se; ++c) {
 			cut = strstr(array[c]->http += h, "/pub/OpenBSD");
@@ -1500,20 +1500,17 @@ restart:
 		printf("\t\t");
 
 		n = 0;
-		for (c = 0; c <= se; ++c) {
+		for (c = 0; c < se; ++c) {
 
-			/* 
-			 * the 3 is the size of the printed: "",
-			 * outside the loop, operating on when
-			 * (c == se) it erases the last ','
-			 */
-			 
-			i = array[c]->diff + 3 - (c == se);
+			/* the 3 is the size of the printed: "", */
+			i = array[c]->diff + 3;
 
 			/* 
 			 * mirrors printed on the current line
 			 * will not exceed 80 characters
-			 * with 2 tabs of length 8
+			 * wide with 2 tabs of length 8,
+			 * this source code is designed to be
+			 * viewed with length 8 indentation
 			 */
 			if ((n += i) > 80 - 2 * 8) {
 				n = i;
@@ -1522,7 +1519,15 @@ restart:
 
 			printf("\"%s\",", array[c]->http);
 		}
-		printf("\b \n");
+
+
+		/* the 2 is the size of the printed: "" */
+		i = array[c]->diff + 2;
+		if (n + i > 80 - 2 * 8)
+			printf("\n\t\t");
+		printf("\"%s\"\n", array[c]->http);
+
+
 		printf("\t\t};\n\n");
 		printf("\t\tint index = arc4random_uniform(%d);\n\n\n", se + 1);
 
