@@ -57,7 +57,7 @@
  * 
  *
  * 	On big-endian systems like sparc64, you may need:
- * 	cc pkg_ping.c -mlittle-endian -pipe -o pkg_ping
+ * 	cc pkg_ping.c -mlittle-endian -o pkg_ping
  */
 
 #include <err.h>
