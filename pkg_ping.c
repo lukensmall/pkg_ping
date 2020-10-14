@@ -46,7 +46,15 @@
  *	indent pkg_ping.c -bap -br -ce -ci4 -cli0 -d0 -di0 -i8 \
  *	-ip -l79 -nbc -ncdb -ndj -ei -nfc1 -nlp -npcs -psl -sc -sob
  *
- *	cc pkg_ping.c -pipe -o pkg_ping
+ *	cc pkg_ping.c -o pkg_ping
+ * 
+ * 	If you want bleeding edge performance, you can try:
+ * 	
+ *	cc pkg_ping.c -Ofast -o pkg_ping
+ * 
+ * 	You probably won't see an appreciable performance gain between
+ * 	the dns lookups and ftp calls, which are the time killers.
+ * 
  *
  * 	On big-endian systems like sparc64, you may need:
  * 	cc pkg_ping.c -mlittle-endian -pipe -o pkg_ping
@@ -84,6 +92,12 @@ diff_cmp(const void *a, const void *b)
 		return -1;
 	if (one->diff > two->diff)
 		return 1;
+		
+	/* 
+	 * one and two are undoubtedly timeout or
+	 * download error mirrors to get past the
+	 *            diff comparisons
+	 */
 
 	/* list the USA mirrors first */
 	int8_t temp = (strstr(one->label, "USA") != NULL);
@@ -160,7 +174,7 @@ manpage(char a[])
 int
 main(int argc, char *argv[])
 {
-	int8_t to_file = (getuid() == 0) ? 1 : 0;
+	int8_t to_file = (getuid() == 0);
 	int8_t num, current, secure, usa, verbose, s_set;
 	int8_t generate, override, dns_cache_d, six;
 	long double s, S;
@@ -170,7 +184,6 @@ main(int argc, char *argv[])
 	struct mirror_st **array;
 	struct kevent ke;
 	struct timespec start, end, timeout;
-	char **arg_list;
 	char *line0, *line, *time = NULL;
 	char v;
 
@@ -578,8 +591,8 @@ jump_dns:
 		
 		/* 
 		 * It probably seems like overkill to use kevent() for
-		 * a single file descriptor, but it means that 
-		 * I don't have to guess about how much data will
+		 * a single file descriptor with no timeoutbut. It means
+		 * that I don't have to guess about how much data will
 		 * be sent down the pipe. I can allocate the perfect
 		 * amount of buffer space AFTER the pipe receives it!
 		 */
@@ -942,6 +955,8 @@ jump_f:
 	
 	c = ftp_out[STDIN_FILENO];
 	
+
+	/* I can't think of a better way to get these two values */
 	i = read(c, &entry_line, sizeof(int));
 	if ((ulong)i < sizeof(int)) {
 		printf("%s ", strerror(errno));
@@ -956,6 +971,10 @@ jump_f:
 		errx(1, "read line: %d", __LINE__);
 	}
 
+	/* 
+	 * I use kevent here, just so I can call the program
+	 *             again if ftp is sluggish
+	 */
 	EV_SET(&ke, ftp_out[STDIN_FILENO], EVFILT_READ,
 	    EV_ADD | EV_ONESHOT, 0, 0, NULL);
 	i = kevent(kq, &ke, 1, &ke, 1, &timeout0);
@@ -1101,6 +1120,12 @@ jump_f:
 
 	waitpid(ftp_pid, &n, 0);
 
+	/* 
+	 * This will likely be caused by no internet connection
+	 * than from a faulty mirror. If it is run by a script,
+	 * it will be far easier to run a loop than to kill the
+	 *            constantly restarting program.
+	 */
 	if (n != 0 || array_length == 0)
 		errx(1, "There was a download error. Try again.\n");
 
@@ -1195,7 +1220,7 @@ jump_f:
 
 			i = write(dns_cache_d_socket[1], host, n);
 			if (i < n)
-				err(1, "address not sent");
+				goto restart0;
 
 			/* 
 			 * (verbose >= 0 && verbose <= 3)
@@ -1215,6 +1240,8 @@ jump_f:
 			}
 
 			if (i < 1) {
+				
+restart0:
 				
 				free(tag);
 				free(time);
@@ -1242,14 +1269,14 @@ restart:
 				if (verbose >= 0)
 					printf("restarting...\n");
 
+				char **arg_list;
 				arg_list = calloc(argc + 1, sizeof(char *));
 				if (arg_list == NULL)
 					errx(1, "calloc");
-				for (i = 0; i < argc; ++i) {
-					arg_list[i] = strdup(argv[i]);
-					if (arg_list[i] == NULL)
-						errx(1, "strdup");
-				}
+					
+				for (i = 0; i < argc; ++i)
+					arg_list[i] = argv[i];
+					
 				execv(arg_list[0], arg_list);
 				err(1, "execv failed, line: %d", __LINE__);
 			}
