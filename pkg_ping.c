@@ -738,27 +738,23 @@ jump_f:
 
 		char *ftp_list[53] = {
 
-		"ftp.bit.nl","ftp.fau.de","ftp.fsn.hu","openbsd.hk",
-		"ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp","ftp.cc.uoc.gr",
-		"ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp",
-		"ftp.icm.edu.pl","mirror.one.com","cdn.openbsd.org",
-		"ftp.OpenBSD.org","mirror.esc7.net","mirror.vdms.com",
-		"mirrors.mit.edu","mirror.labkom.id","mirror.litnet.lt",
-		"mirror.yandex.ru","ftp.hostserver.de","mirrors.sonic.net",
-		"mirrors.ucr.ac.cr","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
-		"mirror.fsmg.org.nz","mirror.ungleich.ch","mirrors.dotsrc.org",
-		"openbsd.ipacct.com","ftp.usa.openbsd.org",
-		"ftp2.eu.openbsd.org","mirror.leaseweb.com",
-		"mirrors.gigenet.com","ftp4.usa.openbsd.org",
-		"mirror.aarnet.edu.au","mirror.exonetric.net",
-		"mirror.fsrv.services","*artfiles.org/openbsd",
-		"mirror.bytemark.co.uk","mirror.planetunix.net",
-		"www.mirrorservice.org","mirror.hs-esslingen.de",
-		"mirrors.pidginhost.com","openbsd.cs.toronto.edu",
-		"cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
-		"ftp.rnl.tecnico.ulisboa.pt","mirror.csclub.uwaterloo.ca",
-		"mirrors.syringanetworks.net","openbsd.mirror.constant.com",
-		"plug-mirror.rcac.purdue.edu","openbsd.mirror.netelligent.ca"
+      "ftp.bit.nl","ftp.fau.de","ftp.fsn.hu","openbsd.hk","ftp.eenet.ee",
+ "ftp.nluug.nl","ftp.riken.jp","ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de",
+      "www.ftp.ne.jp","ftp.icm.edu.pl","mirror.one.com","cdn.openbsd.org",
+    "ftp.OpenBSD.org","mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu",
+ "mirror.labkom.id","mirror.litnet.lt","mirror.yandex.ru","ftp.hostserver.de",
+         "mirrors.sonic.net","mirrors.ucr.ac.cr","ftp.eu.openbsd.org",
+        "ftp.fr.openbsd.org","mirror.fsmg.org.nz","mirror.ungleich.ch",
+        "mirrors.dotsrc.org","openbsd.ipacct.com","ftp.usa.openbsd.org",
+       "ftp2.eu.openbsd.org","mirror.leaseweb.com","mirrors.gigenet.com",
+     "ftp4.usa.openbsd.org","mirror.aarnet.edu.au","mirror.exonetric.net",
+    "mirror.fsrv.services","*artfiles.org/openbsd","mirror.bytemark.co.uk",
+   "mirror.planetunix.net","www.mirrorservice.org","mirror.hs-esslingen.de",
+"mirrors.pidginhost.com","openbsd.cs.toronto.edu","cloudflare.cdn.openbsd.org",
+           "ftp.halifax.rwth-aachen.de","ftp.rnl.tecnico.ulisboa.pt",
+          "mirror.csclub.uwaterloo.ca","mirrors.syringanetworks.net",
+          "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
+                        "openbsd.mirror.netelligent.ca"
 		};
 
 		int index = arc4random_uniform(53);
@@ -1477,7 +1473,7 @@ restart:
 
 		/* 
 		 * load diff with what will be printed http lengths
-		 *                and reformat http
+		 *                 and reformat http
 		 */
 		for (c = 0; c <= se; ++c) {
 			cut = strstr(array[c]->http += h, "/pub/OpenBSD");
@@ -1497,37 +1493,42 @@ restart:
 		printf("\n\n");
 		printf("\t\t/* CODE BEGINS HERE */\n\n\n");
 		printf("\t\tchar *ftp_list[%d] = {\n\n", se + 1);
-		printf("\t\t");
 
+		
 		n = 0;
-		for (c = 0; c < se; ++c) {
-
-			/* the 3 is the size of the printed: "", */
-			i = array[c]->diff + 3;
+		int16_t j, first = 0;
+		for (c = 0; c <= se; ++c) {
 
 			/* 
-			 * mirrors printed on the current line
-			 * will not exceed 80 characters
-			 * wide with 2 tabs of length 8,
-			 * this source code is designed to be
-			 * viewed with length 8 indentation
+			 * the 3 is the size of the printed: "",
+			 * when (c == se) it doesn't print the last ,
 			 */
-			if ((n += i) > 80 - 2 * 8) {
+			 
+			n += i = array[c]->diff + 3 - (c == se);
+
+			/* 
+			 * mirrors printed on each line
+			 * will not exceed 80 characters
+			 */
+			if (n > 80) {
+				
+				for (j = (80 - (n - i)) / 2; j > 0; --j)
+					printf(" ");
+				for (j = first; j < c; ++j)
+					printf("\"%s\",", array[j]->http);
+				printf("\n");
+				first = c;
 				n = i;
-				printf("\n\t\t");
+				
 			}
-
-			printf("\"%s\",", array[c]->http);
 		}
-
-
-		/* the 2 is the size of the printed: "" */
-		i = array[c]->diff + 2;
-		if (n + i > 80 - 2 * 8)
-			printf("\n\t\t");
-		printf("\"%s\"\n", array[c]->http);
-
-
+		
+		for (j = (80 - n) / 2; j > 0; --j)
+			printf(" ");
+		for (j = first; j < se; ++j)
+			printf("\"%s\",", array[j]->http);
+		printf("\"%s\"\n", array[j]->http);
+		
 		printf("\t\t};\n\n");
 		printf("\t\tint index = arc4random_uniform(%d);\n\n\n", se + 1);
 
