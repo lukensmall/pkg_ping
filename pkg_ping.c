@@ -737,28 +737,28 @@ jump_f:
 		entry_line = __LINE__;
 
 
-		char *ftp_list[51] = {
+		char *ftp_list[52] = {
 
       "ftp.bit.nl","ftp.fau.de","ftp.fsn.hu","openbsd.hk","ftp.eenet.ee",
  "ftp.nluug.nl","ftp.riken.jp","ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de",
       "www.ftp.ne.jp","ftp.icm.edu.pl","mirror.one.com","cdn.openbsd.org",
     "ftp.OpenBSD.org","mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu",
- "mirror.labkom.id","mirror.litnet.lt","ftp.hostserver.de","mirrors.sonic.net",
-         "mirrors.ucr.ac.cr","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
-        "mirror.fsmg.org.nz","mirror.ungleich.ch","mirrors.dotsrc.org",
-       "openbsd.ipacct.com","ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
-      "mirror.leaseweb.com","mirrors.gigenet.com","ftp4.usa.openbsd.org",
-     "mirror.aarnet.edu.au","mirror.exonetric.net","mirror.fsrv.services",
-    "*artfiles.org/openbsd","mirror.bytemark.co.uk","mirror.planetunix.net",
+ "mirror.labkom.id","mirror.litnet.lt","mirror.yandex.ru","ftp.hostserver.de",
+         "mirrors.sonic.net","mirrors.ucr.ac.cr","ftp.eu.openbsd.org",
+        "ftp.fr.openbsd.org","mirror.fsmg.org.nz","mirror.ungleich.ch",
+        "mirrors.dotsrc.org","openbsd.ipacct.com","ftp.usa.openbsd.org",
+       "ftp2.eu.openbsd.org","mirror.leaseweb.com","mirrors.gigenet.com",
+     "ftp4.usa.openbsd.org","mirror.aarnet.edu.au","mirror.exonetric.net",
+    "mirror.fsrv.services","*artfiles.org/openbsd","mirror.planetunix.net",
    "www.mirrorservice.org","mirror.hs-esslingen.de","mirrors.pidginhost.com",
              "openbsd.cs.toronto.edu","cloudflare.cdn.openbsd.org",
            "ftp.halifax.rwth-aachen.de","ftp.rnl.tecnico.ulisboa.pt",
-          "mirrors.syringanetworks.net","openbsd.mirror.constant.com",
-         "plug-mirror.rcac.purdue.edu","openbsd.mirror.netelligent.ca"
-	 
+          "mirror.csclub.uwaterloo.ca","mirrors.syringanetworks.net",
+          "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
+                        "openbsd.mirror.netelligent.ca"
 		};
 
-		int index = arc4random_uniform(51);
+		int index = arc4random_uniform(52);
 
 
 		exit_line = __LINE__;
@@ -979,9 +979,6 @@ jump_f:
 	}
 	if (i == 0) {
 		kill(ftp_pid, SIGKILL);
-		free(tag);
-		free(time);
-		free(release);
 		goto restart;
 	}
 
@@ -1244,11 +1241,6 @@ jump_f:
 				
 restart0:
 				close(kq);
-				free(tag);
-				free(time);
-				free(line);
-				free(line0);
-				free(release);
 				close(std_err);
 				close(dev_null);
 				waitpid(dns_cache_d_pid, NULL, 0);
@@ -1279,13 +1271,13 @@ restart:
 			if (six && v == '0') {
 				if (verbose >= 2)
 					printf("Ipv6 DNS record not found.\n");
-				array[c]->diff = s + 1;
+				array[c]->diff = s + 2;
 				continue;
 			}
 			if (v == 'f') {
 				if (verbose >= 2)
 					printf("DNS record not found.\n");
-				array[c]->diff = s + 2;
+				array[c]->diff = s + 3;
 				continue;
 			}
 		}
@@ -1389,7 +1381,7 @@ restart:
 		waitpid(ftp_pid, &n, 0);
 
 		if (n != 0) {
-			array[c]->diff = s + 3;
+			array[c]->diff = s + 1;
 			if (verbose >= 2)
 				printf("Download Error\n");
 			continue;
@@ -1475,8 +1467,6 @@ restart:
 		if (se < 0)
 			goto no_good;
 
-		/* h = strlen("https://"); */
-
 		/* 
 		 * load diff with what will be printed http lengths
 		 *          and process http for printing
@@ -1533,7 +1523,7 @@ restart:
 			printf(" ");
 		for (j = first; j < se; ++j)
 			printf("\"%s\",", array[j]->http);
-		printf("\"%s\"\n\n", array[j]->http);
+		printf("\"%s\"\n", array[j]->http);
 		
 		printf("\t\t};\n\n");
 		printf("\t\tint index = arc4random_uniform(%d);\n\n\n", se + 1);
@@ -1586,11 +1576,11 @@ generate_jump:
 			}
 			
 			if (array[c]->diff == s + 1)
-				printf("IPv6 DNS records not found");
-			else if (array[c]->diff == s + 2)
-				printf("DNS records not found");
-			else
 				printf("Download Error");
+			else if (array[c]->diff == s + 2)
+				printf("IPv6 DNS records not found");
+			else
+				printf("DNS records not found");
 			printf("\n\n");
 				
 			if (c == ds) {
@@ -1619,7 +1609,7 @@ no_good:
 			printf("to retrieve snapshot mirrors.\n\n");
 		}
 		if (six)
-			printf("Try losing the -6 option?\n");
+			printf("Try losing the -6 option?\n\n");
 
 		if (s_set == 0) {
 			printf("Perhaps try the -s option and choose a timeout");
@@ -1639,8 +1629,6 @@ no_good:
 
 		if (i < n) {
 			printf("not all of mirror sent\n");
-			free(time);
-			free(release);
 			goto restart;
 		}
 		
@@ -1649,8 +1637,6 @@ no_good:
 
 		if (i != 0) {
 			printf("write error.\n");
-			free(time);
-			free(release);
 			goto restart;
 		}
 
