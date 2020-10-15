@@ -726,7 +726,6 @@ jump_f:
 			_exit(1);
 		}
 		close(ftp_out[STDIN_FILENO]);
-		free(version);
 
 		n = 300;
 		line = malloc(n);
