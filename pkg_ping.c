@@ -184,7 +184,7 @@ main(int argc, char *argv[])
 	int dns_cache_d_socket[2];
 	int write_pipe[2], ftp_out[2], block_pipe[2];
 	struct timespec start, end, timeout;
-	char *line0, *line, *version, *release, *tag, *time = NULL;
+	char *line0, *line, *release, *tag, *time = NULL;
 	struct mirror_st **array;
 	struct utsname *name;
 	struct kevent ke;
@@ -226,22 +226,20 @@ main(int argc, char *argv[])
 	s = 5;
 
 	len = 300;
-	version = malloc(len);
-	if (version == NULL)
+	line = malloc(len);
+	if (line == NULL)
 		errx(1, "malloc");
 
-	/* stores results of "sysctl kern.version" into 'version' */
+	/* store results of "sysctl kern.version" into 'line' */
 	const int mib[2] = { CTL_KERN, KERN_VERSION };
-	if (sysctl(mib, 2, version, &len, NULL, 0) == -1)
+	if (sysctl(mib, 2, line, &len, NULL, 0) == -1)
 		err(1, "sysctl, line: %d", __LINE__);
 
 	/* Discovers if the kernel is not a release version */
-	if (strstr(version, "current"))
-		current = 1;
-	else if (strstr(version, "beta"))
+	if (strstr(line, "current") || strstr(line, "beta"))
 		current = 1;
 	
-	free(version);
+	free(line);
 
 	while ((c = getopt(argc, argv, "6dfghOSs:uvV")) != -1) {
 		switch (c) {
@@ -1218,12 +1216,12 @@ jump_f:
 
 			i = write(dns_cache_d_socket[1], host, n);
 			if (i < n)
-				goto restart0;
+				goto restart_dns;
 
 			/* 
-			 *   (verbose >= 0 && verbose <= 3)
-			 *   0-3 need first 2 bits to store
-			 * all other values require extra bits
+			 * (verbose >= 0 && verbose <= 3)
+			 * 0-3 need first 2 bits to store
+			 * other values require extra bits
 			 */
 			if ((verbose >> 2) == 0) {
 				printf("*");
@@ -1239,27 +1237,22 @@ jump_f:
 
 			if (i < 1) {
 				
-restart0:
-				close(kq);
+restart_dns:
+
 				close(std_err);
 				close(dev_null);
-				waitpid(dns_cache_d_pid, NULL, 0);
 				
 				if (verbose >= 2)
-					printf("dns_cache process failed.\n");
+					printf("dns_cache process issues\n\n");
 				else if (verbose >= 0) {
 					n = array_length - c;
 					do {
 						printf("\b \b");
 						n /= 10;
 					} while (n > 0);
-					fflush(stdout);
 				}
 
 restart:
-
-				if (pledge("stdio exec", NULL) == -1)
-					err(1, "pledge, line: %d", __LINE__);
 
 				if (verbose >= 0)
 					printf("restarting...\n");
@@ -1548,25 +1541,27 @@ generate_jump:
 
 		for (; c >= 0; --c) {
 
+			struct mirror_st *temp = array[c];
+			
 			if (array_length >= 100)
 				printf("%3d", c + 1);
 			else
 				printf("%2d", c + 1);
 
-			printf(" : %s\n\t", array[c]->label);
+			printf(" : %s\n\t", temp->label);
 			
 			if (c <= se) {
 				printf("echo \"%s\" > /etc/installurl",
-				    array[c]->http);
-				printf(" : %.9Lf\n\n", array[c]->diff);
+				    temp->http);
+				printf(" : %.9Lf\n\n", temp->diff);
 				continue;
 			}
 			
-			cut = strchr(array[c]->http += h, '/');
+			cut = strchr(temp->http += h, '/');
 			if (cut)
 				*cut = '\0';
 			
-			printf("%s : ", array[c]->http);
+			printf("%s : ", temp->http);
 			
 			if (c <= te) {
 				printf("Timeout\n\n");
@@ -1575,9 +1570,9 @@ generate_jump:
 				continue;
 			}
 			
-			if (array[c]->diff == s + 1)
+			if (temp->diff == s + 1)
 				printf("Download Error");
-			else if (array[c]->diff == s + 2)
+			else if (temp->diff == s + 2)
 				printf("IPv6 DNS records not found");
 			else
 				printf("DNS records not found");
@@ -1631,7 +1626,6 @@ no_good:
 			printf("not all of mirror sent\n");
 			goto restart;
 		}
-		
 		
 		waitpid(write_pid, &i, 0);
 
