@@ -176,15 +176,19 @@ main(int argc, char *argv[])
 {
 	int8_t to_file = (getuid() == 0);
 	int8_t num, current, secure, usa, verbose, s_set;
-	int8_t generate, override, dns_cache_d, six;
+	int8_t generate, override, dns_cache_d, six, h;
 	long double s, S;
-	pid_t ftp_pid, write_pid;
-	int kq, i, pos, c, n, array_max, array_length, tag_len, pos_max;
-	int parent_to_write[2], ftp_out[2], block_pipe[2];
-	struct mirror_st **array;
-	struct kevent ke;
+	pid_t ftp_pid, write_pid, dns_cache_d_pid;
+	int kq, i, pos, c, n, array_max, array_length, tag_len;
+	int pos_max, std_err, dev_null, entry_line, exit_line;
+	int dns_cache_d_socket[2];
+	int write_pipe[2], ftp_out[2], block_pipe[2];
 	struct timespec start, end, timeout;
-	char *line0, *line, *time = NULL;
+	char *line0, *line, *version, *release, *tag, *time = NULL;
+	struct mirror_st **array;
+	struct utsname *name;
+	struct kevent ke;
+	size_t len;
 	char v;
 
 	/* 10 seconds and 0 nanoseconds to download ftplist */
@@ -221,8 +225,7 @@ main(int argc, char *argv[])
 	usa = dns_cache_d = 1;
 	s = 5;
 
-	char *version;
-	size_t len = 300;
+	len = 300;
 	version = malloc(len);
 	if (version == NULL)
 		errx(1, "malloc");
@@ -237,6 +240,8 @@ main(int argc, char *argv[])
 		current = 1;
 	else if (strstr(version, "beta"))
 		current = 1;
+	
+	free(version);
 
 	while ((c = getopt(argc, argv, "6dfghOSs:uvV")) != -1) {
 		switch (c) {
@@ -342,12 +347,11 @@ main(int argc, char *argv[])
 	if (dns_cache_d == 0)
 		goto jump_dns;
 
-	int dns_cache_d_socket[2];
 	if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC,
 	    PF_UNSPEC, dns_cache_d_socket) == -1)
 		err(1, "socketpair, line: %d\n", __LINE__);
 
-	pid_t dns_cache_d_pid = fork();
+	dns_cache_d_pid = fork();
 	if (dns_cache_d_pid == (pid_t) 0) {
 
 			
@@ -559,7 +563,7 @@ jump_dns:
 	if (pledge("stdio exec proc cpath wpath id", NULL) == -1)
 		err(1, "pledge, line: %d", __LINE__);
 
-	if (pipe2(parent_to_write, O_CLOEXEC) == -1)
+	if (pipe2(write_pipe, O_CLOEXEC) == -1)
 		err(1, "pipe2, line: %d", __LINE__);
 
 	write_pid = fork();
@@ -573,7 +577,7 @@ jump_dns:
 			printf("pledge, line: %d\n", __LINE__);
 			_exit(1);
 		}
-		close(parent_to_write[STDOUT_FILENO]);
+		close(write_pipe[STDOUT_FILENO]);
 
 		if (dns_cache_d)
 			close(dns_cache_d_socket[1]);
@@ -590,13 +594,13 @@ jump_dns:
 		}
 		
 		/* 
-		 * It probably seems like overkill to use kevent() for
-		 * a single file descriptor with no timeoutbut. It means
-		 * that I don't have to guess about how much data will
-		 * be sent down the pipe. I can allocate the perfect
-		 * amount of buffer space AFTER the pipe receives it!
+		 * It probably seems like overkill to use a kqueue for
+		 *   a single file descriptor with no timeout, but I 
+		 *    don't have to guess about how much data will
+		 *  be sent down the pipe. I can allocate the perfect
+		 * amount of buffer space AFTER the pipe receives it.
 		 */
-		EV_SET(&ke, parent_to_write[STDIN_FILENO], EVFILT_READ,
+		EV_SET(&ke, write_pipe[STDIN_FILENO], EVFILT_READ,
 		    EV_ADD | EV_ONESHOT, 0, 0, NULL);
 		if (kevent(kq, &ke, 1, &ke, 1, NULL) == -1) {
 			printf("%s ", strerror(errno));
@@ -641,7 +645,7 @@ jump_dns:
 			_exit(1);
 		}
 			
-		i = read(parent_to_write[STDIN_FILENO], file_w, received);
+		i = read(write_pipe[STDIN_FILENO], file_w, received);
 
 		if (i < 0) {
 			printf("%s ", strerror(errno));
@@ -683,7 +687,7 @@ jump_dns:
 	if (write_pid == -1)
 		err(1, "write fork, line: %d", __LINE__);
 
-	close(parent_to_write[STDIN_FILENO]);
+	close(write_pipe[STDIN_FILENO]);
 
 
 jump_f:
@@ -702,8 +706,6 @@ jump_f:
 		err(1, "pipe, line: %d", __LINE__);
 
 
-	int entry_line, exit_line;
-
 	ftp_pid = fork();
 	if (ftp_pid == (pid_t) 0) {
 
@@ -712,8 +714,8 @@ jump_f:
 		if (getuid() == 0) {
 		/* 
 		 * user _pkgfetch: ftp will regain read pledge
-		 * just to chroot to /var/empty leaving
-		 * read access to an empty directory
+		 *    just to chroot to /var/empty leaving
+		 *      read access to an empty directory
 		 */
 			setuid(57);
 		}
@@ -736,28 +738,28 @@ jump_f:
 		entry_line = __LINE__;
 
 
-		char *ftp_list[53] = {
+		char *ftp_list[51] = {
 
       "ftp.bit.nl","ftp.fau.de","ftp.fsn.hu","openbsd.hk","ftp.eenet.ee",
  "ftp.nluug.nl","ftp.riken.jp","ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de",
       "www.ftp.ne.jp","ftp.icm.edu.pl","mirror.one.com","cdn.openbsd.org",
     "ftp.OpenBSD.org","mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu",
- "mirror.labkom.id","mirror.litnet.lt","mirror.yandex.ru","ftp.hostserver.de",
-         "mirrors.sonic.net","mirrors.ucr.ac.cr","ftp.eu.openbsd.org",
-        "ftp.fr.openbsd.org","mirror.fsmg.org.nz","mirror.ungleich.ch",
-        "mirrors.dotsrc.org","openbsd.ipacct.com","ftp.usa.openbsd.org",
-       "ftp2.eu.openbsd.org","mirror.leaseweb.com","mirrors.gigenet.com",
-     "ftp4.usa.openbsd.org","mirror.aarnet.edu.au","mirror.exonetric.net",
-    "mirror.fsrv.services","*artfiles.org/openbsd","mirror.bytemark.co.uk",
-   "mirror.planetunix.net","www.mirrorservice.org","mirror.hs-esslingen.de",
-"mirrors.pidginhost.com","openbsd.cs.toronto.edu","cloudflare.cdn.openbsd.org",
+ "mirror.labkom.id","mirror.litnet.lt","ftp.hostserver.de","mirrors.sonic.net",
+         "mirrors.ucr.ac.cr","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
+        "mirror.fsmg.org.nz","mirror.ungleich.ch","mirrors.dotsrc.org",
+       "openbsd.ipacct.com","ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
+      "mirror.leaseweb.com","mirrors.gigenet.com","ftp4.usa.openbsd.org",
+     "mirror.aarnet.edu.au","mirror.exonetric.net","mirror.fsrv.services",
+    "*artfiles.org/openbsd","mirror.bytemark.co.uk","mirror.planetunix.net",
+   "www.mirrorservice.org","mirror.hs-esslingen.de","mirrors.pidginhost.com",
+             "openbsd.cs.toronto.edu","cloudflare.cdn.openbsd.org",
            "ftp.halifax.rwth-aachen.de","ftp.rnl.tecnico.ulisboa.pt",
-          "mirror.csclub.uwaterloo.ca","mirrors.syringanetworks.net",
-          "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
-                        "openbsd.mirror.netelligent.ca"
+          "mirrors.syringanetworks.net","openbsd.mirror.constant.com",
+         "plug-mirror.rcac.purdue.edu","openbsd.mirror.netelligent.ca"
+	 
 		};
 
-		int index = arc4random_uniform(53);
+		int index = arc4random_uniform(51);
 
 
 		exit_line = __LINE__;
@@ -834,17 +836,16 @@ jump_f:
 	
 	if (time == NULL) {
 		s_set = 0;
-		snprintf(version, len, "%Lf", s);
-		time = strdup(version);
+		time = malloc(50);
 		if (time == NULL) {
 			kill(ftp_pid, SIGKILL);
-			errx(1, "strdup");
+			errx(1, "malloc");
 		}
+		snprintf(time, 50, "%Lf", s);
 	} else
 		s_set = 1;
-		
-	free(version);
-		
+	
+	/* eliminate extra zeroes at the end of 'time' */
 	if (strchr(time, '.') != NULL) {
 		i = 0;
 		n = strlen(time);
@@ -859,10 +860,9 @@ jump_f:
 			time = realloc(time, i + 1);
 			if (time == NULL) {
 				kill(ftp_pid, SIGKILL);
-				errx(1, "malloc");
+				errx(1, "realloc");
 			}
 		}
-
 	}
 
 
@@ -889,7 +889,7 @@ jump_f:
 		current = !current;
 
 
-	struct utsname *name = malloc(sizeof(struct utsname));
+	name = malloc(sizeof(struct utsname));
 	if (name == NULL) {
 		kill(ftp_pid, SIGKILL);
 		errx(1, "malloc");
@@ -901,32 +901,30 @@ jump_f:
 		errx(1, "uname, line: %d", __LINE__);
 	}
 	
-	char *release = strdup(name->release);
+	release = strdup(name->release);
 	if (release == NULL) {
 		kill(ftp_pid, SIGKILL);
 		errx(1, "strdup");
 	}
 
-	if (current == 0) {
-		tag_len = strlen("/") + strlen(release) + strlen("/") +
+	if (current == 1) {
+		tag_len = strlen("/snapshots/") +
 		    strlen(name->machine) + strlen("/SHA256");
 	} else {
-		tag_len = strlen("/snapshots/") +
+		tag_len = strlen("/") + strlen(release) + strlen("/") +
 		    strlen(name->machine) + strlen("/SHA256");
 	}
 	
-	n = tag_len + 1;
-
-	char *tag = malloc(n);
+	tag = malloc(tag_len + 1);
 	if (tag == NULL) {
 		kill(ftp_pid, SIGKILL);
 		errx(1, "malloc");
 	}
 
-	if (current == 0)
-		snprintf(tag, n, "/%s/%s/SHA256", release, name->machine);
+	if (current == 1)
+		sprintf(tag, "/snapshots/%s/SHA256", name->machine);
 	else
-		snprintf(tag, n, "/snapshots/%s/SHA256", name->machine);
+		sprintf(tag, "/%s/%s/SHA256", release, name->machine);
 
 	free(name);
 
@@ -968,8 +966,8 @@ jump_f:
 	}
 
 	/* 
-	 * I use kevent here, just so I can call the program
-	 *             again if ftp is sluggish
+	 * I use kevent here, just so I can call
+	 * the program again if ftp is sluggish
 	 */
 	EV_SET(&ke, ftp_out[STDIN_FILENO], EVFILT_READ,
 	    EV_ADD | EV_ONESHOT, 0, 0, NULL);
@@ -1010,7 +1008,7 @@ jump_f:
 		errx(1, "malloc");
 	}
 
-	int8_t h = strlen("http://");
+	h = strlen("http://");
 
 	while (read(c, &v, 1) == 1) {
 		if (pos >= 253) {
@@ -1125,9 +1123,14 @@ jump_f:
 	if (n != 0 || array_length == 0)
 		errx(1, "There was a download error. Try again.\n");
 
+	if (secure == 1)
+		h = strlen("https://");
+	else
+		h = strlen("http://");
+
 
 	if (dns_cache_d) {
-		uint8_t length = pos_max;
+		uint8_t length = pos_max - h;
 		i = write(dns_cache_d_socket[1], &length, 1);
 		if (i < 1)
 			err(1, "'length' not sent to dns_cache_d");
@@ -1147,6 +1150,21 @@ jump_f:
 	/* sort by label, but USA mirrors first */
 	qsort(array, array_length, sizeof(struct mirror_st *), label_cmp);
 
+	if (six == 1) {
+		if (verbose >= 3)
+			line0 = strdup("-vim6o-");
+		else
+			line0 = strdup("-ViM6o-");
+	} else {
+		if (verbose >= 3)
+			line0 = strdup("-vimo-");
+		else
+			line0 = strdup("-ViMo-");
+	}
+
+	if (line0 == NULL)
+		errx(1, "strdup");
+
 	S = s;
 
 	timeout.tv_sec = (time_t) s;
@@ -1155,26 +1173,14 @@ jump_f:
 	    (long double) 1000000000);
 
 
-
-	if (six == 0 && verbose >= 3)
-		line0 = strdup("-vimo-");
-	else if (six == 0)
-		line0 = strdup("-ViMo-");
-	else if (verbose >= 3)
-		line0 = strdup("-vim6o-");
-	else
-		line0 = strdup("-ViM6o-");
-
-	if (line0 == NULL)
-		errx(1, "strdup");
-
-
-	if (secure == 0)
-		h = strlen("http://");
-	else
-		h = strlen("https://");
-
-
+	std_err = dup(STDERR_FILENO);
+	if (std_err == -1)
+		err(1, "dup, line: %d\n", __LINE__);
+	
+	dev_null = open("/dev/null", O_WRONLY);
+	if (dev_null == -1)
+		err(1, "open, line: %d\n", __LINE__);
+		
 	for (c = 0; c < array_length; ++c) {
 
 		n = strlcpy(line, array[c]->http, pos_max);
@@ -1219,8 +1225,8 @@ jump_f:
 				goto restart0;
 
 			/* 
-			 * (verbose >= 0 && verbose <= 3)
-			 * 0-3 need first 2 bits to store
+			 *   (verbose >= 0 && verbose <= 3)
+			 *   0-3 need first 2 bits to store
 			 * all other values require extra bits
 			 */
 			if ((verbose >> 2) == 0) {
@@ -1238,12 +1244,14 @@ jump_f:
 			if (i < 1) {
 				
 restart0:
-				
+				close(kq);
 				free(tag);
 				free(time);
 				free(line);
 				free(line0);
 				free(release);
+				close(std_err);
+				close(dev_null);
 				waitpid(dns_cache_d_pid, NULL, 0);
 				
 				if (verbose >= 2)
@@ -1265,28 +1273,20 @@ restart:
 				if (verbose >= 0)
 					printf("restarting...\n");
 
-				char **arg_list;
-				arg_list = calloc(argc + 1, sizeof(char *));
-				if (arg_list == NULL)
-					errx(1, "calloc");
-					
-				for (i = 0; i < argc; ++i)
-					arg_list[i] = argv[i];
-					
-				execv(arg_list[0], arg_list);
+				execv(argv[0], argv);
 				err(1, "execv failed, line: %d", __LINE__);
 			}
 			
 			if (six && v == '0') {
 				if (verbose >= 2)
-					printf("No ipv6 address found.\n");
+					printf("Ipv6 DNS record not found.\n");
 				array[c]->diff = s + 1;
 				continue;
 			}
 			if (v == 'f') {
 				if (verbose >= 2)
-					printf("DNS caching failed.\n");
-				array[c]->diff = s + 1;
+					printf("DNS record not found.\n");
+				array[c]->diff = s + 2;
 				continue;
 			}
 		}
@@ -1303,8 +1303,8 @@ restart:
 			if (getuid() == 0) {
 			/* 
 			 * user _pkgfetch: ftp will regain read pledge
-			 * just to chroot to /var/empty leaving
-			 * read access to an empty directory
+			 *    just to chroot to /var/empty leaving
+			 *      read access to an empty directory
 			 */
 				setuid(57);
 			}
@@ -1314,23 +1314,26 @@ restart:
 				printf("ftp 2 pledge, line: %d\n", __LINE__);
 				_exit(1);
 			}
+			
+			if (dup2(dev_null, STDOUT_FILENO) == -1) {
+				printf("%s ", strerror(errno));
+				printf("dup2, line: %d\n", __LINE__);
+				_exit(1);
+			}
 
-			i = open("/dev/null", O_WRONLY);
-			n = dup(STDERR_FILENO);
-			if (i != -1) {
-				dup2(i, STDOUT_FILENO);
-
-				if (verbose <= 2)
-					dup2(i, STDERR_FILENO);
-			} else
-				printf("can't open \"/dev/null\"\n");
+			if (verbose <= 2 &&
+			    dup2(dev_null, STDERR_FILENO) == -1) {
+				fprintf(stderr, "%s ", strerror(errno));
+				fprintf(stderr, "dup2, line: %d\n", __LINE__);
+				_exit(1);
+			}
 
 
-			/* 
-			 * this read() is just to assure that the process
-			 * is alive for the parent kevent calls,
-			 * it standardizes the timing of the ftp calling
-			 * process, and it is written as an efficient way 
+			/*
+			 *   this read() is just to assure that the process
+			 *       is alive for the parent kevent calls.
+			 *   It standardizes the timing of the ftp calling
+			 *   process, and it is written as an efficient way 
 			 * to signal the process to resume without ugly code.
 			 */
 			close(block_pipe[STDOUT_FILENO]);
@@ -1340,9 +1343,9 @@ restart:
 
 			execl("/usr/bin/ftp", "ftp", line0, line, NULL);
 
-			dprintf(n, "%s ", strerror(errno));
-			dprintf(n, "ftp 2 execl() failed, ");
-			dprintf(n, "line: %d\n", __LINE__);
+			dprintf(std_err, "%s ", strerror(errno));
+			dprintf(std_err, "ftp 2 execl() failed, ");
+			dprintf(std_err, "line: %d\n", __LINE__);
 			_exit(1);
 		}
 		if (ftp_pid == -1)
@@ -1387,7 +1390,7 @@ restart:
 		waitpid(ftp_pid, &n, 0);
 
 		if (n != 0) {
-			array[c]->diff = s + 1;
+			array[c]->diff = s + 3;
 			if (verbose >= 2)
 				printf("Download Error\n");
 			continue;
@@ -1421,7 +1424,10 @@ restart:
 	free(tag);
 	free(line);
 	free(line0);
+	
 	close(kq);
+	close(std_err);
+	close(dev_null);
 
 	/* (verbose == 0 || verbose == 1) */
 	if ((verbose >> 1) == 0) {
@@ -1462,18 +1468,19 @@ restart:
 		}
 
 
+		char *cut;
+
 		if (!generate)
 			goto generate_jump;
 
 		if (se < 0)
 			goto no_good;
 
-		char *cut;
 		/* h = strlen("https://"); */
 
 		/* 
 		 * load diff with what will be printed http lengths
-		 *                 and reformat http
+		 *          and process http for printing
 		 */
 		for (c = 0; c <= se; ++c) {
 			cut = strstr(array[c]->http += h, "/pub/OpenBSD");
@@ -1481,8 +1488,7 @@ restart:
 				*cut = '\0';
 				array[c]->diff = cut - array[c]->http;
 			} else {
-				array[c]->http -= 1;
-				array[c]->http[0] = '*';
+				(array[c]->http -= 1)[0] = '*';
 				array[c]->diff = strlen(array[c]->http);
 			}
 		}
@@ -1495,13 +1501,14 @@ restart:
 		printf("\t\tchar *ftp_list[%d] = {\n\n", se + 1);
 
 		
-		n = 0;
 		int16_t j, first = 0;
+		
+		n = 0;
 		for (c = 0; c <= se; ++c) {
 
 			/* 
 			 * the 3 is the size of the printed: "",
-			 * when (c == se) it doesn't print the last ,
+			 * if (c == se) it doesn't print the last ,
 			 */
 			 
 			n += i = array[c]->diff + 3 - (c == se);
@@ -1527,7 +1534,7 @@ restart:
 			printf(" ");
 		for (j = first; j < se; ++j)
 			printf("\"%s\",", array[j]->http);
-		printf("\"%s\"\n", array[j]->http);
+		printf("\"%s\"\n\n", array[j]->http);
 		
 		printf("\t\t};\n\n");
 		printf("\t\tint index = arc4random_uniform(%d);\n\n\n", se + 1);
@@ -1557,22 +1564,40 @@ generate_jump:
 			else
 				printf("%2d", c + 1);
 
-			printf(" : %s:\n\t", array[c]->label);
-			printf("echo \"%s\" > /etc/installurl", array[c]->http);
+			printf(" : %s\n\t", array[c]->label);
 			
-			if (c <= se)
+			if (c <= se) {
+				printf("echo \"%s\" > /etc/installurl",
+				    array[c]->http);
 				printf(" : %.9Lf\n\n", array[c]->diff);
-			else if (c <= te) {
-				/* printf(" : Timed Out"); */
-				printf("\n\n");
+				continue;
+			}
+			
+			cut = strchr(array[c]->http += h, '/');
+			if (cut)
+				*cut = '\0';
+			
+			printf("%s : ", array[c]->http);
+			
+			if (c <= te) {
+				printf("Timeout\n\n");
 				if (c == ts && se != -1)
 					printf("\nSUCCESSFUL MIRRORS:\n\n\n");
-			} else {
-				/* printf(" : Download Error"); */
-				printf("\n\n");
-				if (c == ds && ts != -1)
+				continue;
+			}
+			
+			if (array[c]->diff == s + 1)
+				printf("IPv6 DNS records not found");
+			else if (array[c]->diff == s + 2)
+				printf("DNS records not found");
+			else
+				printf("Download Error");
+			printf("\n\n");
+				
+			if (c == ds) {
+				if (te != -1)
 					printf("\nTIMEOUT MIRRORS:\n\n\n");
-				else if (c == ds && se != -1)
+				else if (se != -1)
 					printf("\nSUCCESSFUL MIRRORS:\n\n\n");
 			}
 		}
@@ -1611,8 +1636,7 @@ no_good:
 		
 		n = strlen(array[0]->http);
 
-		i = write(parent_to_write[STDOUT_FILENO],
-		    array[0]->http, n);
+		i = write(write_pipe[STDOUT_FILENO], array[0]->http, n);
 
 		if (i < n) {
 			printf("not all of mirror sent\n");
