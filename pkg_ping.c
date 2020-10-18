@@ -1101,16 +1101,21 @@ jump_f:
 	waitpid(ftp_pid, &n, 0);
 
 	/* 
-	 * This will more likely be caused by no internet access than
-	 * from a faulty mirror. If it is run by a script, it will be
-	 *  far easier to run a loop based on return value, than to
-	 *          kill the constantly restarting program.
-	 *                         returns 2
+	 *            'ftplist' download error
+	 * This will more likely be caused by no internet
+	 *        access than from a faulty mirror.
 	 */
 	if (n != 0 || array_length == 0) {
+		if (restart && verbose >= 0)
+			printf("There was an ftplist  download error.\n");
 		if (restart)
 			goto restart_program;
-		errx(2, "There was an ftplist download error. Try again.\n");
+			
+		if (verbose >= 0) {
+			printf("There was an ftplist download error. ");
+			printf("Try again.\n");
+		}
+		return 2;
 	}
 
 	if (secure == 1)
