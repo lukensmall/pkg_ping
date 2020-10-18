@@ -191,7 +191,7 @@ main(int argc, char *argv[])
 	size_t len;
 	char v;
 
-	/* 10 seconds and 0 nanoseconds to download ftplist */
+	/* 5 seconds and 0 nanoseconds to download ftplist */
 	struct timespec timeout0 = { 5, 0 };
 
 	if (pledge("stdio exec proc cpath wpath dns id unveil", NULL) == -1)
