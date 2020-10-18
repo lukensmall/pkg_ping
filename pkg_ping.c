@@ -85,12 +85,12 @@ struct mirror_st {
 static int
 diff_cmp(const void *a, const void *b)
 {
-	struct mirror_st *one = *((struct mirror_st **) a);
-	struct mirror_st *two = *((struct mirror_st **) b);
+	struct mirror_st one = *((struct mirror_st *) a);
+	struct mirror_st two = *((struct mirror_st *) b);
 
-	if (one->diff < two->diff)
+	if (one.diff < two.diff)
 		return -1;
-	if (one->diff > two->diff)
+	if (one.diff > two.diff)
 		return 1;
 		
 	/* 
@@ -100,43 +100,43 @@ diff_cmp(const void *a, const void *b)
 	 */
 
 	/* list the USA mirrors first */
-	int8_t temp = (strstr(one->label, "USA") != NULL);
-	if (temp != (strstr(two->label, "USA") != NULL)) {
+	int8_t temp = (strstr(one.label, "USA") != NULL);
+	if (temp != (strstr(two.label, "USA") != NULL)) {
 		if (temp)
 			return -1;
 		return 1;
 	}
 	/* will reverse subsort */
-	return strcmp(two->label, one->label);
+	return strcmp(two.label, one.label);
 }
 
 static int
 diff_cmp_g(const void *a, const void *b)
 {
-	struct mirror_st *one = *((struct mirror_st **) a);
-	struct mirror_st *two = *((struct mirror_st **) b);
+	struct mirror_st one = *((struct mirror_st *) a);
+	struct mirror_st two = *((struct mirror_st *) b);
 
-	if (one->diff < two->diff)
+	if (one.diff < two.diff)
 		return -1;
-	if (one->diff > two->diff)
+	if (one.diff > two.diff)
 		return 1;
-	return strcmp(one->http, two->http);
+	return strcmp(one.http, two.http);
 }
 
 static int
 label_cmp(const void *a, const void *b)
 {
-	struct mirror_st *one = *((struct mirror_st **) a);
-	struct mirror_st *two = *((struct mirror_st **) b);
+	char* one_label = ((struct mirror_st *) a)->label;
+	char* two_label = ((struct mirror_st *) b)->label;
 
 	/* list the USA mirrors first */
-	int8_t temp = (strstr(one->label, "USA") != NULL);
-	if (temp != (strstr(two->label, "USA") != NULL)) {
+	int8_t temp = (strstr(one_label, "USA") != NULL);
+	if (temp != (strstr(two_label, "USA") != NULL)) {
 		if (temp)
 			return -1;
 		return 1;
 	}
-	return strcmp(one->label, two->label);
+	return strcmp(one_label, two_label);
 }
 
 static void
@@ -180,12 +180,12 @@ main(int argc, char *argv[])
 	long double s, S;
 	pid_t ftp_pid, write_pid, dns_cache_d_pid;
 	int kq, i, pos, c, n, array_max, array_length, tag_len;
-	int pos_max, std_err, dev_null, entry_line, exit_line;
+	int pos_max, std_err, entry_line = 0, exit_line = 0;
 	int dns_cache_d_socket[2];
 	int write_pipe[2], ftp_out[2], block_pipe[2];
 	struct timespec start, end, timeout;
 	char *line0, *line, *release, *tag, *time = NULL;
-	struct mirror_st **array;
+	struct mirror_st *array;
 	struct utsname *name;
 	struct kevent ke;
 	size_t len;
@@ -224,22 +224,6 @@ main(int argc, char *argv[])
 	verbose = secure = current = override = six = generate = 0;
 	usa = dns_cache_d = 1;
 	s = 5;
-
-	len = 300;
-	line = malloc(len);
-	if (line == NULL)
-		errx(1, "malloc");
-
-	/* store results of "sysctl kern.version" into 'line' */
-	const int mib[2] = { CTL_KERN, KERN_VERSION };
-	if (sysctl(mib, 2, line, &len, NULL, 0) == -1)
-		err(1, "sysctl, line: %d", __LINE__);
-
-	/* Discovers if the kernel is not a release version */
-	if (strstr(line, "current") || strstr(line, "beta"))
-		current = 1;
-	
-	free(line);
 
 	while ((c = getopt(argc, argv, "6dfghOSs:uvV")) != -1) {
 		switch (c) {
@@ -496,9 +480,8 @@ loop:
 			}
 
 			/* 
-			 * 'i' is even so I can use "i|1" instead of "i+1"
-			 *          which may be more efficient
-			 *           and I think it's prettier
+			 *  'i' is even so I can use "i|1" instead of "i+1"
+			 * which may be more efficient. I think it's prettier
 			 */
 			for (i = 0; i < 16; i += 2) {
 
@@ -606,7 +589,6 @@ jump_dns:
 			printf(" line: %d\n", __LINE__);
 			_exit(1);
 		}
-		close(kq);
 		
 		int received = ke.data;
 
@@ -648,20 +630,17 @@ jump_dns:
 		if (i < 0) {
 			printf("%s ", strerror(errno));
 			printf("read error occurred, line: %d\n", __LINE__);
-			fclose(pkg_write);
 			_exit(1);
 		}
 
 		if (i < received) {
 			printf("didn't fully read from pipe, ");
 			printf("line: %d\n", __LINE__);
-			fclose(pkg_write);
 			_exit(1);
 		}
 
-		if (i <= (int)strlen("http://")) {
+		if (i <= (int)(strlen("http://") + secure)) {
 			printf("read <= \"http://\", line: %d\n", __LINE__);
-			fclose(pkg_write);
 			_exit(1);
 		}
 		
@@ -671,10 +650,8 @@ jump_dns:
 		if (i < received + 1) {
 			printf("%s ", strerror(errno));
 			printf("write error occurred, line: %d\n", __LINE__);
-			fclose(pkg_write);
 			_exit(1);
 		}
-		fclose(pkg_write);
 
 		if (verbose >= 0)
 			printf("/etc/installurl: %s", file_w);
@@ -764,22 +741,25 @@ jump_f:
 
 		c = ftp_out[STDOUT_FILENO];
 		
-		errno = 0;
-		if ((ulong)write(c, &entry_line, sizeof(int)) < sizeof(int)) {
-			if (errno)
-				printf("%s ", strerror(errno));
-			printf("ftp write entry_line, line: %d\n", __LINE__);
-			_exit(1);
-		}
-		if ((ulong)write(c, &exit_line, sizeof(int)) < sizeof(int)) {
-			if (errno)
-				printf("%s ", strerror(errno));
-			printf("ftp write exit_line, line: %d\n", __LINE__);
-			_exit(1);
-		}
-
 		if (generate) {
 			
+			errno = 0;
+			i = write(c, &entry_line, sizeof(int));
+			if ((ulong)i < sizeof(int)) {
+				if (errno)
+					printf("%s ", strerror(errno));
+				printf("ftp write, line: %d\n", __LINE__);
+				_exit(1);
+			}
+			i = write(c, &exit_line, sizeof(int));
+			if ((ulong)i < sizeof(int)) {
+				if (errno)
+					printf("%s ", strerror(errno));
+				printf("ftp write, line: %d\n", __LINE__);
+				_exit(1);
+			}
+
+				
 			i = strlcpy(line,
 			    "https://cdn.openbsd.org/pub/OpenBSD/ftplist", n);
 			
@@ -833,6 +813,8 @@ jump_f:
 	
 	if (time == NULL) {
 		s_set = 0;
+		
+		/* *argv strings are limited to less than length 50 */
 		time = malloc(50);
 		if (time == NULL) {
 			kill(ftp_pid, SIGKILL);
@@ -861,6 +843,22 @@ jump_f:
 			}
 		}
 	}
+
+	len = 300;
+	line = malloc(len);
+	if (line == NULL)
+		errx(1, "malloc");
+
+	/* store results of "sysctl kern.version" into 'line' */
+	const int mib[2] = { CTL_KERN, KERN_VERSION };
+	if (sysctl(mib, 2, line, &len, NULL, 0) == -1)
+		err(1, "sysctl, line: %d", __LINE__);
+
+	/* Discovers if the kernel is not a release version */
+	if (strstr(line, "current") || strstr(line, "beta"))
+		current = 1;
+	
+	free(line);
 
 
 	if (verbose >= 2) {
@@ -924,8 +922,26 @@ jump_f:
 		sprintf(tag, "/%s/%s/SHA256", release, name->machine);
 
 	free(name);
-
+	
+	c = ftp_out[STDIN_FILENO];
+	
 	if (generate) {
+		
+		/* I can't think of a better way to get these two values */
+		i = read(c, &entry_line, sizeof(int));
+		if ((ulong)i < sizeof(int)) {
+			printf("%s ", strerror(errno));
+			kill(ftp_pid, SIGKILL);
+			errx(1, "read line: %d", __LINE__);
+		}
+			
+		i = read(c, &exit_line, sizeof(int));
+		if ((ulong)i < sizeof(int)) {
+			printf("%s ", strerror(errno));
+			kill(ftp_pid, SIGKILL);
+			errx(1, "read line: %d", __LINE__);
+		}
+
 		free(tag);
 
 		tag = strdup("/timestamp");
@@ -937,49 +953,6 @@ jump_f:
 		tag_len = strlen(tag);
 	}
 
-	kq = kqueue();
-	if (kq == -1) {
-		printf("%s ", strerror(errno));
-		kill(ftp_pid, SIGKILL);
-		errx(1, "kq! line: %d", __LINE__);
-	}
-	
-	c = ftp_out[STDIN_FILENO];
-	
-
-	/* I can't think of a better way to get these two values */
-	i = read(c, &entry_line, sizeof(int));
-	if ((ulong)i < sizeof(int)) {
-		printf("%s ", strerror(errno));
-		kill(ftp_pid, SIGKILL);
-		errx(1, "read line: %d", __LINE__);
-	}
-		
-	i = read(c, &exit_line, sizeof(int));
-	if ((ulong)i < sizeof(int)) {
-		printf("%s ", strerror(errno));
-		kill(ftp_pid, SIGKILL);
-		errx(1, "read line: %d", __LINE__);
-	}
-
-	/* 
-	 * I use kevent here, just so I can call
-	 * the program again if ftp is sluggish
-	 */
-	EV_SET(&ke, ftp_out[STDIN_FILENO], EVFILT_READ,
-	    EV_ADD | EV_ONESHOT, 0, 0, NULL);
-	i = kevent(kq, &ke, 1, &ke, 1, &timeout0);
-	if (i == -1) {
-		printf("%s ", strerror(errno));
-		kill(ftp_pid, SIGKILL);
-		errx(1,
-		    "kevent, timeout0 may be too large. line: %d", __LINE__);
-	}
-	if (i == 0) {
-		kill(ftp_pid, SIGKILL);
-		goto restart;
-	}
-
 	/* if the index for line[] can exceed 254, it will error out */
 	line = malloc(255);
 	if (line == NULL) {
@@ -988,27 +961,49 @@ jump_f:
 	}
 
 	array_max = 100;
-	array = calloc(array_max, sizeof(struct mirror_st *));
+	array = calloc(array_max, sizeof(struct mirror_st));
 	if (array == NULL) {
 		kill(ftp_pid, SIGKILL);
 		errx(1, "calloc");
 	}
 
-	i = secure;
-	num = pos = array_length = pos_max = 0;
-	array[0] = malloc(sizeof(struct mirror_st));
-	if (array[0] == NULL) {
-		kill(ftp_pid, SIGKILL);
-		errx(1, "malloc");
-	}
+	num = pos = pos_max = array_length = 0;
 
 	h = strlen("http://");
 
+
+	kq = kqueue();
+	if (kq == -1) {
+		printf("%s ", strerror(errno));
+		kill(ftp_pid, SIGKILL);
+		errx(1, "kq! line: %d", __LINE__);
+	}
+
+	/* 
+	 * I use kevent here, just so I can restart
+	 *   the program again if ftp is sluggish
+	 */
+	EV_SET(&ke, ftp_out[STDIN_FILENO], EVFILT_READ,
+	    EV_ADD | EV_ONESHOT, 0, 0, NULL);
+	i = kevent(kq, &ke, 1, &ke, 1, &timeout0);
+	if (i == -1) {
+		printf("%s ", strerror(errno));
+		kill(ftp_pid, SIGKILL);
+		printf("kevent, timeout0 may be too large. ");
+		errx(1, "line: %d", __LINE__);
+	}
+	
+	if (i == 0) {
+		kill(ftp_pid, SIGKILL);
+		goto restart;
+	}
+
+	i = secure;
 	while (read(c, &v, 1) == 1) {
 		if (pos >= 253) {
 			kill(ftp_pid, SIGKILL);
 			line[pos] = '\0';
-			printf("line: %s\n", line);
+			printf("'line': %s\n", line);
 			errx(1, "pos got too big! line: %d", __LINE__);
 		}
 		
@@ -1031,21 +1026,20 @@ jump_f:
 			if (pos_max < pos)
 				pos_max = pos;
 
-			array[array_length]->http = malloc(pos);
-			if (array[array_length]->http == NULL) {
+			array[array_length].http = malloc(pos);
+			if (array[array_length].http == NULL) {
 				kill(ftp_pid, SIGKILL);
 				errx(1, "malloc");
 			}
-				
 			
 			if (secure) {
 				
-				memcpy(array[array_length]->http, "https", 5);
+				memcpy(array[array_length].http, "https", 5);
 				
-				memcpy(5 + array[array_length]->http,
+				memcpy(5 + array[array_length].http,
 				    strlen("http") + line, pos - 5);
 			} else
-				memcpy(array[array_length]->http, line, pos);
+				memcpy(array[array_length].http, line, pos);
 
 			pos = 0;
 			num = 1;
@@ -1063,20 +1057,20 @@ jump_f:
 		line[pos++] = '\0';
 		
 		if (usa == 0 && strstr(line, "USA")) {
-			free(array[array_length]->http);
+			free(array[array_length].http);
 			pos = num = 0;
 			continue;
 		}
 		
 		/* https connection to Ishikawa mirror reverts to http */
 		if (i && strstr(line, "Ishikawa")) {
-			free(array[array_length]->http);
+			free(array[array_length].http);
 			pos = num = i = 0;
 			continue;
 		}
 		
-		array[array_length]->label = strdup(line);
-		if (array[array_length]->label == NULL) {
+		array[array_length].label = strdup(line);
+		if (array[array_length].label == NULL) {
 			kill(ftp_pid, SIGKILL);
 			errx(1, "strdup");
 		}
@@ -1085,37 +1079,32 @@ jump_f:
 		if (++array_length >= array_max) {
 			array_max += 20;
 			array = reallocarray(array, array_max,
-			    sizeof(struct mirror_st *));
+			    sizeof(struct mirror_st));
 
 			if (array == NULL) {
 				kill(ftp_pid, SIGKILL);
 				errx(1, "reallocarray");
 			}
 		}
-		array[array_length] = malloc(sizeof(struct mirror_st));
 
-		if (array[array_length] == NULL) {
-			kill(ftp_pid, SIGKILL);
-			errx(1, "malloc");
-		}
 		pos = num = 0;
 	}
 
 	free(line);
-	free(array[array_length]);
 
 	close(ftp_out[STDIN_FILENO]);
 
 	waitpid(ftp_pid, &n, 0);
 
 	/* 
-	 * This will likely be caused by no internet connection
-	 * than from a faulty mirror. If it is run by a script,
-	 * it will be far easier to run a loop than to kill the
-	 *            constantly restarting program.
+	 * This will more likely be caused by no internet access than
+	 * from a faulty mirror. If it is run by a script, it will be
+	 *  far easier to run a loop based on return value, than to
+	 *          kill the constantly restarting program.
+	 *                         returns 2
 	 */
 	if (n != 0 || array_length == 0)
-		errx(1, "There was a download error. Try again.\n");
+		errx(2, "There was a download error. Try again.\n");
 
 	if (secure == 1)
 		h = strlen("https://");
@@ -1137,12 +1126,12 @@ jump_f:
 		errx(1, "malloc");
 
 
-	array = reallocarray(array, array_length, sizeof(struct mirror_st *));
+	array = reallocarray(array, array_length, sizeof(struct mirror_st));
 	if (array == NULL)
 		errx(1, "reallocarray");
 
 	/* sort by label, but USA mirrors first */
-	qsort(array, array_length, sizeof(struct mirror_st *), label_cmp);
+	qsort(array, array_length, sizeof(struct mirror_st), label_cmp);
 
 	if (six == 1) {
 		if (verbose >= 3)
@@ -1170,14 +1159,13 @@ jump_f:
 	std_err = dup(STDERR_FILENO);
 	if (std_err == -1)
 		err(1, "dup, line: %d\n", __LINE__);
-	
-	dev_null = open("/dev/null", O_WRONLY);
-	if (dev_null == -1)
-		err(1, "open, line: %d\n", __LINE__);
+		
+	if (fcntl(std_err, F_SETFD, FD_CLOEXEC) == -1)
+		err(1, "fcntl, line: %d\n", __LINE__);		
 		
 	for (c = 0; c < array_length; ++c) {
 
-		n = strlcpy(line, array[c]->http, pos_max);
+		n = strlcpy(line, array[c].http, pos_max);
 		memcpy(line + n, tag, tag_len + 1);
 
 		if (verbose >= 2) {
@@ -1187,10 +1175,10 @@ jump_f:
 				printf("\n");
 			if (array_length >= 100) {
 				printf("\n%3d : %s  :  %s\n", array_length - c,
-				    array[c]->label, line);
+				    array[c].label, line);
 			} else {
 				printf("\n%2d : %s  :  %s\n", array_length - c,
-				    array[c]->label, line);
+				    array[c].label, line);
 			}
 		} else if (verbose >= 0) {
 			i = array_length - c;
@@ -1212,16 +1200,18 @@ jump_f:
 		if (dns_cache_d) {
 		
 			char *host = h + line;
+			
+			/* strchr always succeeds. 'tag' starts with '/' */
 			n = strchr(host, '/') - host;
 
 			i = write(dns_cache_d_socket[1], host, n);
 			if (i < n)
-				goto restart_dns;
+				goto restart_dns_err;
 
 			/* 
 			 * (verbose >= 0 && verbose <= 3)
-			 * 0-3 need first 2 bits to store
-			 * other values require extra bits
+			 * 0-3 need first 2 bits to store.
+			 * Other values require extra bits.
 			 */
 			if ((verbose >> 2) == 0) {
 				printf("*");
@@ -1237,11 +1227,8 @@ jump_f:
 
 			if (i < 1) {
 				
-restart_dns:
+restart_dns_err:
 
-				close(std_err);
-				close(dev_null);
-				
 				if (verbose >= 2)
 					printf("dns_cache process issues\n\n");
 				else if (verbose >= 0) {
@@ -1264,13 +1251,13 @@ restart:
 			if (six && v == '0') {
 				if (verbose >= 2)
 					printf("Ipv6 DNS record not found.\n");
-				array[c]->diff = s + 2;
+				array[c].diff = s + 2;
 				continue;
 			}
 			if (v == 'f') {
 				if (verbose >= 2)
 					printf("DNS record not found.\n");
-				array[c]->diff = s + 3;
+				array[c].diff = s + 3;
 				continue;
 			}
 		}
@@ -1299,23 +1286,13 @@ restart:
 				_exit(1);
 			}
 			
-			if (dup2(dev_null, STDOUT_FILENO) == -1) {
-				printf("%s ", strerror(errno));
-				printf("dup2, line: %d\n", __LINE__);
-				_exit(1);
-			}
-
-			if (verbose <= 2 &&
-			    dup2(dev_null, STDERR_FILENO) == -1) {
-				fprintf(stderr, "%s ", strerror(errno));
-				fprintf(stderr, "dup2, line: %d\n", __LINE__);
-				_exit(1);
-			}
-
+			close(STDOUT_FILENO);
+			if (verbose <= 2)
+				close(STDERR_FILENO);
 
 			/*
 			 *   this read() is just to assure that the process
-			 *       is alive for the parent kevent calls.
+			 *        is alive for the parent kevent call.
 			 *   It standardizes the timing of the ftp calling
 			 *   process, and it is written as an efficient way 
 			 * to signal the process to resume without ugly code.
@@ -1345,6 +1322,7 @@ restart:
 			kill(ftp_pid, SIGKILL);
 			errx(1, "kevent register fail, line: %d", __LINE__);
 		}
+		
 		close(block_pipe[STDOUT_FILENO]);
 
 
@@ -1362,56 +1340,50 @@ restart:
 		if (i == 0) {
 			kill(ftp_pid, SIGKILL);
 
-			/* reap event */
+			/* reap both event and wait */
 			if (kevent(kq, NULL, 0, &ke, 1, NULL) == -1)
 				err(1, "kevent, line: %d", __LINE__);
 			waitpid(ftp_pid, NULL, 0);
+			
 			if (verbose >= 2)
 				printf("Timeout\n");
-			array[c]->diff = s;
+			array[c].diff = s;
 			continue;
 		}
 		waitpid(ftp_pid, &n, 0);
 
 		if (n != 0) {
-			array[c]->diff = s + 1;
+			array[c].diff = s + 1;
 			if (verbose >= 2)
 				printf("Download Error\n");
 			continue;
 		}
 
-		array[c]->diff =
+		array[c].diff =
 		    (long double) (end.tv_sec  - start.tv_sec) +
 		    (long double) (end.tv_nsec - start.tv_nsec) /
 		    (long double) 1000000000;
 
 		if (verbose >= 2) {
-			if (array[c]->diff >= s) {
-				array[c]->diff = s;
+			if (array[c].diff >= s) {
+				array[c].diff = s;
 				printf("Timeout\n");
 			} else
-				printf("%.9Lf\n", array[c]->diff);
-		} else if (verbose <= 0 && array[c]->diff < S) {
-			S = array[c]->diff;
+				printf("%.9Lf\n", array[c].diff);
+		} else if (verbose <= 0 && array[c].diff < S) {
+			S = array[c].diff;
 			timeout.tv_sec = (time_t) S;
 			timeout.tv_nsec =
 			    (long) ((S - (long double) timeout.tv_sec)
 			    * (long double) 1000000000);
-		} else if (array[c]->diff > s)
-			array[c]->diff = s;
+		} else if (array[c].diff > s)
+			array[c].diff = s;
 	}
 
 
 	if (pledge("stdio exec", NULL) == -1)
 		err(1, "pledge, line: %d", __LINE__);
 
-	free(tag);
-	free(line);
-	free(line0);
-	
-	close(kq);
-	close(std_err);
-	close(dev_null);
 
 	/* (verbose == 0 || verbose == 1) */
 	if ((verbose >> 1) == 0) {
@@ -1419,26 +1391,20 @@ restart:
 		fflush(stdout);
 	}
 	
-	if (dns_cache_d) {
-		close(dns_cache_d_socket[1]);
-		waitpid(dns_cache_d_pid, NULL, 0);
-	}
-
-
 	/* sort by time, subsort by USA label, then reverse subsort label */
-	qsort(array, array_length, sizeof(struct mirror_st *), diff_cmp);
+	qsort(array, array_length, sizeof(struct mirror_st), diff_cmp);
 
 	if (verbose >= 1) {
 		
 		int ds = -1, de = -1,   ts = -1, te = -1,   se = -1;
 		
 		for (c = array_length - 1; c >= 0; --c) {
-			if (array[c]->diff < s) {
+			if (array[c].diff < s) {
 				se = c;
 				break;
 			}
 			
-			if (array[c]->diff == s) {
+			if (array[c].diff == s) {
 				if (te == -1)
 					ts = te = c;
 				else
@@ -1465,18 +1431,18 @@ restart:
 		 *          and process http for printing
 		 */
 		for (c = 0; c <= se; ++c) {
-			cut = strstr(array[c]->http += h, "/pub/OpenBSD");
-			if (cut) {
-				*cut = '\0';
-				array[c]->diff = cut - array[c]->http;
+			cut = strstr(array[c].http += h, "/pub/OpenBSD");
+			if (cut == NULL) {
+				(array[c].http -= 1)[0] = '*';
+				array[c].diff = strlen(array[c].http);
 			} else {
-				(array[c]->http -= 1)[0] = '*';
-				array[c]->diff = strlen(array[c]->http);
+				*cut = '\0';
+				array[c].diff = cut - array[c].http;
 			}
 		}
 
 		/* sort by printed length, subsort http alphabetically */
-		qsort(array, se + 1, sizeof(struct mirror_st *), diff_cmp_g);
+		qsort(array, se + 1, sizeof(struct mirror_st), diff_cmp_g);
 
 		printf("\n\n");
 		printf("\t\t/* CODE BEGINS HERE */\n\n\n");
@@ -1489,11 +1455,11 @@ restart:
 		for (c = 0; c <= se; ++c) {
 
 			/* 
-			 * the 3 is the size of the printed: "",
+			 *     3 is the size of the printed: "",
 			 * if (c == se) it doesn't print the last ,
 			 */
 			 
-			n += i = array[c]->diff + 3 - (c == se);
+			n += i = array[c].diff + 3 - (c == se);
 
 			/* 
 			 * mirrors printed on each line
@@ -1504,7 +1470,7 @@ restart:
 				for (j = (80 - (n - i)) / 2; j > 0; --j)
 					printf(" ");
 				for (j = first; j < c; ++j)
-					printf("\"%s\",", array[j]->http);
+					printf("\"%s\",", array[j].http);
 				printf("\n");
 				first = c;
 				n = i;
@@ -1515,8 +1481,8 @@ restart:
 		for (j = (80 - n) / 2; j > 0; --j)
 			printf(" ");
 		for (j = first; j < se; ++j)
-			printf("\"%s\",", array[j]->http);
-		printf("\"%s\"\n", array[j]->http);
+			printf("\"%s\",", array[j].http);
+		printf("\"%s\"\n", array[j].http);
 		
 		printf("\t\t};\n\n");
 		printf("\t\tint index = arc4random_uniform(%d);\n\n\n", se + 1);
@@ -1541,27 +1507,27 @@ generate_jump:
 
 		for (; c >= 0; --c) {
 
-			struct mirror_st *temp = array[c];
+			struct mirror_st temp = array[c];
 			
 			if (array_length >= 100)
 				printf("%3d", c + 1);
 			else
 				printf("%2d", c + 1);
 
-			printf(" : %s\n\t", temp->label);
+			printf(" : %s\n\t", temp.label);
 			
 			if (c <= se) {
 				printf("echo \"%s\" > /etc/installurl",
-				    temp->http);
-				printf(" : %.9Lf\n\n", temp->diff);
+				    temp.http);
+				printf(" : %.9Lf\n\n", temp.diff);
 				continue;
 			}
 			
-			cut = strchr(temp->http += h, '/');
+			cut = strchr(temp.http += h, '/');
 			if (cut)
 				*cut = '\0';
 			
-			printf("%s : ", temp->http);
+			printf("%s : ", temp.http);
 			
 			if (c <= te) {
 				printf("Timeout\n\n");
@@ -1570,9 +1536,9 @@ generate_jump:
 				continue;
 			}
 			
-			if (temp->diff == s + 1)
+			if (temp.diff == s + 1)
 				printf("Download Error");
-			else if (temp->diff == s + 2)
+			else if (temp.diff == s + 2)
 				printf("IPv6 DNS records not found");
 			else
 				printf("DNS records not found");
@@ -1587,7 +1553,7 @@ generate_jump:
 		}
 	}
 
-	if (array[0]->diff >= s) {
+	if (array[0].diff >= s) {
 		
 no_good:
 		
@@ -1607,7 +1573,8 @@ no_good:
 			printf("Try losing the -6 option?\n\n");
 
 		if (s_set == 0) {
-			printf("Perhaps try the -s option and choose a timeout");
+			printf("Perhaps try the -s ");
+			printf("option to choose a timeout");
 			printf(" larger than the default: -s %s\n", time);
 		} else
 			printf("Perhaps try with a larger -s than %s\n", time);
@@ -1618,19 +1585,19 @@ no_good:
 	
 	if (to_file) {
 		
-		n = strlen(array[0]->http);
+		n = strlen(array[0].http);
 
-		i = write(write_pipe[STDOUT_FILENO], array[0]->http, n);
+		i = write(write_pipe[STDOUT_FILENO], array[0].http, n);
 
 		if (i < n) {
-			printf("not all of mirror sent\n");
+			printf("not all of mirror sent to write_pid\n");
 			goto restart;
 		}
 		
 		waitpid(write_pid, &i, 0);
 
 		if (i != 0) {
-			printf("write error.\n");
+			printf("write_pid error.\n");
 			goto restart;
 		}
 
@@ -1639,7 +1606,7 @@ no_good:
 
 	if (verbose >= 0) {
 		printf("As root, type: echo \"%s\" > /etc/installurl\n",
-		    array[0]->http);
+		    array[0].http);
 	}
 	return 0;
 }
