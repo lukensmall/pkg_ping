@@ -1107,7 +1107,7 @@ jump_f:
 	 */
 	if (n != 0 || array_length == 0) {
 		if (restart && verbose >= 0)
-			printf("There was an ftplist  download error.\n");
+			printf("There was an ftplist download error.\n");
 		if (restart)
 			goto restart_program;
 			
