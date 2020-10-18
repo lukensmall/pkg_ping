@@ -192,7 +192,7 @@ main(int argc, char *argv[])
 	char v;
 
 	/* 10 seconds and 0 nanoseconds to download ftplist */
-	struct timespec timeout0 = { 10, 0 };
+	struct timespec timeout0 = { 5, 0 };
 
 	if (pledge("stdio exec proc cpath wpath dns id unveil", NULL) == -1)
 		err(1, "pledge, line: %d", __LINE__);
