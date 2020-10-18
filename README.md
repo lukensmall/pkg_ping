@@ -73,6 +73,19 @@ If it is run as root, it will make ftp calls run as user pkg_fetch.
 
 If the parent process spins up dns caching, file writing and is calling ftp, it can run 4 processes at one time, all with very different pledge() sets.
 
+I made it have a return value of 2 if it gets a download error from trying to download the mirror information file: 'ftplist'
+If you run it from a script and it returns 2, I suggest putting it in a loop which will run it again.
+I would make it loop in this case, but if your computer doesn't yet have internet access, it will also have this error. 
+You will likely find it easier to handle an error in a loop than it is to kill a constantly restarting process.
+It generates a different random mirror from which to download ftplist everytime it runs.
+
+If it returns 1, something very bad has occurred or the timeout value is too low to find a successful mirror,
+something that running it again won't likely solve.
+
+If an error is thrown in the processes that precache dns records and writes the mirror to disk, it will restart.
+It will also restart if downloading 'ftplist' becomes unresponsive past a wait time defined in 'timeout0'.
+'timeout0' can be extended by defining a larger -s value than is hard-coded.
+
 cc pkg_ping.c -o pkg_ping
 
 eg. ./pkg_ping -vs1.5 -vvu
