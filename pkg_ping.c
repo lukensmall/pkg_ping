@@ -116,9 +116,10 @@ diff_cmp_g(const void *a, const void *b)
 	struct mirror_st one = *((struct mirror_st *) a);
 	struct mirror_st two = *((struct mirror_st *) b);
 
-	if (one.diff < two.diff)
-		return -1;
+	/* sort the biggest diff values first */
 	if (one.diff > two.diff)
+		return -1;
+	if (one.diff < two.diff)
 		return 1;
 	return strcmp(one.http, two.http);
 }
@@ -717,28 +718,27 @@ jump_f:
 		entry_line = __LINE__;
 
 
-		char *ftp_list[52] = {
+		char *ftp_list[50] = {
 
-      "ftp.bit.nl","ftp.fau.de","ftp.fsn.hu","openbsd.hk","ftp.eenet.ee",
- "ftp.nluug.nl","ftp.riken.jp","ftp.cc.uoc.gr","ftp.spline.de","www.ftp.ne.jp",
-     "ftp.icm.edu.pl","mirror.one.com","cdn.openbsd.org","ftp.OpenBSD.org",
-   "mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu","mirror.labkom.id",
- "mirror.litnet.lt","mirror.yandex.ru","ftp.hostserver.de","mirrors.sonic.net",
-         "mirrors.ucr.ac.cr","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
-        "mirror.fsmg.org.nz","mirror.ungleich.ch","mirrors.dotsrc.org",
-       "openbsd.ipacct.com","ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
-      "mirror.leaseweb.com","mirrors.gigenet.com","ftp4.usa.openbsd.org",
-     "mirror.aarnet.edu.au","mirror.exonetric.net","mirror.fsrv.services",
-    "*artfiles.org/openbsd","mirror.bytemark.co.uk","mirror.planetunix.net",
-   "www.mirrorservice.org","mirror.hs-esslingen.de","mirrors.pidginhost.com",
-             "openbsd.cs.toronto.edu","cloudflare.cdn.openbsd.org",
-           "ftp.halifax.rwth-aachen.de","ftp.rnl.tecnico.ulisboa.pt",
-          "mirror.csclub.uwaterloo.ca","mirrors.syringanetworks.net",
+         "openbsd.mirror.netelligent.ca","mirrors.syringanetworks.net",
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
-                        "openbsd.mirror.netelligent.ca"
+           "cloudflare.cdn.openbsd.org","ftp.rnl.tecnico.ulisboa.pt",
+"mirror.csclub.uwaterloo.ca","mirror.hs-esslingen.de","mirrors.pidginhost.com",
+    "*artfiles.org/openbsd","mirror.bytemark.co.uk","mirror.planetunix.net",
+     "www.mirrorservice.org","ftp4.usa.openbsd.org","mirror.aarnet.edu.au",
+      "mirror.exonetric.net","mirror.fsrv.services","ftp.usa.openbsd.org",
+       "ftp2.eu.openbsd.org","mirror.leaseweb.com","mirrors.gigenet.com",
+        "ftp.eu.openbsd.org","ftp.fr.openbsd.org","mirror.fsmg.org.nz",
+        "mirror.ungleich.ch","mirrors.dotsrc.org","openbsd.ipacct.com",
+"ftp.hostserver.de","mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.labkom.id",
+   "mirror.litnet.lt","mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org",
+    "mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu","ftp.icm.edu.pl",
+"mirror.one.com","ftp.cc.uoc.gr","ftp.spline.de","www.ftp.ne.jp","ftp.eenet.ee",
+     "ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl","ftp.fau.de","ftp.fsn.hu",
+                                  "openbsd.hk"
 		};
 
-		int index = arc4random_uniform(52);
+		int index = arc4random_uniform(50);
 
 
 		exit_line = __LINE__;
@@ -1453,7 +1453,10 @@ restart_program:
 			}
 		}
 
-		/* sort by printed length, subsort http alphabetically */
+		/* 
+		 * sort by longest length first, subsort http alphabetically 
+		 *           it makes it kinda look like a flower.
+		 */
 		qsort(array, se + 1, sizeof(struct mirror_st), diff_cmp_g);
 
 		printf("\n\n");
@@ -1479,6 +1482,7 @@ restart_program:
 			 */
 			if (n > 80) {
 				
+				/* center the printed strings */
 				for (j = (80 - (n - i)) / 2; j > 0; --j)
 					printf(" ");
 				for (j = first; j < c; ++j)
@@ -1490,11 +1494,12 @@ restart_program:
 			}
 		}
 		
+		/* center the printed strings */
 		for (j = (80 - n) / 2; j > 0; --j)
 			printf(" ");
 		for (j = first; j < se; ++j)
 			printf("\"%s\",", array[j].http);
-		printf("\"%s\"\n", array[j].http);
+		printf("\"%s\"\n", array[se].http);
 		
 		printf("\t\t};\n\n");
 		printf("\t\tint index = arc4random_uniform(%d);\n\n\n", se + 1);
