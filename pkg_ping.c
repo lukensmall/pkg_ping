@@ -158,6 +158,9 @@ manpage(char a[])
 	printf("\tif your kernel is a release, it will Override it and ");
 	printf("search for snapshot kernel mirrors.)\n");
 
+	printf("[-r (don't automatically Restart and return 2");
+	printf(" for a ftplist download error)]\n");
+
 	printf("[-S (converts http mirrors into Secure https mirrors\n");
 	printf("\thttp mirrors still preserve file integrity!)]\n");
 
@@ -175,7 +178,7 @@ int
 main(int argc, char *argv[])
 {
 	int8_t to_file = (getuid() == 0);
-	int8_t num, current, secure, usa, verbose, s_set;
+	int8_t num, current, secure, usa, verbose, s_set, restart;
 	int8_t generate, override, dns_cache_d, six, h;
 	long double s, S;
 	pid_t ftp_pid, write_pid, dns_cache_d_pid;
@@ -222,10 +225,10 @@ main(int argc, char *argv[])
 	}
 
 	verbose = secure = current = override = six = generate = 0;
-	usa = dns_cache_d = 1;
+	usa = dns_cache_d = restart = 1;
 	s = 5;
 
-	while ((c = getopt(argc, argv, "6dfghOSs:uvV")) != -1) {
+	while ((c = getopt(argc, argv, "6dfghlOSs:uvV")) != -1) {
 		switch (c) {
 		case '6':
 			six = 1;
@@ -244,6 +247,9 @@ main(int argc, char *argv[])
 		case 'h':
 			manpage(argv[0]);
 			return 0;
+		case 'l':
+			restart = 0;
+			break;
 		case 'O':
 			override = 1;
 			break;
@@ -252,27 +258,26 @@ main(int argc, char *argv[])
 			break;
 		case 's':
 			c = -1;
-			i = n = 0;
+			i = 0;
+			
+			if (!strcmp(optarg, "."))
+				errx(1, "-s cannot be \".\"");
+			
 			while (optarg[++c] != '\0') {
-				if (optarg[c] >= '0' && optarg[c] <= '9') {
-					n = 1;
+				if (optarg[c] >= '0' && optarg[c] <= '9')
 					continue;
-				}
 				if (optarg[c] == '.' && ++i == 1)
 					continue;
 
 				if (optarg[c] == '-')
-					errx(1, "No negative sign.");
+					errx(1, "don't enter a negative sign.");
 				errx(1, "Bad floating point format.");
 			}
-
-			if (n == 0)
-				errx(1, "-s needs a numeric character.");
 
 			errno = 0;
 			s = strtold(optarg, NULL);
 			if (errno)
-				err(1, "strtold, line: %d", __LINE__);
+				err(1, "-s %s is an invalid value", optarg);
 				
 			free(time);
 			time = strdup(optarg);
@@ -363,7 +368,7 @@ main(int argc, char *argv[])
 			_exit(1);
 		}
 		
-loop:
+dns_loop:
 
 		i = read(dns_cache_d_socket[0], line, line_max + 1);
 		if (i == 0)
@@ -398,7 +403,7 @@ loop:
 			i = write(dns_cache_d_socket[0], "f", 1);
 			if (i < 1)
 				_exit(1);
-			goto loop;
+			goto dns_loop;
 		}
 
 		if (verbose < 4 && !six) {
@@ -406,7 +411,7 @@ loop:
 			if (i < 1)
 				_exit(1);
 			freeaddrinfo(res0);
-			goto loop;
+			goto dns_loop;
 		}
 			
 		if (verbose == 4 && res0->ai_canonname) {
@@ -529,7 +534,7 @@ loop:
 			_exit(1);
 
 		freeaddrinfo(res0);
-		goto loop;
+		goto dns_loop;
 	}
 	if (dns_cache_d_pid == -1)
 		err(1, "dns_cache_d fork, line: %d\n", __LINE__);
@@ -814,7 +819,6 @@ jump_f:
 	if (time == NULL) {
 		s_set = 0;
 		
-		/* *argv strings are limited to less than length 50 */
 		time = malloc(50);
 		if (time == NULL) {
 			kill(ftp_pid, SIGKILL);
@@ -995,7 +999,7 @@ jump_f:
 	
 	if (i == 0) {
 		kill(ftp_pid, SIGKILL);
-		goto restart;
+		goto restart_program;
 	}
 
 	i = secure;
@@ -1103,8 +1107,11 @@ jump_f:
 	 *          kill the constantly restarting program.
 	 *                         returns 2
 	 */
-	if (n != 0 || array_length == 0)
-		errx(2, "There was a download error. Try again.\n");
+	if (n != 0 || array_length == 0) {
+		if (restart)
+			goto restart_program;
+		errx(2, "There was an ftplist download error. Try again.\n");
+	}
 
 	if (secure == 1)
 		h = strlen("https://");
@@ -1239,7 +1246,7 @@ restart_dns_err:
 					} while (n > 0);
 				}
 
-restart:
+restart_program:
 
 				if (verbose >= 0)
 					printf("restarting...\n");
@@ -1591,14 +1598,14 @@ no_good:
 
 		if (i < n) {
 			printf("not all of mirror sent to write_pid\n");
-			goto restart;
+			goto restart_program;
 		}
 		
 		waitpid(write_pid, &i, 0);
 
 		if (i != 0) {
 			printf("write_pid error.\n");
-			goto restart;
+			goto restart_program;
 		}
 
 		return 0;
