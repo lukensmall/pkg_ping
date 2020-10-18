@@ -228,7 +228,7 @@ main(int argc, char *argv[])
 	usa = dns_cache_d = restart = 1;
 	s = 5;
 
-	while ((c = getopt(argc, argv, "6dfghlOSs:uvV")) != -1) {
+	while ((c = getopt(argc, argv, "6dfghOrSs:uvV")) != -1) {
 		switch (c) {
 		case '6':
 			six = 1;
@@ -247,11 +247,11 @@ main(int argc, char *argv[])
 		case 'h':
 			manpage(argv[0]);
 			return 0;
-		case 'l':
-			restart = 0;
-			break;
 		case 'O':
 			override = 1;
+			break;
+		case 'r':
+			restart = 0;
 			break;
 		case 'S':
 			secure = 1;
