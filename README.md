@@ -41,7 +41,9 @@ It uses several commandline options:
 -O will override and search for snapshot mirrors if it is a release; and will search for release mirrors if it a snapshot.
    Useful when you are running a pre-release snapshot without available release mirrors or...are just curious?
 
--s will accept floating-point timeout like 1.5 seconds using strtod() and handrolled validation, eg. "-s 1.5", default 5.
+-r will not automatically restart if there is a ftplist download error. It will return a value of 2 instead.
+
+-s will accept floating-point timeout like 1.5 seconds using strtold() and handrolled validation, eg. "-s 1.5", default 5.
 
 -S (“Secure only”) option will convert the http mirrors to https mirrors. Otherwise, http mirrors will be chosen.
    http mirrors are likely faster than all https mirror selections, however they pass over the internet without encryption.
@@ -73,18 +75,17 @@ If it is run as root, it will make ftp calls run as user pkg_fetch.
 
 If the parent process spins up dns caching, file writing and is calling ftp, it can run 4 processes at one time, all with very different pledge() sets.
 
-I made it have a return value of 2 if it gets a download error from trying to download the mirror information file: 'ftplist'
-If you run it from a script and it returns 2, I suggest putting it in a loop which will run it again.
-I would make it loop in this case, but if your computer doesn't yet have internet access, it will also have this error. 
+If you are running this from a script, I suggest making a loop and specifying the -r flag.
+If your computer doesn't yet have internet access, it will also have this error and will restart until you do have internet access. 
 You will likely find it easier to handle an error in a loop than it is to kill a constantly restarting process.
 It generates a different random mirror from which to download ftplist everytime it runs.
 
-If it returns 1, something very bad has occurred or the timeout value is too low to find a successful mirror,
+If it returns 1, something very bad has occurred or the timeout value is too low to find a successful mirror;
 something that running it again won't likely solve.
 
 If an error is thrown in the processes that precache dns records and writes the mirror to disk, it will restart.
 It will also restart if downloading 'ftplist' becomes unresponsive past a wait time defined in 'timeout0'.
-'timeout0' can be extended by defining a larger -s value than is hard-coded.
+'timeout0' can be extended by defining a larger -s value than what is hard-coded.
 
 cc pkg_ping.c -o pkg_ping
 
