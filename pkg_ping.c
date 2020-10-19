@@ -50,10 +50,10 @@
  * 
  * 	If you want bleeding edge performance, you can try:
  * 	
- *	cc pkg_ping.c -Ofast -o pkg_ping
+ *	cc pkg_ping.c -O2 -o pkg_ping
  * 
- * 	You probably won't see an appreciable performance gain between
- * 	the dns lookups and ftp calls, which are the time killers.
+ * 	You probably won't see an appreciable performance gain between the
+ * 	dns caching lookups (getaddrinfo(3)) and ftp(1) calls, which are the time killers.
  * 
  *
  * 	On big-endian systems like sparc64, you may need:
@@ -799,9 +799,9 @@ jump_f:
 
 
 		if (verbose >= 2)
-			execl("/usr/bin/ftp", "ftp", "-vimo-", line, NULL);
+			execl("/usr/bin/ftp", "/usr/bin/ftp", "-vimo-", line, NULL);
 		else
-			execl("/usr/bin/ftp", "ftp", "-ViMo-", line, NULL);
+			execl("/usr/bin/ftp", "/usr/bin/ftp", "-ViMo-", line, NULL);
 
 
 		fprintf(stderr, "%s ", strerror(errno));
@@ -828,7 +828,7 @@ jump_f:
 	} else
 		s_set = 1;
 	
-	/* eliminate extra zeroes at the end of 'time' */
+	/* eliminate extra zeroes after decimal point in 'time' */
 	if (strchr(time, '.') != NULL) {
 		i = 0;
 		n = strlen(time);
@@ -848,17 +848,29 @@ jump_f:
 		}
 	}
 
-	len = 300;
-	line = malloc(len);
-	if (line == NULL)
-		errx(1, "malloc");
-
-	/* store results of "sysctl kern.version" into 'line' */
 	const int mib[2] = { CTL_KERN, KERN_VERSION };
-	if (sysctl(mib, 2, line, &len, NULL, 0) == -1)
-		err(1, "sysctl, line: %d", __LINE__);
+	
+	/* retrieve length of results of "sysctl kern.version" */
+	if (sysctl(mib, 2, NULL, &len, NULL, 0) == -1) {
+		printf("%s ", strerror(errno));
+		kill(ftp_pid, SIGKILL);		
+		errx(1, "sysctl, line: %d", __LINE__);
+	}
+	
+	line = malloc(len);
+	if (line == NULL) {
+		kill(ftp_pid, SIGKILL);		
+		errx(1, "malloc");
+	}
+		
+	/* read results of "sysctl kern.version" into 'line' */
+	if (sysctl(mib, 2, line, &len, NULL, 0) == -1) {
+		printf("%s ", strerror(errno));
+		kill(ftp_pid, SIGKILL);		
+		errx(1, "sysctl, line: %d", __LINE__);
+	}
 
-	/* Discovers if the kernel is not a release version */
+	/* Discovers if the kernel is not marked as a release version */
 	if (strstr(line, "current") || strstr(line, "beta"))
 		current = 1;
 	
@@ -893,6 +905,7 @@ jump_f:
 		kill(ftp_pid, SIGKILL);
 		errx(1, "malloc");
 	}
+	
 	
 	if (uname(name) == -1) {
 		printf("%s ", strerror(errno));
@@ -1314,7 +1327,7 @@ restart_program:
 			close(block_pipe[STDIN_FILENO]);
 			
 
-			execl("/usr/bin/ftp", "ftp", line0, line, NULL);
+			execl("/usr/bin/ftp", "/usr/bin/ftp", line0, line, NULL);
 
 			dprintf(std_err, "%s ", strerror(errno));
 			dprintf(std_err, "ftp 2 execl() failed, ");
