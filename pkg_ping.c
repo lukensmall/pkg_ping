@@ -53,7 +53,8 @@
  *	cc pkg_ping.c -O2 -o pkg_ping
  * 
  * 	You probably won't see an appreciable performance gain between the
- * 	dns caching lookups (getaddrinfo(3)) and ftp(1) calls, which are the time killers.
+ * 	dns caching lookups (getaddrinfo(3)) and ftp(1) calls,
+ * 	which are the time killers.
  * 
  *
  * 	On big-endian systems like sparc64, you may need:
@@ -799,9 +800,9 @@ jump_f:
 
 
 		if (verbose >= 2)
-			execl("/usr/bin/ftp", "/usr/bin/ftp", "-vimo-", line, NULL);
+			execl("/usr/bin/ftp", "ftp", "-vimo-", line, NULL);
 		else
-			execl("/usr/bin/ftp", "/usr/bin/ftp", "-ViMo-", line, NULL);
+			execl("/usr/bin/ftp", "ftp", "-ViMo-", line, NULL);
 
 
 		fprintf(stderr, "%s ", strerror(errno));
@@ -1327,7 +1328,7 @@ restart_program:
 			close(block_pipe[STDIN_FILENO]);
 			
 
-			execl("/usr/bin/ftp", "/usr/bin/ftp", line0, line, NULL);
+			execl("/usr/bin/ftp", "ftp", line0, line, NULL);
 
 			dprintf(std_err, "%s ", strerror(errno));
 			dprintf(std_err, "ftp 2 execl() failed, ");
@@ -1399,8 +1400,8 @@ restart_program:
 			S = array[c].diff;
 			timeout.tv_sec = (time_t) S;
 			timeout.tv_nsec =
-			    (long) ((S - (long double) timeout.tv_sec)
-			    * (long double) 1000000000);
+			    (long) ((S - (long double) timeout.tv_sec) * 
+			    (long double) 1000000000);
 		} else if (array[c].diff > s)
 			array[c].diff = s;
 	}
