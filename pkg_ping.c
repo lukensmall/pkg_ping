@@ -97,12 +97,6 @@ diff_cmp(const void *a, const void *b)
 		return -1;
 	if (one->diff > two->diff)
 		return 1;
-		
-	/* 
-	 * one and two are undoubtedly timeout or
-	 * download error mirrors to get past the
-	 *            diff comparisons
-	 */
 
 	/* list the USA mirrors first */
 	int8_t temp = (strstr(one->label, "USA") != NULL);
