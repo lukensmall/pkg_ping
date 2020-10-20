@@ -63,7 +63,7 @@ It uses several commandline options:
 -vvv (an additional -v) will also show ftp call output to mirrors; which includes a progress bar.
      The progress bar could be interesting if you are on dial-up. Is that still a thing?
 
--vvvv (an additional -v) will also show dns lookup output if -d is not used.
+-vvvv (an additional -v) will also show dns lookup output if -d is not used. It will temporarily print a * with less -v's to indicate dns caching.
 
 -V will stop all output except error messages. It overrides all -v instances.
    It's useful I suppose, if run from a script or daemon as root so that it writes the result to file.
