@@ -1027,7 +1027,6 @@ jump_f:
 		goto restart_program;
 	}
 
-	i = secure;
 	while (read(c, &v, 1) == 1) {
 		if (pos >= 253) {
 			kill(ftp_pid, SIGINT);
@@ -1088,13 +1087,6 @@ jump_f:
 		if (usa == 0 && strstr(line, "USA")) {
 			free(array[array_length].http);
 			pos = num = 0;
-			continue;
-		}
-		
-		/* https connection to Ishikawa mirror reverts to http */
-		if (i && strstr(line, "Ishikawa")) {
-			free(array[array_length].http);
-			pos = num = i = 0;
 			continue;
 		}
 		
