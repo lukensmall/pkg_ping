@@ -31,15 +31,17 @@
 
 
 /*
- * 	   Originally used this idea from "Dan Mclaughlin" on misc@
- *
+ * 	Originally used this idea from "Dan Mclaughlin" on misc@
+ * 	   
  *
  * 	    ftp -o - http://www.openbsd.org/ftp.html | \
  * 	    sed -n \
  * 	     -e 's:</a>$::' \
  * 	         -e 's:  <strong>\([^<]*\)<.*:\1:p' \
  * 	         -e 's:^\(       [hfr].*\):\1:p'
- *
+ * 
+ * 
+ * 	     I still don't know what all of that means.
  */
 
 /*
@@ -49,16 +51,18 @@
  *	cc pkg_ping.c -o pkg_ping
  * 
  * 	If you want bleeding edge performance, you can try:
- * 	
+ * 
  *	cc pkg_ping.c -O2 -o pkg_ping
  * 
  * 	You probably won't see an appreciable performance gain between the
- * 	dns caching lookups (getaddrinfo(3)) and ftp(1) calls,
- * 	which are the time killers.
+ * 	dns caching, which uses getaddrinfo(3) and the ftp(1) calls
+ * 	(which also uses getaddrinfo(3)), which are time killers.
  * 
  *
  * 	On big-endian systems like sparc64, you may need:
  * 	cc pkg_ping.c -mlittle-endian -o pkg_ping
+ * 
+ * 	program designed to be viewed with width 8 tabs
  */
 
 #include <err.h>
@@ -86,12 +90,12 @@ struct mirror_st {
 static int
 diff_cmp(const void *a, const void *b)
 {
-	struct mirror_st one = *((struct mirror_st *) a);
-	struct mirror_st two = *((struct mirror_st *) b);
+	struct mirror_st *one = (struct mirror_st *) a;
+	struct mirror_st *two = (struct mirror_st *) b;
 
-	if (one.diff < two.diff)
+	if (one->diff < two->diff)
 		return -1;
-	if (one.diff > two.diff)
+	if (one->diff > two->diff)
 		return 1;
 		
 	/* 
@@ -101,28 +105,28 @@ diff_cmp(const void *a, const void *b)
 	 */
 
 	/* list the USA mirrors first */
-	int8_t temp = (strstr(one.label, "USA") != NULL);
-	if (temp != (strstr(two.label, "USA") != NULL)) {
+	int8_t temp = (strstr(one->label, "USA") != NULL);
+	if (temp != (strstr(two->label, "USA") != NULL)) {
 		if (temp)
 			return -1;
 		return 1;
 	}
 	/* will reverse subsort */
-	return strcmp(two.label, one.label);
+	return strcmp(two->label, one->label);
 }
 
 static int
 diff_cmp_g(const void *a, const void *b)
 {
-	struct mirror_st one = *((struct mirror_st *) a);
-	struct mirror_st two = *((struct mirror_st *) b);
+	struct mirror_st *one = (struct mirror_st *) a;
+	struct mirror_st *two = (struct mirror_st *) b;
 
 	/* sort the biggest diff values first */
-	if (one.diff > two.diff)
+	if (one->diff > two->diff)
 		return -1;
-	if (one.diff < two.diff)
+	if (one->diff < two->diff)
 		return 1;
-	return strcmp(one.http, two.http);
+	return strcmp(one->http, two->http);
 }
 
 static int
@@ -142,26 +146,25 @@ label_cmp(const void *a, const void *b)
 }
 
 static void
-manpage(char a[])
+manpage()
 {
-	printf("%s\n", a);
 	printf("[-6 (only return ipv6 compatible mirrors)]\n");
 
 	printf("[-d (don't cache DNS)]\n");
 
-	printf("[-f (don't write to File even if run as root)]\n");
+	printf("[-f (don't automatically write to File if run as root)]\n");
 
 	printf("[-g (Generate source ftp list)]\n");
 
 	printf("[-h (print this Help message and exit)]\n");
 
 	printf("[-O (if your kernel is a snapshot, it will Override it and ");
-	printf("search for release kernel mirrors.\n");
+	printf("search for release mirrors.\n");
 	printf("\tif your kernel is a release, it will Override it and ");
-	printf("search for snapshot kernel mirrors.)\n");
+	printf("search for snapshot mirrors.)\n");
 
-	printf("[-r (don't automatically Restart and return 2");
-	printf(" for a ftplist download error)]\n");
+	printf("[-r (don't automatically Restart. Instead, return 2");
+	printf(" for an 'ftplist' download error)]\n");
 
 	printf("[-S (converts http mirrors into Secure https mirrors\n");
 	printf("\thttp mirrors still preserve file integrity!)]\n");
@@ -173,7 +176,12 @@ manpage(char a[])
 
 	printf("[-v (increase Verbosity. It recognizes up to 4 of these)]\n");
 
-	printf("[-V (no Verbose output. No output but error messages)]\n");
+	printf("[-V (no Verbose output. No output but error messages)]\n\n");
+	
+	
+	printf("More information at ");
+	printf("https://github.com/lukensmall/pkg_ping\n\n");
+	
 }
 
 int
@@ -195,6 +203,9 @@ main(int argc, char *argv[])
 	struct kevent ke;
 	size_t len;
 	char v;
+
+	/* .05 seconds for an ftp SIGINT to turn to a SIGKILL */
+	const struct timespec timeout_kill = { 0, 50000000 };
 
 	/* 5 seconds and 0 nanoseconds to download ftplist */
 	struct timespec timeout0 = { 5, 0 };
@@ -247,7 +258,7 @@ main(int argc, char *argv[])
 			generate = 1;
 			break;
 		case 'h':
-			manpage(argv[0]);
+			manpage();
 			return 0;
 		case 'O':
 			override = 1;
@@ -300,12 +311,12 @@ main(int argc, char *argv[])
 			verbose = -1;
 			break;
 		default:
-			manpage(argv[0]);
+			manpage();
 			return 1;
 		}
 	}
 	if (optind < argc) {
-		manpage(argv[0]);
+		manpage();
 		errx(1, "non-option ARGV-element: %s", argv[optind]);
 	}
 	
@@ -822,7 +833,7 @@ jump_f:
 		
 		time = malloc(50);
 		if (time == NULL) {
-			kill(ftp_pid, SIGKILL);
+			kill(ftp_pid, SIGINT);
 			errx(1, "malloc");
 		}
 		snprintf(time, 50, "%Lf", s);
@@ -843,7 +854,7 @@ jump_f:
 			time[i] = '\0';
 			time = realloc(time, i + 1);
 			if (time == NULL) {
-				kill(ftp_pid, SIGKILL);
+				kill(ftp_pid, SIGINT);
 				errx(1, "realloc");
 			}
 		}
@@ -854,20 +865,20 @@ jump_f:
 	/* retrieve length of results of "sysctl kern.version" */
 	if (sysctl(mib, 2, NULL, &len, NULL, 0) == -1) {
 		printf("%s ", strerror(errno));
-		kill(ftp_pid, SIGKILL);		
+		kill(ftp_pid, SIGINT);		
 		errx(1, "sysctl, line: %d", __LINE__);
 	}
 	
 	line = malloc(len);
 	if (line == NULL) {
-		kill(ftp_pid, SIGKILL);		
+		kill(ftp_pid, SIGINT);		
 		errx(1, "malloc");
 	}
 		
 	/* read results of "sysctl kern.version" into 'line' */
 	if (sysctl(mib, 2, line, &len, NULL, 0) == -1) {
 		printf("%s ", strerror(errno));
-		kill(ftp_pid, SIGKILL);		
+		kill(ftp_pid, SIGINT);		
 		errx(1, "sysctl, line: %d", __LINE__);
 	}
 
@@ -903,20 +914,20 @@ jump_f:
 
 	name = malloc(sizeof(struct utsname));
 	if (name == NULL) {
-		kill(ftp_pid, SIGKILL);
+		kill(ftp_pid, SIGINT);
 		errx(1, "malloc");
 	}
 	
 	
 	if (uname(name) == -1) {
 		printf("%s ", strerror(errno));
-		kill(ftp_pid, SIGKILL);
+		kill(ftp_pid, SIGINT);
 		errx(1, "uname, line: %d", __LINE__);
 	}
 	
 	release = strdup(name->release);
 	if (release == NULL) {
-		kill(ftp_pid, SIGKILL);
+		kill(ftp_pid, SIGINT);
 		errx(1, "strdup");
 	}
 
@@ -930,7 +941,7 @@ jump_f:
 	
 	tag = malloc(tag_len + 1);
 	if (tag == NULL) {
-		kill(ftp_pid, SIGKILL);
+		kill(ftp_pid, SIGINT);
 		errx(1, "malloc");
 	}
 
@@ -949,14 +960,14 @@ jump_f:
 		i = read(c, &entry_line, sizeof(int));
 		if ((ulong)i < sizeof(int)) {
 			printf("%s ", strerror(errno));
-			kill(ftp_pid, SIGKILL);
+			kill(ftp_pid, SIGINT);
 			errx(1, "read line: %d", __LINE__);
 		}
 			
 		i = read(c, &exit_line, sizeof(int));
 		if ((ulong)i < sizeof(int)) {
 			printf("%s ", strerror(errno));
-			kill(ftp_pid, SIGKILL);
+			kill(ftp_pid, SIGINT);
 			errx(1, "read line: %d", __LINE__);
 		}
 
@@ -964,7 +975,7 @@ jump_f:
 
 		tag = strdup("/timestamp");
 		if (tag == NULL) {
-			kill(ftp_pid, SIGKILL);
+			kill(ftp_pid, SIGINT);
 			errx(1, "strdup");
 		}
 
@@ -974,14 +985,14 @@ jump_f:
 	/* if the index for line[] can exceed 254, it will error out */
 	line = malloc(255);
 	if (line == NULL) {
-		kill(ftp_pid, SIGKILL);
+		kill(ftp_pid, SIGINT);
 		errx(1, "malloc");
 	}
 
 	array_max = 100;
 	array = calloc(array_max, sizeof(struct mirror_st));
 	if (array == NULL) {
-		kill(ftp_pid, SIGKILL);
+		kill(ftp_pid, SIGINT);
 		errx(1, "calloc");
 	}
 
@@ -993,7 +1004,7 @@ jump_f:
 	kq = kqueue();
 	if (kq == -1) {
 		printf("%s ", strerror(errno));
-		kill(ftp_pid, SIGKILL);
+		kill(ftp_pid, SIGINT);
 		errx(1, "kq! line: %d", __LINE__);
 	}
 
@@ -1006,20 +1017,20 @@ jump_f:
 	i = kevent(kq, &ke, 1, &ke, 1, &timeout0);
 	if (i == -1) {
 		printf("%s ", strerror(errno));
-		kill(ftp_pid, SIGKILL);
+		kill(ftp_pid, SIGINT);
 		printf("kevent, timeout0 may be too large. ");
 		errx(1, "line: %d", __LINE__);
 	}
 	
 	if (i == 0) {
-		kill(ftp_pid, SIGKILL);
+		kill(ftp_pid, SIGINT);
 		goto restart_program;
 	}
 
 	i = secure;
 	while (read(c, &v, 1) == 1) {
 		if (pos >= 253) {
-			kill(ftp_pid, SIGKILL);
+			kill(ftp_pid, SIGINT);
 			line[pos] = '\0';
 			printf("'line': %s\n", line);
 			errx(1, "pos got too big! line: %d", __LINE__);
@@ -1034,7 +1045,7 @@ jump_f:
 			line[pos++] = '\0';
 			
 			if (strncmp(line, "http://", h)) {
-				kill(ftp_pid, SIGKILL);
+				kill(ftp_pid, SIGINT);
 				errx(1, "bad http format, line: %d", __LINE__);
 			}				
 
@@ -1046,7 +1057,7 @@ jump_f:
 
 			array[array_length].http = malloc(pos);
 			if (array[array_length].http == NULL) {
-				kill(ftp_pid, SIGKILL);
+				kill(ftp_pid, SIGINT);
 				errx(1, "malloc");
 			}
 			
@@ -1089,7 +1100,7 @@ jump_f:
 		
 		array[array_length].label = strdup(line);
 		if (array[array_length].label == NULL) {
-			kill(ftp_pid, SIGKILL);
+			kill(ftp_pid, SIGINT);
 			errx(1, "strdup");
 		}
 
@@ -1100,7 +1111,7 @@ jump_f:
 			    sizeof(struct mirror_st));
 
 			if (array == NULL) {
-				kill(ftp_pid, SIGKILL);
+				kill(ftp_pid, SIGINT);
 				errx(1, "reallocarray");
 			}
 		}
@@ -1345,7 +1356,7 @@ restart_program:
 		    NOTE_EXIT, 0, NULL);
 		if (kevent(kq, &ke, 1, NULL, 0, NULL) == -1) {
 			printf("%s ", strerror(errno));
-			kill(ftp_pid, SIGKILL);
+			kill(ftp_pid, SIGINT);
 			errx(1, "kevent register fail, line: %d", __LINE__);
 		}
 		
@@ -1358,17 +1369,34 @@ restart_program:
 		
 		if (i == -1) {
 			printf("%s ", strerror(errno));
-			kill(ftp_pid, SIGKILL);
+			kill(ftp_pid, SIGINT);
 			errx(1, "kevent, line: %d", __LINE__);
 		}
 		
 		/* timeout occurred before ftp() exit was received */
 		if (i == 0) {
-			kill(ftp_pid, SIGKILL);
+			kill(ftp_pid, SIGINT);
 
 			/* reap both event and wait */
-			if (kevent(kq, NULL, 0, &ke, 1, NULL) == -1)
-				err(1, "kevent, line: %d", __LINE__);
+			/* give it time to gracefully die */
+			i = kevent(kq, NULL, 0, &ke, 1, &timeout_kill);
+			if (i == -1) {
+				printf("%s ", strerror(errno));
+				kill(ftp_pid, SIGINT);
+				errx(1, "kevent, line: %d", __LINE__);
+			}
+			if (i == 0) {
+				if (verbose >= 2)
+					printf("SIGKILL\n");
+				kill(ftp_pid, SIGKILL);
+				if (kevent(kq, NULL, 0, &ke, 1, NULL) == -1) {
+					printf("%s ", strerror(errno));
+					kill(ftp_pid, SIGINT);
+					errx(1, "kevent, line: %d", __LINE__);
+				}
+
+			}
+			
 			waitpid(ftp_pid, NULL, 0);
 			
 			if (verbose >= 2)
@@ -1536,29 +1564,29 @@ generate_jump:
 		else
 			printf("\n\nSUCCESSFUL MIRRORS:\n\n\n");
 
-		for (; c >= 0; --c) {
+		struct mirror_st *ac = array + c;
+		
+		for (; c >= 0; --c, --ac) {
 
-			struct mirror_st temp = array[c];
-			
 			if (array_length >= 100)
 				printf("%3d", c + 1);
 			else
 				printf("%2d", c + 1);
 
-			printf(" : %s\n\t", temp.label);
+			printf(" : %s\n\t", ac->label);
 			
 			if (c <= se) {
 				printf("echo \"%s\" > /etc/installurl",
-				    temp.http);
-				printf(" : %.9Lf\n\n", temp.diff);
+				    ac->http);
+				printf(" : %.9Lf\n\n", ac->diff);
 				continue;
 			}
 			
-			cut = strchr(temp.http += h, '/');
+			cut = strchr(ac->http += h, '/');
 			if (cut)
 				*cut = '\0';
 			
-			printf("%s : ", temp.http);
+			printf("%s : ", ac->http);
 			
 			if (c <= te) {
 				printf("Timeout\n\n");
@@ -1567,9 +1595,9 @@ generate_jump:
 				continue;
 			}
 			
-			if (temp.diff == s + 1)
+			if (ac->diff == s + 1)
 				printf("Download Error");
-			else if (temp.diff == s + 2)
+			else if (ac->diff == s + 2)
 				printf("IPv6 DNS records not found");
 			else
 				printf("DNS records not found");
