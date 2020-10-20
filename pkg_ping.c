@@ -142,7 +142,7 @@ label_cmp(const void *a, const void *b)
 static void
 manpage()
 {
-	printf("[-6 (only return ipv6 compatible mirrors)]\n");
+	printf("[-6 (only return IPv6 compatible mirrors)]\n");
 
 	printf("[-d (don't cache DNS)]\n");
 
@@ -181,7 +181,8 @@ manpage()
 int
 main(int argc, char *argv[])
 {
-	int8_t to_file = (getuid() == 0);
+	int8_t root_user = (getuid() == 0);
+	int8_t to_file = root_user;
 	int8_t num, current, secure, usa, verbose, s_set, restart;
 	int8_t generate, override, dns_cache_d, six, h;
 	long double s, S;
@@ -198,7 +199,7 @@ main(int argc, char *argv[])
 	size_t len;
 	char v;
 
-	/* .05 seconds for an ftp SIGINT to turn to a SIGKILL */
+	/* .05 seconds for an ftp SIGINT to turn into a SIGKILL */
 	const struct timespec timeout_kill = { 0, 50000000 };
 
 	/* 5 seconds and 0 nanoseconds to download ftplist */
@@ -355,10 +356,10 @@ main(int argc, char *argv[])
 			_exit(1);
 		}
 		
-		const char hex[16] = { '0','1','2','3',
-				       '4','5','6','7',
-				       '8','9','a','b',
-				       'c','d','e','f' };
+		const char hexadec[16] = { '0','1','2','3',
+					   '4','5','6','7',
+					   '8','9','a','b',
+					   'c','d','e','f' };
 					  
 		close(dns_cache_d_socket[1]);
 
@@ -450,12 +451,6 @@ dns_loop:
 				continue;
 			}
 			
-			/* 
-			 * In case anybody wondered, I wrote this section
-			 *       from scratch with a little googling
-			 *           on ipv6 address formatting
-			 */
-			
 			/* res->ai_family == AF_INET6 */
 
 			six_available = '1';
@@ -492,7 +487,10 @@ dns_loop:
 			}
 
 			/* 
-			 *  'i' is even so I can use "i|1" instead of "i+1"
+			 *                  ">> 4" == "/ 16"
+			 *              "max << 1" == "2 * max"
+			 *            "& 15" == "& 0x0f" == "% 16"
+			 *  'i' is even so I can use "i|1" instead of "i+1",
 			 * which may be more efficient. I think it's prettier
 			 */
 			for (i = 0; i < 16; i += 2) {
@@ -502,31 +500,31 @@ dns_loop:
 						printf("::");
 					else
 						printf(":");
-					i += 2 * max;
+					i += max << 1;
 					if (i >= 16)
 						break;
 				}
 				
 				if (suc6[i  ] >> 4) {
 					printf("%c%c%c%c",
-					    hex[suc6[i  ] >> 4],
-					    hex[suc6[i  ] & 15],
-					    hex[suc6[i|1] >> 4],
-					    hex[suc6[i|1] & 15]);
+					    hexadec[suc6[i  ] >> 4],
+					    hexadec[suc6[i  ] & 15],
+					    hexadec[suc6[i|1] >> 4],
+					    hexadec[suc6[i|1] & 15]);
 					    
 				} else if (suc6[i  ]) {
 					printf("%c%c%c",
-					    hex[suc6[i  ]     ],
-					    hex[suc6[i|1] >> 4],
-					    hex[suc6[i|1] & 15]);
+					    hexadec[suc6[i  ]     ],
+					    hexadec[suc6[i|1] >> 4],
+					    hexadec[suc6[i|1] & 15]);
 					    
 				} else if (suc6[i|1] >> 4) {
 					printf("%c%c",
-					    hex[suc6[i|1] >> 4],
-					    hex[suc6[i|1] & 15]);
+					    hexadec[suc6[i|1] >> 4],
+					    hexadec[suc6[i|1] & 15]);
 				} else {
 					printf("%c",
-					    hex[suc6[i|1]     ]);
+					    hexadec[suc6[i|1]     ]);
 				}
 				
 				if (i < 14)
@@ -680,7 +678,7 @@ jump_dns:
 jump_f:
 
 
-	if (getuid() == 0) {
+	if (root_user == 1) {
 		if (pledge("stdio exec proc id", NULL) == -1)
 			err(1, "pledge, line: %d", __LINE__);
 	} else {
@@ -698,7 +696,7 @@ jump_f:
 
 	
 		
-		if (getuid() == 0) {
+		if (root_user == 1) {
 		/* 
 		 * user _pkgfetch: ftp will regain read pledge
 		 *    just to chroot to /var/empty leaving
@@ -724,12 +722,13 @@ jump_f:
 		entry_line = __LINE__;
 
 
-		char *ftp_list[50] = {
+		char *ftp_list[53] = {
 
          "openbsd.mirror.netelligent.ca","mirrors.syringanetworks.net",
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
-           "cloudflare.cdn.openbsd.org","ftp.rnl.tecnico.ulisboa.pt",
-"mirror.csclub.uwaterloo.ca","mirror.hs-esslingen.de","mirrors.pidginhost.com",
+           "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
+           "ftp.rnl.tecnico.ulisboa.pt","mirror.csclub.uwaterloo.ca",
+  "mirror.hs-esslingen.de","mirrors.pidginhost.com","openbsd.cs.toronto.edu",
     "*artfiles.org/openbsd","mirror.bytemark.co.uk","mirror.planetunix.net",
      "www.mirrorservice.org","ftp4.usa.openbsd.org","mirror.aarnet.edu.au",
       "mirror.exonetric.net","mirror.fsrv.services","ftp.usa.openbsd.org",
@@ -738,13 +737,13 @@ jump_f:
         "mirror.ungleich.ch","mirrors.dotsrc.org","openbsd.ipacct.com",
 "ftp.hostserver.de","mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.labkom.id",
    "mirror.litnet.lt","mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org",
-    "mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu","ftp.icm.edu.pl",
-"mirror.one.com","ftp.cc.uoc.gr","ftp.spline.de","www.ftp.ne.jp","ftp.eenet.ee",
-     "ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl","ftp.fau.de","ftp.fsn.hu",
-                                  "openbsd.hk"
+    "ftp.jaist.ac.jp","mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu",
+       "ftp.icm.edu.pl","mirror.one.com","ftp.cc.uoc.gr","ftp.spline.de",
+   "www.ftp.ne.jp","ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl",
+                     "ftp.fau.de","ftp.fsn.hu","openbsd.hk"
 		};
 
-		int index = arc4random_uniform(50);
+		int index = arc4random_uniform(53);
 
 
 		exit_line = __LINE__;
@@ -1112,9 +1111,9 @@ jump_f:
 	waitpid(ftp_pid, &n, 0);
 
 	/* 
-	 *            'ftplist' download error
+	 *           'ftplist' download error.
 	 * This will more likely be caused by no internet
-	 *        access than from a faulty mirror.
+	 *           than from a faulty mirror.
 	 */
 	if (n != 0 || array_length == 0) {
 		if (restart && verbose >= 0)
@@ -1273,7 +1272,7 @@ restart_program:
 			
 			if (six && v == '0') {
 				if (verbose >= 2)
-					printf("Ipv6 DNS record not found.\n");
+					printf("IPv6 DNS record not found.\n");
 				array[c].diff = s + 2;
 				continue;
 			}
@@ -1294,7 +1293,7 @@ restart_program:
 		ftp_pid = fork();
 		if (ftp_pid == (pid_t) 0) {
 
-			if (getuid() == 0) {
+			if (root_user == 1) {
 			/* 
 			 * user _pkgfetch: ftp will regain read pledge
 			 *    just to chroot to /var/empty leaving
@@ -1361,10 +1360,10 @@ restart_program:
 		
 		/* timeout occurred before ftp() exit was received */
 		if (i == 0) {
+			
 			kill(ftp_pid, SIGINT);
 
-			/* reap both event and wait */
-			/* give it time to gracefully die */
+			/* give it time to gracefully die, then reap event */
 			i = kevent(kq, NULL, 0, &ke, 1, &timeout_kill);
 			if (i == -1) {
 				printf("%s ", strerror(errno));
@@ -1372,15 +1371,15 @@ restart_program:
 				errx(1, "kevent, line: %d", __LINE__);
 			}
 			if (i == 0) {
+				
+				kill(ftp_pid, SIGKILL);
 				if (verbose >= 2)
 					printf("SIGKILL\n");
-				kill(ftp_pid, SIGKILL);
 				if (kevent(kq, NULL, 0, &ke, 1, NULL) == -1) {
 					printf("%s ", strerror(errno));
 					kill(ftp_pid, SIGINT);
 					errx(1, "kevent, line: %d", __LINE__);
 				}
-
 			}
 			
 			waitpid(ftp_pid, NULL, 0);
@@ -1510,7 +1509,7 @@ restart_program:
 			 */
 			if (n > 80) {
 				
-				/* center the printed strings */
+				/* center the printed mirrors */
 				for (j = (80 - (n - i)) / 2; j > 0; --j)
 					printf(" ");
 				for (j = first; j < c; ++j)
@@ -1522,7 +1521,7 @@ restart_program:
 			}
 		}
 		
-		/* center the printed strings */
+		/* center the printed mirrors */
 		for (j = (80 - n) / 2; j > 0; --j)
 			printf(" ");
 		for (j = first; j < se; ++j)
