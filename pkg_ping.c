@@ -466,7 +466,7 @@ dns_loop:
 		hints.ai_flags = AI_CANONNAME;
 		hints.ai_family = AF_UNSPEC;
 		hints.ai_socktype = SOCK_STREAM;
-		n = getaddrinfo(line, "http", &hints, &res0);
+		n = getaddrinfo(line, "www", &hints, &res0);
 		if (n) {
 			// if (verbose >= 2) {
 				// printf("%s ", gai_strerror(n));
