@@ -911,7 +911,7 @@ jump_f:
 		if (override == 1)
 			current = !current;
 	} else
-		printf("showing the next release availability!");
+		printf("showing the next release availability!\n\n");
 
 
 	name = malloc(sizeof(struct utsname));
