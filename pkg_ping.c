@@ -234,7 +234,7 @@ main(int argc, char *argv[])
 			errx(1, "limit arguments to less than length 50");
 	}
 
-	verbose = secure = current = override = six = generate = 0;
+	verbose = secure = current = override = six = generate = next = 0;
 	usa = dns_cache_d = restart = 1;
 	s = 5;
 
@@ -258,11 +258,9 @@ main(int argc, char *argv[])
 			manpage();
 			return 0;
 		case 'O':
-			next = 0;
 			override = 1;
 			break;
 		case 'n':
-			override = 0;
 			next = 1;
 			break;
 		case 'r':
@@ -340,10 +338,13 @@ main(int argc, char *argv[])
 			verbose = 1;
 		secure = 1;
 		dns_cache_d = 1;
+		next = 0;
+		override = 0;
 		to_file = 0;
 		if (pledge("stdio exec proc dns id", NULL) == -1)
 			err(1, "pledge, line: %d", __LINE__);
-	}
+	} else if (next)
+		override = 0;
 
 
 	if (dns_cache_d == 0)
@@ -729,28 +730,28 @@ jump_f:
 		entry_line = __LINE__;
 
 
-		char *ftp_list[53] = {
+		char *ftp_list[52] = {
 
          "openbsd.mirror.netelligent.ca","mirrors.syringanetworks.net",
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
            "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
            "ftp.rnl.tecnico.ulisboa.pt","mirror.csclub.uwaterloo.ca",
-  "mirror.hs-esslingen.de","mirrors.pidginhost.com","openbsd.cs.toronto.edu",
+   "mirror.hs-esslingen.de","mirrors.pidginhost.com","openbsd.cs.toronto.edu",
     "*artfiles.org/openbsd","mirror.bytemark.co.uk","mirror.planetunix.net",
-     "www.mirrorservice.org","ftp4.usa.openbsd.org","mirror.aarnet.edu.au",
-      "mirror.exonetric.net","mirror.fsrv.services","ftp.usa.openbsd.org",
-       "ftp2.eu.openbsd.org","mirror.leaseweb.com","mirrors.gigenet.com",
-        "ftp.eu.openbsd.org","ftp.fr.openbsd.org","mirror.fsmg.org.nz",
-        "mirror.ungleich.ch","mirrors.dotsrc.org","openbsd.ipacct.com",
-"ftp.hostserver.de","mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.labkom.id",
-   "mirror.litnet.lt","mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org",
-    "ftp.jaist.ac.jp","mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu",
-       "ftp.icm.edu.pl","mirror.one.com","ftp.cc.uoc.gr","ftp.spline.de",
-   "www.ftp.ne.jp","ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl",
-                     "ftp.fau.de","ftp.fsn.hu","openbsd.hk"
+     "www.mirrorservice.org","ftp4.usa.openbsd.org","mirror.exonetric.net",
+       "mirror.fsrv.services","ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
+        "mirror.leaseweb.com","mirrors.gigenet.com","ftp.eu.openbsd.org",
+         "ftp.fr.openbsd.org","mirror.fsmg.org.nz","mirror.ungleich.ch",
+         "mirrors.dotsrc.org","openbsd.ipacct.com","ftp.hostserver.de",
+ "mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.labkom.id","mirror.litnet.lt",
+    "mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp",
+     "mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu","mirror.one.com",
+ "ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp","ftp.eenet.ee",
+      "ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl","ftp.fau.de","ftp.fsn.hu",
+                                  "openbsd.hk"
 		};
 
-		int index = arc4random_uniform(53);
+		int index = arc4random_uniform(52);
 
 
 		exit_line = __LINE__;
@@ -760,16 +761,21 @@ jump_f:
 		
 		if (generate) {
 			
+		/*
+		 * I can't think of a better way to send these two values
+		 *     refuse to change it every time I edit the code
+		 *  and it probably preserves some memory having it here
+		 */
 			errno = 0;
 			i = write(c, &entry_line, sizeof(int));
-			if ((ulong)i < sizeof(int)) {
+			if (i < (int)sizeof(int)) {
 				if (errno)
 					printf("%s ", strerror(errno));
 				printf("ftp write, line: %d\n", __LINE__);
 				_exit(1);
 			}
 			i = write(c, &exit_line, sizeof(int));
-			if ((ulong)i < sizeof(int)) {
+			if (i < (int)sizeof(int)) {
 				if (errno)
 					printf("%s ", strerror(errno));
 				printf("ftp write, line: %d\n", __LINE__);
@@ -836,7 +842,11 @@ jump_f:
 			kill(ftp_pid, SIGINT);
 			errx(1, "malloc");
 		}
-		snprintf(time, 50, "%Lf", s);
+		n = snprintf(time, 50, "%Lf", s);
+		if (n >= 50) {
+			kill(ftp_pid, SIGINT);
+			errx(1, "snprintf, line: %d", __LINE__);
+		}
 	} else
 		s_set = 1;
 	
@@ -860,7 +870,12 @@ jump_f:
 		}
 	}
 
-	if (next == 0) {
+	c = ftp_out[STDIN_FILENO];
+
+	if (next == 1) {
+		if (verbose >= 2)
+			printf("showing the next release availability!\n\n");
+	} else if (generate == 0) {
 		const int mib[2] = { CTL_KERN, KERN_VERSION };
 	
 		/* retrieve length of results of "sysctl kern.version" */
@@ -889,29 +904,43 @@ jump_f:
 		
 		free(line);
 
-		if (verbose >= 2) {
-			if (current == 1) {
-				if (override == 0)
-					printf("This is a snapshot.\n\n");
-				else {
-					printf("This is a snapshot, ");
-					printf("but it has been overridden ");
-					printf("to show release mirrors!\n\n");
-				}
-			} else {
-				if (override == 0)
-					printf("This is a release.\n\n");
-				else {
-					printf("This is a release, ");
-					printf("but it has been overridden ");
-					printf("to show snapshot mirrors!\n\n");
-				}
-			}
-		}
 		if (override == 1)
 			current = !current;
-	} else
-		printf("showing the next release availability!\n\n");
+			
+		if (verbose >= 2) {
+			if (current == 0) 
+				printf("showing snapshot mirrors\n\n");
+			else
+				printf("showing release mirrors\n\n");
+		}
+	} else {
+		
+		release = NULL;
+
+		tag = strdup("/timestamp");
+		if (tag == NULL) {
+			kill(ftp_pid, SIGINT);
+			errx(1, "strdup");
+		}
+
+		tag_len = strlen(tag);
+
+		i = read(c, &entry_line, sizeof(int));
+		if ((ulong)i < sizeof(int)) {
+			printf("%s ", strerror(errno));
+			kill(ftp_pid, SIGINT);
+			errx(1, "read line: %d", __LINE__);
+		}
+			
+		i = read(c, &exit_line, sizeof(int));
+		if ((ulong)i < sizeof(int)) {
+			printf("%s ", strerror(errno));
+			kill(ftp_pid, SIGINT);
+			errx(1, "read line: %d", __LINE__);
+		}
+		goto generate_jump0;
+	}
+
 
 
 	name = malloc(sizeof(struct utsname));
@@ -940,8 +969,16 @@ jump_f:
 		errx(1, "strdup");
 	}
 	
-	if (next && i)
-		sprintf(release, "%.1f", atof(release) + .1);
+	if (next && i) {
+		
+		n = snprintf(release, sizeof(release),
+		    "%.1f", atof(release) + .1);
+		    
+		if (n >= (int)sizeof(release)) {
+			kill(ftp_pid, SIGINT);
+			errx(1, "snprintf, line: %d", __LINE__);
+		}
+	}
 
 
 	if (current == 1) {
@@ -965,36 +1002,9 @@ jump_f:
 
 	free(name);
 	
-	c = ftp_out[STDIN_FILENO];
+generate_jump0:
 	
-	if (generate) {
-		
-		/* I can't think of a better way to get these two values */
-		i = read(c, &entry_line, sizeof(int));
-		if ((ulong)i < sizeof(int)) {
-			printf("%s ", strerror(errno));
-			kill(ftp_pid, SIGINT);
-			errx(1, "read line: %d", __LINE__);
-		}
-			
-		i = read(c, &exit_line, sizeof(int));
-		if ((ulong)i < sizeof(int)) {
-			printf("%s ", strerror(errno));
-			kill(ftp_pid, SIGINT);
-			errx(1, "read line: %d", __LINE__);
-		}
-
-		free(tag);
-
-		tag = strdup("/timestamp");
-		if (tag == NULL) {
-			kill(ftp_pid, SIGINT);
-			errx(1, "strdup");
-		}
-
-		tag_len = strlen(tag);
-	}
-
+	
 	/* if the index for line[] can exceed 254, it will error out */
 	line = malloc(255);
 	if (line == NULL) {
@@ -1058,6 +1068,7 @@ jump_f:
 			
 			if (strncmp(line, "http://", h)) {
 				kill(ftp_pid, SIGINT);
+				printf("'line': %s\n", line);
 				errx(1, "bad http format, line: %d", __LINE__);
 			}				
 
@@ -1530,7 +1541,7 @@ restart_program:
 			if (n > 80) {
 				
 				/* center the printed mirrors */
-				for (j = (80 - (n - i)) / 2; j > 0; --j)
+				for (j = (80 + 1 - (n - i)) / 2; j > 0; --j)
 					printf(" ");
 				for (j = first; j < c; ++j)
 					printf("\"%s\",", array[j].http);
@@ -1542,7 +1553,7 @@ restart_program:
 		}
 		
 		/* center the printed mirrors */
-		for (j = (80 - n) / 2; j > 0; --j)
+		for (j = (80 + 1 - n) / 2; j > 0; --j)
 			printf(" ");
 		for (j = first; j < se; ++j)
 			printf("\"%s\",", array[j].http);
@@ -1623,7 +1634,8 @@ no_good:
 		
 		printf("No successful mirrors found.\n\n");
 
-		if (current == 0 && override == 0 && next == 0) {
+		if (current == 0 && override == 0 && next == 0 &&
+		    generate == 0) {
 			printf("Perhaps the %s release ", release);
 			printf("isn't present yet?\n");
 			printf("The OpenBSD team tests prereleases ");
