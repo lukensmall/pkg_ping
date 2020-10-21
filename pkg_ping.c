@@ -124,7 +124,7 @@ diff_cmp_g(const void *a, const void *b)
 }
 
 static int
-label_cmp(const void *a, const void *b)
+label_cmp0(const void *a, const void *b)
 {
 	char* one_label = ((struct mirror_st *) a)->label;
 	char* two_label = ((struct mirror_st *) b)->label;
@@ -137,6 +137,62 @@ label_cmp(const void *a, const void *b)
 		return 1;
 	}
 	return strcmp(one_label, two_label);
+}
+
+static int
+label_cmp(const void *a, const void *b)
+{
+	char* one_label = ((struct mirror_st *) a)->label;
+	char* two_label = ((struct mirror_st *) b)->label;
+
+	/* list the USA mirrors first */
+	int8_t temp = (strstr(one_label, "USA") != NULL);
+	if (temp != (strstr(two_label, "USA") != NULL)) {
+		if (temp)
+			return -1;
+		return 1;
+	}
+	
+	char *red0 = strdup(one_label);
+	char *blue0 = strdup(two_label);
+	char *red = NULL;
+	char *blue = NULL;
+	int ret;
+	int8_t i = 3;
+	
+	if (red0 == NULL || blue0 == NULL)
+		errx(1, "strdup");
+		
+	do {
+		if (i & 2) {
+			if (red)
+				*red = '\0';
+			red = strrchr(red0, ',');
+			if (red == NULL) {
+				red = one_label;
+				i -= 2;
+			}
+		}
+		
+		if (i & 1) {
+			if (blue)
+				*blue = '\0';
+			blue = strrchr(blue0, ',');
+			if (blue == NULL) {
+				blue = two_label;
+				i -= 1;
+			}
+		}
+			
+		ret = strcmp(red, blue);
+		if (ret)
+			goto end;
+		
+	} while (i);
+end:
+	free(red0);
+	free(blue0);
+	return ret;
 }
 
 static void
@@ -1184,7 +1240,12 @@ generate_jump0:
 		errx(1, "reallocarray");
 
 	/* sort by label, but USA mirrors first */
-	qsort(array, array_length, sizeof(struct mirror_st), label_cmp);
+	if (verbose >= 2)
+		qsort(array, array_length, sizeof(struct mirror_st), label_cmp);
+	else {
+		qsort(array, array_length, sizeof(struct mirror_st),
+		    label_cmp0);
+	}
 
 	if (six == 1) {
 		if (verbose >= 3)
