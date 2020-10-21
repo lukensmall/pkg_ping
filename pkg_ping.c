@@ -157,6 +157,8 @@ manpage()
 	printf("\tif your kernel is a release, it will Override it and ");
 	printf("search for snapshot mirrors.)\n");
 
+	printf("[-n (search for next release package-folder!)]\n");
+
 	printf("[-r (don't automatically Restart. Instead, return 2");
 	printf(" for an 'ftplist' download error)]\n");
 
@@ -184,7 +186,7 @@ main(int argc, char *argv[])
 	int8_t root_user = (getuid() == 0);
 	int8_t to_file = root_user;
 	int8_t num, current, secure, usa, verbose, s_set, restart;
-	int8_t generate, override, dns_cache_d, six, h;
+	int8_t generate, override, dns_cache_d, six, h, next;
 	long double s, S;
 	pid_t ftp_pid, write_pid, dns_cache_d_pid;
 	int kq, i, pos, c, n, array_max, array_length, tag_len;
@@ -236,7 +238,7 @@ main(int argc, char *argv[])
 	usa = dns_cache_d = restart = 1;
 	s = 5;
 
-	while ((c = getopt(argc, argv, "6dfghOrSs:uvV")) != -1) {
+	while ((c = getopt(argc, argv, "6dfghOnrSs:uvV")) != -1) {
 		switch (c) {
 		case '6':
 			six = 1;
@@ -256,7 +258,12 @@ main(int argc, char *argv[])
 			manpage();
 			return 0;
 		case 'O':
+			next = 0;
 			override = 1;
+			break;
+		case 'n':
+			override = 0;
+			next = 1;
 			break;
 		case 'r':
 			restart = 0;
@@ -853,56 +860,58 @@ jump_f:
 		}
 	}
 
-	const int mib[2] = { CTL_KERN, KERN_VERSION };
+	if (next == 0) {
+		const int mib[2] = { CTL_KERN, KERN_VERSION };
 	
-	/* retrieve length of results of "sysctl kern.version" */
-	if (sysctl(mib, 2, NULL, &len, NULL, 0) == -1) {
-		printf("%s ", strerror(errno));
-		kill(ftp_pid, SIGINT);		
-		errx(1, "sysctl, line: %d", __LINE__);
-	}
-	
-	line = malloc(len);
-	if (line == NULL) {
-		kill(ftp_pid, SIGINT);		
-		errx(1, "malloc");
-	}
+		/* retrieve length of results of "sysctl kern.version" */
+		if (sysctl(mib, 2, NULL, &len, NULL, 0) == -1) {
+			printf("%s ", strerror(errno));
+			kill(ftp_pid, SIGINT);		
+			errx(1, "sysctl, line: %d", __LINE__);
+		}
 		
-	/* read results of "sysctl kern.version" into 'line' */
-	if (sysctl(mib, 2, line, &len, NULL, 0) == -1) {
-		printf("%s ", strerror(errno));
-		kill(ftp_pid, SIGINT);		
-		errx(1, "sysctl, line: %d", __LINE__);
-	}
+		line = malloc(len);
+		if (line == NULL) {
+			kill(ftp_pid, SIGINT);		
+			errx(1, "malloc");
+		}
+			
+		/* read results of "sysctl kern.version" into 'line' */
+		if (sysctl(mib, 2, line, &len, NULL, 0) == -1) {
+			printf("%s ", strerror(errno));
+			kill(ftp_pid, SIGINT);		
+			errx(1, "sysctl, line: %d", __LINE__);
+		}
 
-	/* Discovers if the kernel is not marked as a release version */
-	if (strstr(line, "current") || strstr(line, "beta"))
-		current = 1;
-	
-	free(line);
+		/* Discovers if the kernel is not a release version */
+		if (strstr(line, "current") || strstr(line, "beta"))
+			current = 1;
+		
+		free(line);
 
-
-	if (verbose >= 2) {
-		if (current == 1) {
-			if (override == 0)
-				printf("This is a snapshot.\n\n");
-			else {
-				printf("This is a snapshot, ");
-				printf("but it has been overridden ");
-				printf("to show release mirrors!\n\n");
-			}
-		} else {
-			if (override == 0)
-				printf("This is a release.\n\n");
-			else {
-				printf("This is a release, ");
-				printf("but it has been overridden ");
-				printf("to show snapshot mirrors!\n\n");
+		if (verbose >= 2) {
+			if (current == 1) {
+				if (override == 0)
+					printf("This is a snapshot.\n\n");
+				else {
+					printf("This is a snapshot, ");
+					printf("but it has been overridden ");
+					printf("to show release mirrors!\n\n");
+				}
+			} else {
+				if (override == 0)
+					printf("This is a release.\n\n");
+				else {
+					printf("This is a release, ");
+					printf("but it has been overridden ");
+					printf("to show snapshot mirrors!\n\n");
+				}
 			}
 		}
-	}
-	if (override == 1)
-		current = !current;
+		if (override == 1)
+			current = !current;
+	} else
+		printf("showing the next release availability!");
 
 
 	name = malloc(sizeof(struct utsname));
@@ -918,11 +927,22 @@ jump_f:
 		errx(1, "uname, line: %d", __LINE__);
 	}
 	
-	release = strdup(name->release);
+	if (next && !strcmp(name->release, "9.9")) {
+		release = strdup("10.0");
+		i = 0;
+	} else {
+		release = strdup(name->release);
+		i = 1;
+	}
+		
 	if (release == NULL) {
 		kill(ftp_pid, SIGINT);
 		errx(1, "strdup");
 	}
+	
+	if (next && i)
+		sprintf(release, "%.1f", atof(release) + .1);
+
 
 	if (current == 1) {
 		tag_len = strlen("/snapshots/") +
@@ -1603,15 +1623,19 @@ no_good:
 		
 		printf("No successful mirrors found.\n\n");
 
-		if (current == 0 && override == 0) {
-			printf("Perhaps the %s release isn't present yet?\n",
-			    release);
+		if (current == 0 && override == 0 && next == 0) {
+			printf("Perhaps the %s release ", release);
+			printf("isn't present yet?\n");
 			printf("The OpenBSD team tests prereleases ");
 			printf("by marking them as release kernels before\n");
 			printf("the appropriate release mirrors are ");
 			printf("available to hash out any issues.\n");
 			printf("This is solved by using the -O option ");
 			printf("to retrieve snapshot mirrors.\n\n");
+		}
+		if (next == 1) {
+			printf("Perhaps the next release ");
+			printf("(%s) isn't present yet?\n", release);
 		}
 		if (six)
 			printf("Try losing the -6 option?\n\n");
