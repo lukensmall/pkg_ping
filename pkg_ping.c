@@ -1142,9 +1142,9 @@ generate_jump0:
 	waitpid(ftp_pid, &n, 0);
 
 	/* 
-	 *           'ftplist' download error.
-	 * This will more likely be caused by no internet
-	 *           than from a faulty mirror.
+	 *             'ftplist' download error:
+	 * It's caused by no internet or bad dns resolution;
+	 *    Or from a faulty mirror or its bad dns info
 	 */
 	if (n != 0 || array_length == 0) {
 		if (restart && verbose >= 0)
