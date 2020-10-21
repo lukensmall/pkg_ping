@@ -18,17 +18,16 @@ It uses a few commandline options:
 
 -h will print the "help" options.
 
--s will accept floating-point timeout like 1.5 seconds using strtod() and handrolled validation, eg. "-s 1.5", default 5.
+-s will accept floating-point timeout like 1.5 seconds using strtod() and handrolled validation,
+   eg. "-s 1.5", default 5.
 
 -u will make it search for only non-USA mirrors for export encryption
    compliance if you are searching from outside of the USA and Canada.
-
--v increases verbosity. Can specify meaningfully up to 3 times. I forgot what exactly they do.
 
 -n sets a maximum number of mirrors to specify in /etc/pkg.conf
 
 cc pkg_ping.c -o pkg_ping
 
-eg. ./pkg_ping -vs1.5 -vvu
+eg. ./pkg_ping -s1.5 -u
 
-eg. ./pkg_ping -vvs 2 -n10
+eg. ./pkg_ping -s 2 -n10
