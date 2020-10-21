@@ -41,6 +41,8 @@ It uses several commandline options:
 -O will override and search for snapshot mirrors if it is a release; and will search for release mirrors if it a snapshot.
    Useful when you are running a pre-release snapshot without available release mirrors or...are just curious?
 
+-n searches for next release package folders! It adds .1 to your version and searches for the release.
+
 -r will not automatically restart if there is a ftplist download error. It will return a value of 2 instead.
    perhaps if it is constantly restarting because of no internet access, you'd perfer it to be handled in a script loop.
 
