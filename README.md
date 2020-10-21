@@ -5,7 +5,7 @@ the cdn.openbsd.org mirror owned by the OpenBSD project. I designed this feature
 It determines and prints the fastest OpenBSD mirror for your version and architecture for the /etc/installurl file and if run 
 as root, will write it to disk unless -f is used.
 
-Compiler optimizations for speed is not worth the compile time. Waiting for ftp calls and dns queries will take up the vast majority of the
+Compiler optimizations for speed is not worth the extra second of compile time. Waiting for ftp calls and dns queries will take up the vast majority of the
 run-time; everything else happens in the blink of an eye.
 
 pledge() is updated throughout. Because of how unveil() is designed, unveil() limits are created up front and
