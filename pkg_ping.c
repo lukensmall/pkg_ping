@@ -81,6 +81,8 @@
 #include <time.h>
 #include <unistd.h>
 
+int8_t h;
+
 struct mirror_st {
 	char *label;
 	char *http;
@@ -114,57 +116,72 @@ diff_cmp0(const void *a, const void *b)
 	return 0;
 }
 
+/* return the last comma from searching from start to less than 'end' */
+static char*
+strnrcomma(char *start, char *end)
+{
+	char *a = start - 1;
+	char *found = NULL;
+	
+	while (++a < end) {
+		if (*a == ',')
+			found = a;
+	}
+	return found;
+}
+
 static int
 label_cmp_minus_usa(const void *a, const void *b)
 {
 	
-	char *red0  = strdup(((struct mirror_st *) a)->label);
-	char *blue0 = strdup(((struct mirror_st *) b)->label);
+	char *one_label = ((struct mirror_st *) a)->label;
+	char *two_label = ((struct mirror_st *) b)->label;
 	char *red;
 	char *blue;
 	int ret;
 	int8_t i = 3;
+		
+	/* 
+	 * We're basically reading the locations by proper
+	 * hierarchy, which are in reverse order between commas.
+	 */
+	red = strrchr(one_label, ',');
+	if (red == NULL) {
+		red = one_label;
+		i = 1;
+	} else
+		red += 2;
+
+
+	blue = strrchr(two_label, ',');
+	if (blue == NULL) {
+		blue = two_label;
+		--i;
+	} else
+		blue += 2;
+
+	ret = strcmp(red, blue);
 	
-	/* We're gonna mangle these two a bit! */
-	if (red0 == NULL || blue0 == NULL)
-		errx(1, "strdup");
+	while(ret == 0 && i == 3) {
 		
-	do {
-		
-		/* 
-		 * red and blue: What's after the last comma (and space)
-		 * and before the first null character?
-		 * Make the last comma the first null character
-		 * so the next iteration finds the comma before that
-		 * 
-		 * We're basically reading the locations by proper
-		 * hierarchy, which are in reverse order between commas.
-		 */
-		red = strrchr(red0, ',');
+		red = strnrcomma(one_label, red - 2);
 		if (red == NULL) {
-			red = red0;
+			red = one_label;
 			i = 1;
-		} else {
-			*red = '\0';
+		} else
 			red += 2;
-		}
 
 
-		blue = strrchr(blue0, ',');
+		blue = strnrcomma(two_label, blue - 2);
 		if (blue == NULL) {
-			blue = blue0;
+			blue = two_label;
 			--i;
-		} else {
-			*blue = '\0';
+		} else
 			blue += 2;
-		}
 
 		ret = strcmp(red, blue);
 		
-	} while(ret == 0 && i == 3);
-
-	free(red0);
-	free(blue0);
+	}
 
 	if (ret == 0) {
 		/* 
@@ -180,8 +197,8 @@ label_cmp_minus_usa(const void *a, const void *b)
 		
 		/* exactly equal labels */
 		return strcmp(
-			      ((struct mirror_st *) a)->http,
-			      ((struct mirror_st *) b)->http
+			      ((struct mirror_st *) a)->http + h,
+			      ((struct mirror_st *) b)->http + h
 			     );
 	}
 	return ret;
@@ -299,7 +316,7 @@ main(int argc, char *argv[])
 	int8_t root_user = (getuid() == 0);
 	int8_t to_file = root_user;
 	int8_t num, current, secure, usa, verbose, s_set, restart;
-	int8_t generate, override, dns_cache_d, six, h, next;
+	int8_t generate, override, dns_cache_d, six, next;
 	long double s, S;
 	pid_t ftp_pid, write_pid, dns_cache_d_pid;
 	int kq, i, pos, c, n, array_max, array_length, tag_len;
@@ -309,7 +326,6 @@ main(int argc, char *argv[])
 	struct timespec start, end, timeout;
 	char *line0, *line, *release, *tag, *time = NULL;
 	struct mirror_st *array;
-	struct utsname *name;
 	struct kevent ke;
 	size_t len;
 	char v;
@@ -458,6 +474,9 @@ main(int argc, char *argv[])
 			err(1, "pledge, line: %d", __LINE__);
 	} else if (next)
 		override = 0;
+		
+	if (dns_cache_d == 0 && verbose == 4)
+		verbose = 3;
 
 
 	if (dns_cache_d == 0)
@@ -526,7 +545,7 @@ dns_loop:
 			printf("DNS caching: %s\n", line);
 
 
-		bzero(&hints, sizeof(hints));
+		bzero(&hints, sizeof(struct addrinfo));
 		hints.ai_flags = AI_FQDN;
 		hints.ai_family = AF_UNSPEC;
 		hints.ai_socktype = SOCK_STREAM;
@@ -841,28 +860,28 @@ jump_f:
 		entry_line = __LINE__;
 
 
-		char *ftp_list[52] = {
+		char *ftp_list[53] = {
 
          "openbsd.mirror.netelligent.ca","mirrors.syringanetworks.net",
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
            "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
            "ftp.rnl.tecnico.ulisboa.pt","mirror.csclub.uwaterloo.ca",
-   "mirror.hs-esslingen.de","mirrors.pidginhost.com","openbsd.cs.toronto.edu",
-    "*artfiles.org/openbsd","mirror.bytemark.co.uk","mirror.planetunix.net",
-     "www.mirrorservice.org","ftp4.usa.openbsd.org","mirror.exonetric.net",
+   "mirror.hs-esslingen.de","mirrors.pidginhost.com","*artfiles.org/openbsd",
+    "mirror.bytemark.co.uk","mirror.planetunix.net","www.mirrorservice.org",
+      "ftp4.usa.openbsd.org","mirror.aarnet.edu.au","mirror.exonetric.net",
        "mirror.fsrv.services","ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
         "mirror.leaseweb.com","mirrors.gigenet.com","ftp.eu.openbsd.org",
          "ftp.fr.openbsd.org","mirror.fsmg.org.nz","mirror.ungleich.ch",
          "mirrors.dotsrc.org","openbsd.ipacct.com","ftp.hostserver.de",
  "mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.labkom.id","mirror.litnet.lt",
     "mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp",
-     "mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu","mirror.one.com",
- "ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp","ftp.eenet.ee",
-      "ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl","ftp.fau.de","ftp.fsn.hu",
-                                  "openbsd.hk"
+     "mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu","ftp.icm.edu.pl",
+        "mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de",
+   "www.ftp.ne.jp","ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl",
+                     "ftp.fau.de","ftp.fsn.hu","openbsd.hk"
 		};
 
-		int index = arc4random_uniform(52);
+		int index = arc4random_uniform(53);
 
 
 		exit_line = __LINE__;
@@ -1028,7 +1047,9 @@ jump_f:
 			else
 				printf("showing release mirrors\n\n");
 		}
-	} else {
+	}
+	
+	if (generate == 1) {
 		
 		release = NULL;
 
@@ -1053,71 +1074,69 @@ jump_f:
 			kill(ftp_pid, SIGINT);
 			errx(1, "read line: %d", __LINE__);
 		}
-		goto generate_jump0;
-	}
-
-
-
-	name = malloc(sizeof(struct utsname));
-	if (name == NULL) {
-		kill(ftp_pid, SIGINT);
-		errx(1, "malloc");
-	}
-	
-	
-	if (uname(name) == -1) {
-		printf("%s ", strerror(errno));
-		kill(ftp_pid, SIGINT);
-		errx(1, "uname, line: %d", __LINE__);
-	}
-	
-	if (next && !strcmp(name->release, "9.9")) {
-		release = strdup("10.0");
-		i = 0;
+		
 	} else {
-		release = strdup(name->release);
-		i = 1;
-	}
 		
-	if (release == NULL) {
-		kill(ftp_pid, SIGINT);
-		errx(1, "strdup");
-	}
-	
-	if (next && i) {
-		
-		n = snprintf(release, sizeof(release),
-		    "%.1f", atof(release) + .1);
-		    
-		if (n >= (int)sizeof(release)) {
+		struct utsname *name = malloc(sizeof(struct utsname));
+		if (name == NULL) {
 			kill(ftp_pid, SIGINT);
-			errx(1, "snprintf, line: %d", __LINE__);
+			errx(1, "malloc");
 		}
+		
+		
+		if (uname(name) == -1) {
+			printf("%s ", strerror(errno));
+			kill(ftp_pid, SIGINT);
+			errx(1, "uname, line: %d", __LINE__);
+		}
+		
+		if (next && !strcmp(name->release, "9.9")) {
+			release = strdup("10.0");
+			i = 0;
+		} else {
+			release = strdup(name->release);
+			i = 1;
+		}
+			
+		if (release == NULL) {
+			kill(ftp_pid, SIGINT);
+			errx(1, "strdup");
+		}
+		
+		if (next && i) {
+			
+			n = strlen(release) + 1;
+			i = snprintf(release, n, "%.1f", atof(release) + .1);
+			    
+			if (i >= n) {
+				kill(ftp_pid, SIGINT);
+				printf("%s, ", release);
+				errx(1, "snprintf, line: %d", __LINE__);
+			}
+		}
+
+
+		if (current == 1) {
+			tag_len = strlen("/snapshots/") +
+			    strlen(name->machine) + strlen("/SHA256");
+		} else {
+			tag_len = strlen("/") + strlen(release) + strlen("/") +
+			    strlen(name->machine) + strlen("/SHA256");
+		}
+		
+		tag = malloc(tag_len + 1);
+		if (tag == NULL) {
+			kill(ftp_pid, SIGINT);
+			errx(1, "malloc");
+		}
+
+		if (current == 1)
+			sprintf(tag, "/snapshots/%s/SHA256", name->machine);
+		else
+			sprintf(tag, "/%s/%s/SHA256", release, name->machine);
+
+		free(name);
 	}
-
-
-	if (current == 1) {
-		tag_len = strlen("/snapshots/") +
-		    strlen(name->machine) + strlen("/SHA256");
-	} else {
-		tag_len = strlen("/") + strlen(release) + strlen("/") +
-		    strlen(name->machine) + strlen("/SHA256");
-	}
-	
-	tag = malloc(tag_len + 1);
-	if (tag == NULL) {
-		kill(ftp_pid, SIGINT);
-		errx(1, "malloc");
-	}
-
-	if (current == 1)
-		sprintf(tag, "/snapshots/%s/SHA256", name->machine);
-	else
-		sprintf(tag, "/%s/%s/SHA256", release, name->machine);
-
-	free(name);
-	
-generate_jump0:
 	
 	
 	/* if the index for line[] can exceed 254, it will error out */
@@ -1334,7 +1353,7 @@ generate_jump0:
 		if (verbose >= 2) {
 			qsort(array, array_length, sizeof(struct mirror_st),
 			    label_cmp_minus_usa);
-		}
+		} /* else don't sort */
 	} else {
 		if (verbose >= 2) {
 			qsort(array, array_length, sizeof(struct mirror_st),
@@ -1381,9 +1400,9 @@ generate_jump0:
 		memcpy(line + n, tag, tag_len + 1);
 
 		if (verbose >= 2) {
-			if (verbose == 4 && dns_cache_d)
+			if (verbose == 4)
 				printf("\n\n\n");
-			else if (verbose >= 3)
+			else if (verbose == 3)
 				printf("\n");
 			if (array_length >= 100) {
 				printf("\n%3d : %s  :  %s\n", array_length - c,
@@ -1452,6 +1471,12 @@ restart_dns_err:
 				}
 
 restart_program:
+
+				i = pledge("stdio exec",
+				   "stdio exec proc cpath wpath dns id unveil");
+				    
+				if (i == -1)
+					err(1, "pledge, line: %d", __LINE__);
 
 				if (verbose >= 0)
 					printf("restarting...\n");
