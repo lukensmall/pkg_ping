@@ -1,6 +1,6 @@
 
-It determines and prints the fastest OpenBSD mirror for your version and architecture for the /etc/installurl file and if run 
-as root, will write it to disk unless -f is used.
+It determines and prints the fastest OpenBSD mirror(s) for your version and architecture for the /etc/installurl file and if run 
+as root, will write the fastest successful one to disk unless -f is used.
 
 I didn't think about it before, but perhaps some of you may be put off by the source code containing a hard-coded mirror snippet array.
 If you don't trust the array, you can run it with the -g flag and it will print out another hard-coded mirror source code section generated from
