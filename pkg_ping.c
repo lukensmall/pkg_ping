@@ -869,28 +869,27 @@ jump_f:
 		entry_line = __LINE__;
 
 
-		char *ftp_list[53] = {
+		char *ftp_list[52] = {
 
          "openbsd.mirror.netelligent.ca","mirrors.syringanetworks.net",
-          "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
-           "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
-           "ftp.rnl.tecnico.ulisboa.pt","mirror.csclub.uwaterloo.ca",
-   "mirror.hs-esslingen.de","mirrors.pidginhost.com","*artfiles.org/openbsd",
-    "mirror.bytemark.co.uk","mirror.planetunix.net","www.mirrorservice.org",
-      "ftp4.usa.openbsd.org","mirror.aarnet.edu.au","mirror.exonetric.net",
-       "mirror.fsrv.services","ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
-        "mirror.leaseweb.com","mirrors.gigenet.com","ftp.eu.openbsd.org",
-         "ftp.fr.openbsd.org","mirror.fsmg.org.nz","mirror.ungleich.ch",
-         "mirrors.dotsrc.org","openbsd.ipacct.com","ftp.hostserver.de",
- "mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.labkom.id","mirror.litnet.lt",
-    "mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp",
-     "mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu","ftp.icm.edu.pl",
-        "mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de",
-   "www.ftp.ne.jp","ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl",
-                     "ftp.fau.de","ftp.fsn.hu","openbsd.hk"
+           "openbsd.mirror.constant.com","cloudflare.cdn.openbsd.org",
+           "ftp.halifax.rwth-aachen.de","ftp.rnl.tecnico.ulisboa.pt",
+ "mirror.csclub.uwaterloo.ca","mirror.hs-esslingen.de","mirrors.pidginhost.com",
+    "*artfiles.org/openbsd","mirror.bytemark.co.uk","mirror.planetunix.net",
+     "www.mirrorservice.org","ftp4.usa.openbsd.org","mirror.aarnet.edu.au",
+      "mirror.exonetric.net","mirror.fsrv.services","ftp.usa.openbsd.org",
+       "ftp2.eu.openbsd.org","mirror.leaseweb.com","mirrors.gigenet.com",
+         "ftp.eu.openbsd.org","ftp.fr.openbsd.org","mirror.fsmg.org.nz",
+         "mirror.ungleich.ch","mirrors.dotsrc.org","openbsd.ipacct.com",
+ "ftp.hostserver.de","mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.labkom.id",
+   "mirror.litnet.lt","mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org",
+    "ftp.jaist.ac.jp","mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu",
+       "ftp.icm.edu.pl","mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie",
+  "ftp.spline.de","www.ftp.ne.jp","ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp",
+               "ftp.bit.nl","ftp.fau.de","ftp.fsn.hu","openbsd.hk"
 		};
 
-		int index = arc4random_uniform(53);
+		int index = arc4random_uniform(52);
 
 
 		exit_line = __LINE__;
