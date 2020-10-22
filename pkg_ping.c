@@ -87,7 +87,6 @@ struct mirror_st {
 	long double diff;
 };
 
-/* don't repeat usa_cmp functionality in multiple functions */
 static int
 usa_cmp(const void *a, const void *b)
 {
@@ -118,83 +117,89 @@ diff_cmp0(const void *a, const void *b)
 static int
 label_cmp_minus_usa(const void *a, const void *b)
 {
-	/* 
-	 * All of this complexity sorts the initially printed
-	 * labels to be sorted alphabetically by what's 
-	 * after the last comma if they are still identical
-	 * after each iteration. Each iteration removes 
-	 * another comma from both until at least one runs
-	 * out of commas. Then it returns the comparison.
-	 * If they are equal but one has another comma it wins.
-	 * If they are equal, then it compares the http values.
-	 * 
-	 * I figured I would be super-safe with:
-	 * while (*++red == ' '); and the like, instead of
-	 * assuming red + 2 is within the array.
-	 */
 	
-	char* one_label = ((struct mirror_st *) a)->label;
-	char* two_label = ((struct mirror_st *) b)->label;
-	char *red0 = strdup(one_label);
-	char *blue0 = strdup(two_label);
+	char *red0  = strdup(((struct mirror_st *) a)->label);
+	char *blue0 = strdup(((struct mirror_st *) b)->label);
 	char *red;
 	char *blue;
-	char *red_comma = NULL;
-	char *blue_comma = NULL;
 	int ret;
 	int8_t i = 3;
 	
-	/* I'm gonna insert '\0' into comma positions in red0 and blue0 */
+	/* We're gonna mangle these two a bit! */
 	if (red0 == NULL || blue0 == NULL)
 		errx(1, "strdup");
 		
-	for(;;) {
+	do {
 		
-		if (red_comma)
-			*red_comma = '\0';
-		red_comma = red = strrchr(red0, ',');
+		/* 
+		 * red and blue: What's after the last comma (and space)
+		 * and before the first null character?
+		 * Make the last comma the first null character
+		 * so the next iteration finds the comma before that
+		 * 
+		 * We're basically reading the locations by proper
+		 * hierarchy, which are in reverse order between commas.
+		 */
+		red = strrchr(red0, ',');
 		if (red == NULL) {
-			red = one_label;
+			red = red0;
 			i = 1;
-		} else
-			while (*++red == ' ');
+		} else {
+			*red = '\0';
+			red += 2;
+		}
 
 
-
-		if (blue_comma)
-			*blue_comma = '\0';
-		blue_comma = blue = strrchr(blue0, ',');
+		blue = strrchr(blue0, ',');
 		if (blue == NULL) {
-			blue = two_label;
-			i &= 2;
-		} else
-			while (*++blue == ' ');
-
-
+			blue = blue0;
+			--i;
+		} else {
+			*blue = '\0';
+			blue += 2;
+		}
 
 		ret = strcmp(red, blue);
 		
-		if (ret || i < 3)
-			break;
-	}
-	
+	} while(ret == 0 && i == 3);
+
 	free(red0);
 	free(blue0);
-	
-	/* the one with more commas wins */
-	if (ret == 0 && i) {
-		if (i & 2)
-			return -1;
-		return 1;
-	}
-	
+
 	if (ret == 0) {
+		/* 
+		 * exactly one of red or blue has remaining commas
+		 * if red: i == 2, if blue: i == 1
+		 * the one with fewer commas is selected to be first.
+		 */
+		if (i) {
+			if (i == 1)
+				return -1;
+			return 1;
+		}
+		
+		/* exactly equal labels */
 		return strcmp(
 			      ((struct mirror_st *) a)->http,
 			      ((struct mirror_st *) b)->http
-		             );
+			     );
 	}
 	return ret;
+}
+
+static int
+diff_cmp_minus_usa(const void *a, const void *b)
+{
+	long double one_diff = ((struct mirror_st *) a)->diff;
+	long double two_diff = ((struct mirror_st *) b)->diff;
+
+	if (one_diff < two_diff)
+		return -1;
+	if (one_diff > two_diff)
+		return 1;
+
+	/* reverse subsort label */
+	return label_cmp_minus_usa(b, a);
 }
 
 static int
@@ -209,10 +214,14 @@ diff_cmp(const void *a, const void *b)
 		return 1;
 
 	/* list the USA mirrors first */
-	int ret = usa_cmp(a, b);
-	if (ret)
-		return ret;
-	/* will reverse subsort label_cmp_minus_usa */
+	int8_t temp = (strstr(((struct mirror_st *) a)->label, "USA") != NULL);
+	if (temp != (strstr(((struct mirror_st *) b)->label, "USA") != NULL)) {
+		if (temp)
+			return -1;
+		return 1;
+	}
+
+	/* reverse subsort label_cmp_minus_usa */
 	return label_cmp_minus_usa(b, a);
 }
 
@@ -234,9 +243,12 @@ static int
 label_cmp(const void *a, const void *b)
 {
 	/* list the USA mirrors first */
-	int ret = usa_cmp(a, b);
-	if (ret)
-		return ret;
+	int8_t temp = (strstr(((struct mirror_st *) a)->label, "USA") != NULL);
+	if (temp != (strstr(((struct mirror_st *) b)->label, "USA") != NULL)) {
+		if (temp)
+			return -1;
+		return 1;
+	}
 	return label_cmp_minus_usa(a, b);
 }
 
@@ -532,11 +544,6 @@ dns_loop:
 				_exit(1);
 			freeaddrinfo(res0);
 			goto dns_loop;
-		}
-			
-		if (verbose == 4 && res0->ai_canonname) {
-			if (strcmp(res0->ai_canonname, line))
-				printf("canon name: %s\n", res0->ai_canonname);
 		}
 
 		struct sockaddr_in *sa4;
@@ -1222,6 +1229,19 @@ generate_jump0:
 			continue;
 		}
 		
+		/* safety check for label_cmp_minus_usa() */
+		if (verbose >= 1) {
+			line0 = line - 2;
+			do {
+				line0 = strchr(line0 + 2, ',');
+				if (line0 != NULL && line0[1] != ' ') {
+					kill(ftp_pid, SIGINT);
+					printf("label malformation: ");
+					errx(1, "%s", line);
+				}
+			} while (line0 != NULL);
+		}
+		
 		array[array_length].label = strdup(line);
 		if (array[array_length].label == NULL) {
 			kill(ftp_pid, SIGINT);
@@ -1303,13 +1323,26 @@ generate_jump0:
 		errx(1, "reallocarray");
 
 	/* 
-	 * if verbose >= 2, make USA mirrors first, then subsort by label.
-	 *       otherwise, make USA mirrors first, then don't care.
+	 *   if verbose >= 2, make USA mirrors first, then subsort by label.
+	 *         otherwise, make USA mirrors first, then don't care.
+	 * 
+	 * if searching through USA mirrors on verbose <= 0 it is more likely
+	 * to find the faster mirrors to shrink 'timeout' earlier to make your
+	 *                    runtime as short as possible.
 	 */
-	if (verbose >= 2)
-		qsort(array, array_length, sizeof(struct mirror_st), label_cmp);
-	else if (usa == 1){
-		qsort(array, array_length, sizeof(struct mirror_st), usa_cmp);
+	if (usa == 0) {
+		if (verbose >= 2) {
+			qsort(array, array_length, sizeof(struct mirror_st),
+			    label_cmp_minus_usa);
+		}
+	} else {
+		if (verbose >= 2) {
+			qsort(array, array_length, sizeof(struct mirror_st),
+			    label_cmp);
+		} else {
+			qsort(array, array_length, sizeof(struct mirror_st),
+			    usa_cmp);
+		}
 	}
 
 	if (six == 1) {
@@ -1590,7 +1623,13 @@ restart_program:
 	if (verbose < 1)
 		qsort(array, array_length, sizeof(struct mirror_st), diff_cmp0);
 	else {
-		qsort(array, array_length, sizeof(struct mirror_st), diff_cmp);
+		if (usa == 0) {
+			qsort(array, array_length, sizeof(struct mirror_st),
+			    diff_cmp_minus_usa);
+		} else {
+			qsort(array, array_length, sizeof(struct mirror_st),
+			    diff_cmp);
+		}
 
 		int ds = -1, de = -1,   ts = -1, te = -1,   se = -1;
 		
