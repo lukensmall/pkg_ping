@@ -1016,7 +1016,7 @@ jump_f:
 			current = !current;
 			
 		if (verbose >= 2) {
-			if (current == 0) 
+			if (current == 1) 
 				printf("showing snapshot mirrors\n\n");
 			else
 				printf("showing release mirrors\n\n");
