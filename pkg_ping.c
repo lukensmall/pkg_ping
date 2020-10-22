@@ -923,7 +923,7 @@ jump_f:
 
 				
 			i = strlcpy(line,
-			    "https://cdn.openbsd.org/pub/OpenBSD/ftplist", n);
+		"https://cloudflare.cdn.openbsd.org/pub/OpenBSD/ftplist", n);
 			
 		
 		} else {
