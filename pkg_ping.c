@@ -142,9 +142,12 @@ label_cmp_minus_usa(const void *a, const void *b)
 	int8_t i = 3;
 		
 	/* 
-	 * We're basically reading the locations by proper
+	 * We're basically reading the locations by proper decreasing
 	 * hierarchy, which are in reverse order between commas.
 	 */
+	 
+	 /* start with the last comma */
+	 
 	red = strrchr(one_label, ',');
 	if (red == NULL) {
 		red = one_label;
@@ -163,6 +166,12 @@ label_cmp_minus_usa(const void *a, const void *b)
 	ret = strcmp(red, blue);
 	
 	while(ret == 0 && i == 3) {
+		
+		/* 
+		 * mark the location of the latest comma.
+		 * Search for the last one before the 
+		 * one found in the previous iteration
+		 */
 		
 		red = strnrcomma(one_label, red - 2);
 		if (red == NULL) {
