@@ -20,7 +20,7 @@ this way, there is no inconsistency caused by ftp timed with inconsistent dns qu
 It restarts for most initial ftp call error cases which can be fixed with a different random number.
 
 pkg_ping uses pledge and unveil for OpenBSD version 6.4 and later. I don't recommend running it altered without pledge() or unveil().
-The use of /etc/installurl came about in 6.1 is also required. 
+The use of /etc/installurl came about in 6.1 is also required to store to disk.
 OpenBSD 5.8-6.0 is supported in the "ancient" branch which uses pkg.conf(5) and starting with 5.9 uses pledge().
 
 It uses several commandline options:
