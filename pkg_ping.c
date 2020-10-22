@@ -54,8 +54,8 @@
  * 
  *	cc pkg_ping.c -O2 -o pkg_ping
  * 
- * 	You probably won't see an appreciable performance gain between the
- * 	dns caching, which uses getaddrinfo(3) and the ftp(1) calls
+ * 	You probably won't see an appreciable performance gain between
+ * 	the dns caching, which uses getaddrinfo(3) and the ftp(1) calls
  * 	(which also uses getaddrinfo(3)), which are time killers.
  * 
  *
@@ -87,26 +87,133 @@ struct mirror_st {
 	long double diff;
 };
 
+/* don't repeat usa_cmp functionality in multiple functions */
 static int
-diff_cmp(const void *a, const void *b)
+usa_cmp(const void *a, const void *b)
 {
-	struct mirror_st *one = (struct mirror_st *) a;
-	struct mirror_st *two = (struct mirror_st *) b;
-
-	if (one->diff < two->diff)
-		return -1;
-	if (one->diff > two->diff)
-		return 1;
-
 	/* list the USA mirrors first */
-	int8_t temp = (strstr(one->label, "USA") != NULL);
-	if (temp != (strstr(two->label, "USA") != NULL)) {
+	int8_t temp = (strstr(((struct mirror_st *) a)->label, "USA") != NULL);
+	if (temp != (strstr(((struct mirror_st *) b)->label, "USA") != NULL)) {
 		if (temp)
 			return -1;
 		return 1;
 	}
-	/* will reverse subsort */
-	return strcmp(two->label, one->label);
+	return 0;
+}
+
+/* super duper fast for verbose < 1 */
+static int
+diff_cmp0(const void *a, const void *b)
+{
+	long double one_diff = ((struct mirror_st *) a)->diff;
+	long double two_diff = ((struct mirror_st *) b)->diff;
+
+	if (one_diff < two_diff)
+		return -1;
+	if (one_diff > two_diff)
+		return 1;
+	return 0;
+}
+
+static int
+label_cmp_minus_usa(const void *a, const void *b)
+{
+	/* 
+	 * All of this complexity sorts the initially printed
+	 * labels to be sorted alphabetically by what's 
+	 * after the last comma if they are still identical
+	 * after each iteration. Each iteration removes 
+	 * another comma from both until at least one runs
+	 * out of commas. Then it returns the comparison.
+	 * If they are equal but one has another comma it wins.
+	 * If they are equal, then it compares the http values.
+	 * 
+	 * I figured I would be super-safe with:
+	 * while (*++red == ' '); and the like, instead of
+	 * assuming red + 2 is within the array.
+	 */
+	
+	char* one_label = ((struct mirror_st *) a)->label;
+	char* two_label = ((struct mirror_st *) b)->label;
+	char *red0 = strdup(one_label);
+	char *blue0 = strdup(two_label);
+	char *red;
+	char *blue;
+	char *red_comma = NULL;
+	char *blue_comma = NULL;
+	int ret;
+	int8_t i = 3;
+	
+	/* I'm gonna insert '\0' into comma positions in red0 and blue0 */
+	if (red0 == NULL || blue0 == NULL)
+		errx(1, "strdup");
+		
+	for(;;) {
+		
+		if (red_comma)
+			*red_comma = '\0';
+		red_comma = red = strrchr(red0, ',');
+		if (red == NULL) {
+			red = one_label;
+			i = 1;
+		} else
+			while (*++red == ' ');
+
+
+
+		if (blue_comma)
+			*blue_comma = '\0';
+		blue_comma = blue = strrchr(blue0, ',');
+		if (blue == NULL) {
+			blue = two_label;
+			i &= 2;
+		} else
+			while (*++blue == ' ');
+
+
+
+		ret = strcmp(red, blue);
+		
+		if (ret || i < 3)
+			break;
+	}
+	
+	free(red0);
+	free(blue0);
+	
+	/* the one with more commas wins */
+	if (ret == 0 && i) {
+		if (i & 2)
+			return -1;
+		return 1;
+	}
+	
+	if (ret == 0) {
+		return strcmp(
+			      ((struct mirror_st *) a)->http,
+			      ((struct mirror_st *) b)->http
+		             );
+	}
+	return ret;
+}
+
+static int
+diff_cmp(const void *a, const void *b)
+{
+	long double one_diff = ((struct mirror_st *) a)->diff;
+	long double two_diff = ((struct mirror_st *) b)->diff;
+
+	if (one_diff < two_diff)
+		return -1;
+	if (one_diff > two_diff)
+		return 1;
+
+	/* list the USA mirrors first */
+	int ret = usa_cmp(a, b);
+	if (ret)
+		return ret;
+	/* will reverse subsort label_cmp_minus_usa */
+	return label_cmp_minus_usa(b, a);
 }
 
 static int
@@ -124,75 +231,13 @@ diff_cmp_g(const void *a, const void *b)
 }
 
 static int
-label_cmp0(const void *a, const void *b)
-{
-	char* one_label = ((struct mirror_st *) a)->label;
-	char* two_label = ((struct mirror_st *) b)->label;
-
-	/* list the USA mirrors first */
-	int8_t temp = (strstr(one_label, "USA") != NULL);
-	if (temp != (strstr(two_label, "USA") != NULL)) {
-		if (temp)
-			return -1;
-		return 1;
-	}
-	return strcmp(one_label, two_label);
-}
-
-static int
 label_cmp(const void *a, const void *b)
 {
-	char* one_label = ((struct mirror_st *) a)->label;
-	char* two_label = ((struct mirror_st *) b)->label;
-
 	/* list the USA mirrors first */
-	int8_t temp = (strstr(one_label, "USA") != NULL);
-	if (temp != (strstr(two_label, "USA") != NULL)) {
-		if (temp)
-			return -1;
-		return 1;
-	}
-	
-	char *red0 = strdup(one_label);
-	char *blue0 = strdup(two_label);
-	char *red = NULL;
-	char *blue = NULL;
-	int ret;
-	int8_t i = 3;
-	
-	if (red0 == NULL || blue0 == NULL)
-		errx(1, "strdup");
-		
-	do {
-		if (i & 2) {
-			if (red)
-				*red = '\0';
-			red = strrchr(red0, ',');
-			if (red == NULL) {
-				red = one_label;
-				i -= 2;
-			}
-		}
-		
-		if (i & 1) {
-			if (blue)
-				*blue = '\0';
-			blue = strrchr(blue0, ',');
-			if (blue == NULL) {
-				blue = two_label;
-				i -= 1;
-			}
-		}
-			
-		ret = strcmp(red, blue);
-		if (ret)
-			goto end;
-		
-	} while (i);
-end:
-	free(red0);
-	free(blue0);
-	return ret;
+	int ret = usa_cmp(a, b);
+	if (ret)
+		return ret;
+	return label_cmp_minus_usa(a, b);
 }
 
 static void
@@ -429,6 +474,13 @@ main(int argc, char *argv[])
 
 		uint8_t line_max;
 		struct addrinfo hints, *res0, *res;
+		
+		if (secure)
+			line0 = strdup("https");
+		else
+			line0 = strdup("www");
+		if (line0 == NULL)
+			errx(1, "strdup");
 
 		i = read(dns_cache_d_socket[0], &line_max, 1);
 		if (i < 1)
@@ -462,16 +514,12 @@ dns_loop:
 			printf("DNS caching: %s\n", line);
 
 
-		bzero(&hints, sizeof(struct addrinfo));
-		hints.ai_flags = AI_CANONNAME;
+		bzero(&hints, sizeof(hints));
+		hints.ai_flags = AI_FQDN;
 		hints.ai_family = AF_UNSPEC;
 		hints.ai_socktype = SOCK_STREAM;
-		n = getaddrinfo(line, "www", &hints, &res0);
+		n = getaddrinfo(line, line0, &hints, &res0);
 		if (n) {
-			// if (verbose >= 2) {
-				// printf("%s ", gai_strerror(n));
-				// printf("getaddrinfo() failed\n");
-			// }
 			i = write(dns_cache_d_socket[0], "f", 1);
 			if (i < 1)
 				_exit(1);
@@ -650,9 +698,9 @@ jump_dns:
 		
 		/* 
 		 * It probably seems like overkill to use a kqueue for
-		 *   a single file descriptor with no timeout, but I 
-		 *    don't have to guess about how much data will
-		 *  be sent down the pipe. I can allocate the perfect
+		 * a single file descriptor with no timeout, but I 
+		 * don't have to guess about how much data will
+		 * be sent down the pipe. I can allocate the perfect
 		 * amount of buffer space AFTER the pipe receives it.
 		 */
 		EV_SET(&ke, write_pipe[STDIN_FILENO], EVFILT_READ,
@@ -819,8 +867,8 @@ jump_f:
 			
 		/*
 		 * I can't think of a better way to send these two values
-		 *     refuse to change it every time I edit the code
-		 *  and it probably preserves some memory having it here
+		 * refuse to change it every time I edit the code
+		 * and it probably preserves some memory having it here
 		 */
 			errno = 0;
 			i = write(c, &entry_line, sizeof(int));
@@ -863,6 +911,10 @@ jump_f:
 		
 		if (verbose >= 2)
 			printf("%s\n", line);
+		else if (verbose >= 0) {
+			printf("$");
+			fflush(stdout);
+		}
 
 
 		if (dup2(c, STDOUT_FILENO) == -1) {
@@ -1197,6 +1249,12 @@ generate_jump0:
 
 	waitpid(ftp_pid, &n, 0);
 
+	/* (verbose == 0 || verbose == 1) */
+	if ((verbose >> 1) == 0) {
+		printf("\b \b");
+		fflush(stdout);
+	}
+
 	/* 
 	 *             'ftplist' download error:
 	 * It's caused by no internet or bad dns resolution;
@@ -1224,8 +1282,13 @@ generate_jump0:
 	if (dns_cache_d) {
 		uint8_t length = pos_max - h;
 		i = write(dns_cache_d_socket[1], &length, 1);
-		if (i < 1)
-			err(1, "'length' not sent to dns_cache_d");
+		if (i < 1) {
+			if (errno == EPIPE)
+				printf("dns_cache_d died prematurely\n");
+			else
+				printf("'length' not sent to dns_cache_d\n");
+			goto restart_program;
+		}
 	}
 	
 	pos_max += tag_len;
@@ -1239,12 +1302,14 @@ generate_jump0:
 	if (array == NULL)
 		errx(1, "reallocarray");
 
-	/* sort by label, but USA mirrors first */
+	/* 
+	 * if verbose >= 2, make USA mirrors first, then subsort by label.
+	 *       otherwise, make USA mirrors first, then don't care.
+	 */
 	if (verbose >= 2)
 		qsort(array, array_length, sizeof(struct mirror_st), label_cmp);
-	else {
-		qsort(array, array_length, sizeof(struct mirror_st),
-		    label_cmp0);
+	else if (usa == 1){
+		qsort(array, array_length, sizeof(struct mirror_st), usa_cmp);
 	}
 
 	if (six == 1) {
@@ -1522,11 +1587,11 @@ restart_program:
 		fflush(stdout);
 	}
 	
-	/* sort by time, subsort by USA label, then reverse subsort label */
-	qsort(array, array_length, sizeof(struct mirror_st), diff_cmp);
+	if (verbose < 1)
+		qsort(array, array_length, sizeof(struct mirror_st), diff_cmp0);
+	else {
+		qsort(array, array_length, sizeof(struct mirror_st), diff_cmp);
 
-	if (verbose >= 1) {
-		
 		int ds = -1, de = -1,   ts = -1, te = -1,   se = -1;
 		
 		for (c = array_length - 1; c >= 0; --c) {
@@ -1559,7 +1624,7 @@ restart_program:
 
 		/* 
 		 * load diff with what will be printed http lengths
-		 *          and process http for printing
+		 *          then process http for printing
 		 */
 		for (c = 0; c <= se; ++c) {
 			cut = strstr(array[c].http += h, "/pub/OpenBSD");
@@ -1589,8 +1654,8 @@ restart_program:
 		for (c = 0; c <= se; ++c) {
 
 			/* 
-			 *     3 is the size of the printed: "",
-			 * if (c == se) it doesn't print the last ,
+			 *    3 is the size of the printed: "",
+			 * if (c == se) it doesn't print the comma
 			 */
 			 
 			n += i = array[c].diff + 3 - (c == se);
@@ -1601,7 +1666,7 @@ restart_program:
 			 */
 			if (n > 80) {
 				
-				/* center the printed mirrors */
+				/* center the printed mirrors. Err to right */
 				for (j = (80 + 1 - (n - i)) / 2; j > 0; --j)
 					printf(" ");
 				for (j = first; j < c; ++j)
@@ -1613,7 +1678,7 @@ restart_program:
 			}
 		}
 		
-		/* center the printed mirrors */
+		/* center the printed mirrors. Err to right */
 		for (j = (80 + 1 - n) / 2; j > 0; --j)
 			printf(" ");
 		for (j = first; j < se; ++j)
