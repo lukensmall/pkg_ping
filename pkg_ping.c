@@ -935,10 +935,10 @@ jump_f:
 			    ftp_list_g[index_g]);
 
 		/*
-		 * I can't think of a better way to send these two values
-		 * refuse to change it every time I edit the code
+		 * I can't think of a better way to retrieve these two values
+		 * I refuse to change it every time I edit the code
 		 * and it probably preserves some memory in the parent process
-		 * by having it here in the ftp process
+		 * by having *ftp_list[] here in the ftp process declaration
 		 */
 			errno = 0;
 			i = write(c, &entry_line, sizeof(int));
