@@ -142,7 +142,7 @@ label_cmp_minus_usa(const void *a, const void *b)
 	int8_t i = 3;
 		
 	/* 
-	 * We're basically reading the locations by proper decreasing
+	 * We're basically comparing the labels by proper decreasing
 	 * hierarchy, which are in reverse order between commas.
 	 */
 	 
@@ -169,7 +169,7 @@ label_cmp_minus_usa(const void *a, const void *b)
 		
 		/* 
 		 * mark the location of the latest comma.
-		 * Search for the last one before the 
+		 * Search for the last comma before the 
 		 * one found in the previous iteration
 		 */
 		
@@ -194,7 +194,7 @@ label_cmp_minus_usa(const void *a, const void *b)
 
 	if (ret == 0) {
 		/* 
-		 * exactly one of red or blue has remaining commas
+		 * exactly one of red or blue is working off of a comma
 		 * if red: i == 2, if blue: i == 1
 		 * the one with fewer commas is selected to be first.
 		 */
@@ -412,7 +412,7 @@ main(int argc, char *argv[])
 			i = 0;
 			
 			if (!strcmp(optarg, "."))
-				errx(1, "-s cannot be \".\"");
+				errx(1, "-s cannot be: .");
 			
 			while (optarg[++c] != '\0') {
 				if (optarg[c] >= '0' && optarg[c] <= '9')
@@ -1118,8 +1118,9 @@ jump_f:
 			    
 			if (i >= n) {
 				kill(ftp_pid, SIGINT);
-				printf("%s, ", release);
-				errx(1, "snprintf, line: %d", __LINE__);
+				printf("release: %s, ", release);
+				printf("snprintf, line: %d\n", __LINE__);
+				return 1;
 			}
 		}
 
@@ -1184,7 +1185,8 @@ jump_f:
 		printf("%s ", strerror(errno));
 		kill(ftp_pid, SIGINT);
 		printf("kevent, timeout0 may be too large. ");
-		errx(1, "line: %d", __LINE__);
+		printf("line: %d\n", __LINE__);
+		return 1;
 	}
 	
 	if (i == 0) {
@@ -1197,7 +1199,8 @@ jump_f:
 			kill(ftp_pid, SIGINT);
 			line[pos] = '\0';
 			printf("'line': %s\n", line);
-			errx(1, "pos got too big! line: %d", __LINE__);
+			printf("pos got too big! line: %d\n", __LINE__);
+			return 1;
 		}
 		
 		if (num == 0) {
@@ -1211,7 +1214,8 @@ jump_f:
 			if (strncmp(line, "http://", h)) {
 				kill(ftp_pid, SIGINT);
 				printf("'line': %s\n", line);
-				errx(1, "bad http format, line: %d", __LINE__);
+				printf("bad http format, line: %d\n", __LINE__);
+				return 1;
 			}				
 
 			if (secure)
@@ -1256,7 +1260,18 @@ jump_f:
 			continue;
 		}
 		
-		/* safety check for label_cmp_minus_usa() */
+		/* 
+		 * safety check for label_cmp_minus_usa():
+		 * make sure there is a space after every comma
+		 * which would allow the function to make the
+		 * assumption that 2 spaces after the comma is
+		 * on the array. Otherwise, an abberrant
+		 * label could crash the program.
+		 * 
+		 * I could make the function safer, but it would
+		 * eat up more computing resources by being
+		 * redundantly and repeatedly checked.
+		 */
 		if (verbose >= 1) {
 			line0 = line - 2;
 			do {
@@ -1264,7 +1279,8 @@ jump_f:
 				if (line0 != NULL && line0[1] != ' ') {
 					kill(ftp_pid, SIGINT);
 					printf("label malformation: ");
-					errx(1, "%s", line);
+					printf("%s\n", line);
+					return 1;
 				}
 			} while (line0 != NULL);
 		}
