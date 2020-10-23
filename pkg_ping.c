@@ -116,7 +116,7 @@ diff_cmp0(const void *a, const void *b)
 	return 0;
 }
 
-/* return the last comma from searching from start to less than 'end' */
+/* return the last comma from searching from 'start' to less than 'end' */
 static char*
 strnrcomma(char *start, char *end)
 {
@@ -481,8 +481,7 @@ main(int argc, char *argv[])
 		to_file = 0;
 		if (pledge("stdio exec proc dns id", NULL) == -1)
 			err(1, "pledge, line: %d", __LINE__);
-	} else if (next)
-		override = 0;
+	}
 		
 	if (dns_cache_d == 0 && verbose == 4)
 		verbose = 3;
@@ -721,9 +720,6 @@ jump_dns:
 			close(dns_cache_d_socket[1]);
 
 
-		if (verbose >= 1)
-			printf("\n");
-
 		kq = kqueue();
 		if (kq == -1) {
 			printf("%s ", strerror(errno));
@@ -760,6 +756,9 @@ jump_dns:
 			_exit(1);
 		}
 		
+		if (verbose >= 1)
+			printf("\n");
+
 		/* unlink() to prevent possible symlinks by...root? */
 		unlink("/etc/installurl");
 		pkg_write = fopen("/etc/installurl", "w");
@@ -869,12 +868,13 @@ jump_f:
 		entry_line = __LINE__;
 
 
-		char *ftp_list[52] = {
+		char *ftp_list[54] = {
 
          "openbsd.mirror.netelligent.ca","mirrors.syringanetworks.net",
-           "openbsd.mirror.constant.com","cloudflare.cdn.openbsd.org",
-           "ftp.halifax.rwth-aachen.de","ftp.rnl.tecnico.ulisboa.pt",
- "mirror.csclub.uwaterloo.ca","mirror.hs-esslingen.de","mirrors.pidginhost.com",
+          "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
+           "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
+           "ftp.rnl.tecnico.ulisboa.pt","mirror.csclub.uwaterloo.ca",
+   "mirror.hs-esslingen.de","mirrors.pidginhost.com","openbsd.cs.toronto.edu",
     "*artfiles.org/openbsd","mirror.bytemark.co.uk","mirror.planetunix.net",
      "www.mirrorservice.org","ftp4.usa.openbsd.org","mirror.aarnet.edu.au",
       "mirror.exonetric.net","mirror.fsrv.services","ftp.usa.openbsd.org",
@@ -889,7 +889,7 @@ jump_f:
                "ftp.bit.nl","ftp.fau.de","ftp.fsn.hu","openbsd.hk"
 		};
 
-		int index = arc4random_uniform(52);
+		int index = arc4random_uniform(54);
 
 
 		exit_line = __LINE__;
@@ -1828,9 +1828,9 @@ generate_jump:
 			if (ac->diff == s + 1)
 				printf("Download Error");
 			else if (ac->diff == s + 2)
-				printf("IPv6 DNS records not found");
+				printf("IPv6 DNS record not found");
 			else
-				printf("DNS records not found");
+				printf("DNS record not found");
 			printf("\n\n");
 				
 			if (c == ds) {
@@ -1848,8 +1848,10 @@ no_good:
 		
 		printf("No successful mirrors found.\n\n");
 
-		if (current == 0 && override == 0 && next == 0 &&
-		    generate == 0) {
+		if (next == 1) {
+			printf("Perhaps the next release ");
+			printf("(%s) isn't present yet?\n", release);
+		} else if (current == 0 && override == 0 && generate == 0) {
 			printf("Perhaps the %s release ", release);
 			printf("isn't present yet?\n");
 			printf("The OpenBSD team tests prereleases ");
@@ -1859,12 +1861,20 @@ no_good:
 			printf("This is solved by using the -O option ");
 			printf("to retrieve snapshot mirrors.\n\n");
 		}
-		if (next == 1) {
-			printf("Perhaps the next release ");
-			printf("(%s) isn't present yet?\n", release);
-		}
-		if (six)
+		if (six) {
 			printf("Try losing the -6 option?\n\n");
+			
+			if (array[0].diff == s + 2 &&
+			    (
+			     array[array_length - 1].diff == s + 2 ||
+			     array[array_length - 1].diff == s + 3
+			    )
+			   ) {
+				printf("I have a strong suspicicion that ");
+				printf("your dns system isn't set up ");
+				printf("for IPv6 at all!!!\n\n");
+			}
+		}
 
 		if (s_set == 0) {
 			printf("Perhaps try the -s ");
