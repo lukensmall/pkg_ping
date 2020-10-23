@@ -4,7 +4,7 @@ as root, will write the fastest successful one to disk unless -f is used.
 
 I didn't think about it before, but perhaps some of you may be put off by the source code containing a hard-coded mirror snippet array.
 If you don't trust the array, you can run it with the -g flag and it will print out another hard-coded mirror source code section generated from
-the cloudflare.cdn.openbsd.org mirror owned by the OpenBSD project. I designed this feature for you to substitute for my generated code section.
+openbsd.org mirrors owned by the OpenBSD project. I designed this feature for you to substitute for my generated code section.
 
 Compiler optimizations for speed is not worth the extra second of compile time. Waiting for ftp calls and dns queries will take up the vast majority of the
 run-time; everything else happens in the blink of an eye.
@@ -40,10 +40,11 @@ It uses several commandline options:
 -h will print the "help" options.
 
 -l (letter ell) will automatically loop a specified integer number of times if there are repeated 'ftplist' download errors.
+   It will randomly select a different mirror each time it runs.
    It will return a value of 2 when the looping is exhausted. If it isn't specified, a 20x loop will be started.
    when it loops, it will detect if the last argv argument starts with "-l" if it does, it will ignore it to minimize the
-   -l arguments.
-   Then, in the instance of the first time, it will append a "-l19" to loop 19 more times. You may specify up to "-l 9999"
+   -l arguments. Then, in the instance of the first time, it will append a "-l19" to loop 19 more times.
+   You may specify up to "-l 9999" It won't loop unless it needs to do so. 
 
 -O will override and search for snapshot mirrors if it is a release; and will search for release mirrors if it a snapshot.
    Useful when you are running a pre-release snapshot without available release mirrors or...are just curious?
