@@ -291,20 +291,23 @@ manpage()
 
 	printf("[-h (print this Help message and exit)]\n");
 
+	printf("[-l (ell) integer number maximum times to Loop");
+	printf(" for an 'ftplist' download error\n");
+	printf("(If left unspecified it will ");
+	printf("automatically start a 20x loop. It will call itself with ");
+	printf("an extra -l argument)]\n");
+
 	printf("[-O (if your kernel is a snapshot, it will Override it and ");
 	printf("search for release mirrors.\n");
-	printf("\tif your kernel is a release, it will Override it and ");
+	printf("\tif your OS is a release, it will Override it and ");
 	printf("search for snapshot mirrors.)\n");
 
 	printf("[-n (search for next release package-folder!)]\n");
 
-	printf("[-r (don't automatically Restart. Instead, return 2");
-	printf(" for an 'ftplist' download error)]\n");
+	printf("[-s floating-point timeout in Seconds (eg. -s 2.3)]\n");
 
 	printf("[-S (converts http mirrors into Secure https mirrors\n");
 	printf("\thttp mirrors still preserve file integrity!)]\n");
-
-	printf("[-s floating-point timeout in Seconds (eg. -s 2.3)]\n");
 
 	printf("[-u (no USA mirrors to comply ");
 	printf("with USA encryption export laws)]\n");
@@ -324,8 +327,9 @@ main(int argc, char *argv[])
 {
 	int8_t root_user = (getuid() == 0);
 	int8_t to_file = root_user;
-	int8_t num, current, secure, usa, verbose, s_set, restart;
+	int8_t num, current, secure, usa, verbose, s_set;
 	int8_t generate, override, dns_cache_d, six, next;
+	int16_t loop = -1;
 	long double s, S;
 	pid_t ftp_pid, write_pid, dns_cache_d_pid;
 	int kq, i, pos, c, n, array_max, array_length, tag_len;
@@ -338,7 +342,7 @@ main(int argc, char *argv[])
 	struct kevent ke;
 	size_t len;
 	char v;
-
+	
 	/* .05 seconds for an ftp SIGINT to turn into a SIGKILL */
 	const struct timespec timeout_kill = { 0, 50000000 };
 
@@ -373,10 +377,10 @@ main(int argc, char *argv[])
 	}
 
 	verbose = secure = current = override = six = generate = next = 0;
-	usa = dns_cache_d = restart = 1;
+	usa = dns_cache_d = 1;
 	s = 5;
 
-	while ((c = getopt(argc, argv, "6dfghOnrSs:uvV")) != -1) {
+	while ((c = getopt(argc, argv, "6dfghOl:nSs:uvV")) != -1) {
 		switch (c) {
 		case '6':
 			six = 1;
@@ -398,11 +402,22 @@ main(int argc, char *argv[])
 		case 'O':
 			override = 1;
 			break;
+		case 'l':
+			if (strlen(optarg) > 4)
+				errx(1, "-l should be <= 4 digits long.");
+			c = -1;
+			n = 0;
+			while (optarg[++c] != '\0') {
+				if (optarg[c] >= '0' && optarg[c] <= '9') {
+					n = n * 10 + (int) (optarg[c] - '0');
+					continue;
+				}
+				errx(1, "-l has a non-digit character");
+			}
+			loop = n;
+			break;
 		case 'n':
 			next = 1;
-			break;
-		case 'r':
-			restart = 0;
 			break;
 		case 'S':
 			secure = 1;
@@ -1324,16 +1339,52 @@ jump_f:
 	 *    Or from a faulty mirror or its bad dns info
 	 */
 	if (n != 0 || array_length == 0) {
-		if (restart && verbose >= 0)
-			printf("There was an ftplist download error.\n");
-		if (restart)
-			goto restart_program;
-			
-		if (verbose >= 0) {
-			printf("There was an ftplist download error. ");
-			printf("Try again.\n");
+		
+		if (loop == 0) {
+			if (verbose >= 0) {
+				printf("There was an ftplist download error. ");
+				printf("Looping exhausted: Try again.\n");
+			}
+			return 2;
 		}
-		return 2;
+			
+		
+		if (loop > 0)
+			--loop;
+			
+		
+		if (verbose >= 0) {
+			printf("There was an 'ftplist' download error.\n");
+			printf("restarting...\n");
+		}
+
+		
+		n = argc - (argc > 1 && !strncmp(argv[argc - 1], "-l", 2));
+		
+		char **arg_v = calloc(n + 1 + 1, sizeof(char*));
+		if (arg_v == NULL)
+			errx(1, "calloc");
+			
+		for (i = 0; i < n; ++i)
+			arg_v[i] = argv[i];
+			
+		if (loop < 0) {
+			/* loop 20 times */
+			arg_v[n] = strdup("-l20");
+			if (arg_v[n] == NULL)
+				errx(1, "strdup");
+		} else {
+			
+			arg_v[n] = malloc(20);
+			if (arg_v[n] == NULL)
+				errx(1, "strdup");
+			c = snprintf(arg_v[n], 20, "-l%d", loop);
+			if (c >= 20)
+				errx(1, "snprintf");
+		}						
+		execv(arg_v[0], arg_v);
+
+		err(1, "execv failed, line: %d", __LINE__);
 	}
 
 	if (secure == 1)
@@ -1496,16 +1547,11 @@ restart_dns_err:
 
 restart_program:
 
-				i = pledge("stdio exec",
-				   "stdio exec proc cpath wpath dns id unveil");
-				    
-				if (i == -1)
-					err(1, "pledge, line: %d", __LINE__);
-
 				if (verbose >= 0)
 					printf("restarting...\n");
 
 				execv(argv[0], argv);
+					
 				err(1, "execv failed, line: %d", __LINE__);
 			}
 			
@@ -1613,7 +1659,7 @@ restart_program:
 				
 				kill(ftp_pid, SIGKILL);
 				if (verbose >= 2)
-					printf("SIGKILL\n");
+					printf("killed\n");
 				if (kevent(kq, NULL, 0, &ke, 1, NULL) == -1) {
 					printf("%s ", strerror(errno));
 					kill(ftp_pid, SIGINT);
@@ -1749,6 +1795,7 @@ restart_program:
 			n += i = array[c].diff + 3 - (c == se);
 
 			/* 
+			 * overflow:
 			 * mirrors printed on each line
 			 * will not exceed 80 characters
 			 */
