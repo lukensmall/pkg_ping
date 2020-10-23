@@ -39,13 +39,16 @@ It uses several commandline options:
 
 -h will print the "help" options.
 
+-l (letter ell) will automatically loop a specified integer number of times if there are repeated 'ftplist' download errors.
+   It will return a value of 2 when the looping is exhausted. If it isn't specified, a 20x loop will be started.
+   when it loops, it will detect if the last argv argument starts with "-l" if it does, it will ignore it to minimize the
+   -l arguments.
+   Then, in the instance of the first time, it will append a "-l19" to loop 19 more times. You may specify up to "-l 9999"
+
 -O will override and search for snapshot mirrors if it is a release; and will search for release mirrors if it a snapshot.
    Useful when you are running a pre-release snapshot without available release mirrors or...are just curious?
 
 -n searches for next release package folders! It adds .1 to your version and searches for the release.
-
--r will not automatically restart if there is a ftplist download error. It will return a value of 2 instead.
-   perhaps if it is constantly restarting because of no internet access, you'd perfer it to be handled in a script loop.
 
 -s will accept floating-point timeout like 1.5 seconds using strtold() and handrolled validation, eg. "-s 1.5", default 5.
 
