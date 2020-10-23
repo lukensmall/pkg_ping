@@ -329,7 +329,7 @@ main(int argc, char *argv[])
 	int8_t to_file = root_user;
 	int8_t num, current, secure, usa, verbose, s_set;
 	int8_t generate, override, dns_cache_d, six, next;
-	int16_t loop = -1;
+	int16_t loop = 20;
 	long double s, S;
 	pid_t ftp_pid, write_pid, dns_cache_d_pid;
 	int kq, i, pos, c, n, array_max, array_length, tag_len;
@@ -883,7 +883,7 @@ jump_f:
 		entry_line = __LINE__;
 
 
-		char *ftp_list[54] = {
+		char *ftp_list[55] = {
 
          "openbsd.mirror.netelligent.ca","mirrors.syringanetworks.net",
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
@@ -892,19 +892,22 @@ jump_f:
    "mirror.hs-esslingen.de","mirrors.pidginhost.com","openbsd.cs.toronto.edu",
     "*artfiles.org/openbsd","mirror.bytemark.co.uk","mirror.planetunix.net",
      "www.mirrorservice.org","ftp4.usa.openbsd.org","mirror.aarnet.edu.au",
-      "mirror.exonetric.net","mirror.fsrv.services","ftp.usa.openbsd.org",
-       "ftp2.eu.openbsd.org","mirror.leaseweb.com","mirrors.gigenet.com",
-         "ftp.eu.openbsd.org","ftp.fr.openbsd.org","mirror.fsmg.org.nz",
-         "mirror.ungleich.ch","mirrors.dotsrc.org","openbsd.ipacct.com",
- "ftp.hostserver.de","mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.labkom.id",
-   "mirror.litnet.lt","mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org",
-    "ftp.jaist.ac.jp","mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu",
-       "ftp.icm.edu.pl","mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie",
-  "ftp.spline.de","www.ftp.ne.jp","ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp",
-               "ftp.bit.nl","ftp.fau.de","ftp.fsn.hu","openbsd.hk"
+      "mirror.exonetric.net","mirror.fsrv.services","openbsd.c3sl.ufpr.br",
+       "ftp.usa.openbsd.org","ftp2.eu.openbsd.org","mirror.leaseweb.com",
+        "mirrors.gigenet.com","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
+         "mirror.fsmg.org.nz","mirror.ungleich.ch","mirrors.dotsrc.org",
+          "openbsd.ipacct.com","ftp.hostserver.de","mirrors.sonic.net",
+  "mirrors.ucr.ac.cr","mirror.labkom.id","mirror.litnet.lt","mirror.yandex.ru",
+    "cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.esc7.net",
+     "mirror.vdms.com","mirrors.mit.edu","ftp.icm.edu.pl","mirror.one.com",
+ "ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp","ftp.eenet.ee",
+      "ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl","ftp.fau.de","ftp.fsn.hu",
+                                  "openbsd.hk"
+
 		};
 
-		int index = arc4random_uniform(54);
+		int index = arc4random_uniform(55);
+
 
 
 		exit_line = __LINE__;
@@ -913,11 +916,29 @@ jump_f:
 		c = ftp_out[STDOUT_FILENO];
 		
 		if (generate) {
-			
+
+
+
+		char *ftp_list_g[8] = {
+
+              "cloudflare.cdn.openbsd.org","ftp4.usa.openbsd.org",
+       "ftp.usa.openbsd.org","ftp2.eu.openbsd.org","ftp.eu.openbsd.org",
+            "ftp.fr.openbsd.org","cdn.openbsd.org","ftp.OpenBSD.org"
+            
+		};
+
+			int index_g = arc4random_uniform(8);
+		
+		
+			i = snprintf(line, n,
+			    "https://%s/pub/OpenBSD/ftplist",
+			    ftp_list_g[index_g]);
+
 		/*
 		 * I can't think of a better way to send these two values
 		 * refuse to change it every time I edit the code
-		 * and it probably preserves some memory having it here
+		 * and it probably preserves some memory in the parent process
+		 * by having it here in the ftp process
 		 */
 			errno = 0;
 			i = write(c, &entry_line, sizeof(int));
@@ -933,12 +954,7 @@ jump_f:
 					printf("%s ", strerror(errno));
 				printf("ftp write, line: %d\n", __LINE__);
 				_exit(1);
-			}
-
-				
-			i = strlcpy(line,
-		"https://cloudflare.cdn.openbsd.org/pub/OpenBSD/ftplist", n);
-			
+			}			
 		
 		} else {
 			
@@ -1340,17 +1356,13 @@ jump_f:
 	 */
 	if (n != 0 || array_length == 0) {
 		
-		if (loop == 0) {
+		if (loop-- == 0) {
 			if (verbose >= 0) {
 				printf("There was an ftplist download error. ");
 				printf("Looping exhausted: Try again.\n");
 			}
 			return 2;
 		}
-			
-		
-		if (loop > 0)
-			--loop;
 			
 		
 		if (verbose >= 0) {
@@ -1368,20 +1380,15 @@ jump_f:
 		for (i = 0; i < n; ++i)
 			arg_v[i] = argv[i];
 			
-		if (loop < 0) {
-			/* loop 20 times */
-			arg_v[n] = strdup("-l20");
-			if (arg_v[n] == NULL)
-				errx(1, "strdup");
-		} else {
 			
-			arg_v[n] = malloc(20);
-			if (arg_v[n] == NULL)
-				errx(1, "strdup");
-			c = snprintf(arg_v[n], 20, "-l%d", loop);
-			if (c >= 20)
-				errx(1, "snprintf");
-		}						
+		arg_v[n] = malloc(20);
+		if (arg_v[n] == NULL)
+			errx(1, "strdup");
+		c = snprintf(arg_v[n], 20, "-l%d", loop);
+		if (c >= 20)
+			errx(1, "snprintf");
+			
+			
 		execv(arg_v[0], arg_v);
 
 		err(1, "execv failed, line: %d", __LINE__);
@@ -1818,7 +1825,7 @@ restart_program:
 			printf(" ");
 		for (j = first; j < se; ++j)
 			printf("\"%s\",", array[j].http);
-		printf("\"%s\"\n", array[se].http);
+		printf("\"%s\"\n\n", array[se].http);
 		
 		printf("\t\t};\n\n");
 		printf("\t\tint index = arc4random_uniform(%d);\n\n\n", se + 1);
