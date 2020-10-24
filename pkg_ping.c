@@ -52,7 +52,7 @@
  * 
  * 	If you want bleeding edge performance, you can try:
  * 
- *	cc pkg_ping.c -O2 -o pkg_ping
+ *	cc pkg_ping.c -Ofast -o pkg_ping
  * 
  * 	You probably won't see an appreciable performance gain between
  * 	the dns caching, which uses getaddrinfo(3) and the ftp(1) calls
@@ -121,7 +121,6 @@ static char*
 strnrcomma(char *start, char *end)
 {
 	char *a = end;
-	
 	while (--a >= start) {
 		if (*a == ',')
 			return a;
@@ -149,7 +148,7 @@ label_cmp_minus_usa(const void *a, const void *b)
 	 
 	red = strrchr(one_label, ',');
 	if (red == NULL) {
-		red = one_label;
+		red = one_label;;
 		i = 1;
 	} else
 		red += 2;
@@ -881,7 +880,6 @@ jump_f:
 		
 		entry_line = __LINE__;
 
-
 		char *ftp_list[55] = {
 
          "openbsd.mirror.netelligent.ca","mirrors.syringanetworks.net",
@@ -919,23 +917,12 @@ jump_f:
 		int index_g = 8;
 
 
-
 		exit_line = __LINE__;
 
 
 		c = ftp_out[STDOUT_FILENO];
 		
 		if (generate) {		
-		
-			if (ftp_list_g[index_g][0] == '*') {
-				i = snprintf(line, n,
-				   "https://%s/ftplist",
-				   1 + ftp_list_g[arc4random_uniform(index_g)]);
-			} else {
-				i = snprintf(line, n,
-				    "https://%s/pub/OpenBSD/ftplist",
-				    ftp_list_g[arc4random_uniform(index_g)]);
-			}
 
 		/*
 		 * I can't think of a better way to retrieve these two values
@@ -943,6 +930,7 @@ jump_f:
 		 * and it probably preserves some memory in the parent process
 		 * by having *ftp_list[] here in the ftp process declaration
 		 */
+		
 			errno = 0;
 			i = write(c, &entry_line, sizeof(int));
 			if (i < (int)sizeof(int)) {
@@ -957,18 +945,32 @@ jump_f:
 					printf("%s ", strerror(errno));
 				printf("ftp write, line: %d\n", __LINE__);
 				_exit(1);
-			}			
+			}
+			
+			index_g = arc4random_uniform(index_g);
 		
+			if (ftp_list_g[index_g][0] == '*') {
+				i = snprintf(line, n,
+				   "https://%s/ftplist",
+				   1 + ftp_list_g[index_g]);
+			} else {
+				i = snprintf(line, n,
+				    "https://%s/pub/OpenBSD/ftplist",
+				    ftp_list_g[index_g]);
+			}
+
 		} else {
+			
+			index = arc4random_uniform(index);
 			
 			if (ftp_list[index][0] == '*') {
 				i = snprintf(line, n,
 				    "https://%s/ftplist",
-				    1 + ftp_list[arc4random_uniform(index)]);
+				    1 + ftp_list[index]);
 			} else {
 				i = snprintf(line, n,
 				    "https://%s/pub/OpenBSD/ftplist",
-				    ftp_list[arc4random_uniform(index)]);
+				    ftp_list[index]);
 			}
 		}
 
@@ -1770,6 +1772,7 @@ restart_program:
 		 * load diff with what will be printed http lengths
 		 *          then process http for printing
 		 */
+		n = 1;
 		for (c = 0; c <= se; ++c) {
 			cut = strstr(array[c].http += h, "/pub/OpenBSD");
 			if (cut == NULL) {
@@ -1779,6 +1782,17 @@ restart_program:
 				*cut = '\0';
 				array[c].diff = cut - array[c].http;
 			}
+			
+			if (n == 1) {
+				if (strstr(array[c].http, "openbsd.org") ||
+				    strstr(array[c].http, "OpenBSD.org"))
+					n = 0;
+			}
+		}
+		
+		if (n == 1) {
+			printf("Couldn't find any openbsd.org mirrors.\n");
+			printf("Try again with a larger timeout!\n");
 		}
 
 		/* 
@@ -1839,25 +1853,17 @@ restart_program:
 		 *          then process http for printing
 		 */
 		for (c = 0; c <= se; ++c) {
-			cut = strstr(array[c].http, "openbsd.org");
-			if (cut == NULL)
-				cut = strstr(array[c].http, "OpenBSD.org");
-			if (cut == NULL) {
+			if (strstr(array[c].http, "openbsd.org") == NULL &&
+			    strstr(array[c].http, "OpenBSD.org") == NULL)
 				array[c].diff = 0;
-			}
 		}
 
 		/* sort by longest length first, subsort http alphabetically */
 		qsort(array, se + 1, sizeof(struct mirror_st), diff_cmp_g);
 
 		for (c = 0; c <= se; ++c) {
-			if (array[c].diff == 0) 
+			if (array[c].diff == 0)
 				break;
-		}
-		
-		if (c == 0) {
-			printf("Couldn't find any openbsd.org mirrors.\n");
-			printf("Try again with a larger timeout!\n");
 		}
 		
 		se = --c;
