@@ -906,7 +906,18 @@ jump_f:
 
 		};
 
-		int index = arc4random_uniform(55);
+		int index = 55;
+
+
+		char *ftp_list_g[8] = {
+
+   "cloudflare.cdn.openbsd.org","ftp4.usa.openbsd.org","ftp.usa.openbsd.org",
+        "ftp2.eu.openbsd.org","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
+                       "cdn.openbsd.org","ftp.OpenBSD.org"
+
+		};
+
+		int index_g = 8;
 
 
 
@@ -915,24 +926,17 @@ jump_f:
 
 		c = ftp_out[STDOUT_FILENO];
 		
-		if (generate) {
-
-
-
-		char *ftp_list_g[8] = {
-
-              "cloudflare.cdn.openbsd.org","ftp4.usa.openbsd.org",
-       "ftp.usa.openbsd.org","ftp2.eu.openbsd.org","ftp.eu.openbsd.org",
-            "ftp.fr.openbsd.org","cdn.openbsd.org","ftp.OpenBSD.org"
-            
-		};
-
-			int index_g = arc4random_uniform(8);
+		if (generate) {		
 		
-		
-			i = snprintf(line, n,
-			    "https://%s/pub/OpenBSD/ftplist",
-			    ftp_list_g[index_g]);
+			if (ftp_list_g[index_g][0] == '*') {
+				i = snprintf(line, n,
+				   "https://%s/ftplist",
+				   1 + ftp_list_g[arc4random_uniform(index_g)]);
+			} else {
+				i = snprintf(line, n,
+				    "https://%s/pub/OpenBSD/ftplist",
+				    ftp_list_g[arc4random_uniform(index_g)]);
+			}
 
 		/*
 		 * I can't think of a better way to retrieve these two values
@@ -961,11 +965,11 @@ jump_f:
 			if (ftp_list[index][0] == '*') {
 				i = snprintf(line, n,
 				    "https://%s/ftplist",
-				    1 + ftp_list[index]);
+				    1 + ftp_list[arc4random_uniform(index)]);
 			} else {
 				i = snprintf(line, n,
 				    "https://%s/pub/OpenBSD/ftplist",
-				    ftp_list[index]);
+				    ftp_list[arc4random_uniform(index)]);
 			}
 		}
 
@@ -1828,7 +1832,80 @@ restart_program:
 		printf("\"%s\"\n\n", array[se].http);
 		
 		printf("\t\t};\n\n");
-		printf("\t\tint index = arc4random_uniform(%d);\n\n\n", se + 1);
+		printf("\t\tint index = %d;\n\n\n", se + 1);
+
+
+		/* 
+		 * load diff with what will be printed http lengths
+		 *          then process http for printing
+		 */
+		for (c = 0; c <= se; ++c) {
+			cut = strstr(array[c].http, "openbsd.org");
+			if (cut == NULL)
+				cut = strstr(array[c].http, "OpenBSD.org");
+			if (cut == NULL) {
+				array[c].diff = 0;
+			}
+		}
+
+		/* sort by longest length first, subsort http alphabetically */
+		qsort(array, se + 1, sizeof(struct mirror_st), diff_cmp_g);
+
+		for (c = 0; c <= se; ++c) {
+			if (array[c].diff == 0) 
+				break;
+		}
+		
+		if (c == 0) {
+			printf("Couldn't find any openbsd.org mirrors.\n");
+			printf("Try again with a larger timeout!\n");
+		}
+		
+		se = --c;
+		
+		printf("\t\tchar *ftp_list_g[%d] = {\n\n", se + 1);
+		
+		
+		first = 0;
+		
+		n = 0;
+		for (c = 0; c <= se; ++c) {
+
+			/* 
+			 *    3 is the size of the printed: "",
+			 * if (c == se) it doesn't print the comma
+			 */
+			 
+			n += i = array[c].diff + 3 - (c == se);
+
+			/* 
+			 * overflow:
+			 * mirrors printed on each line
+			 * will not exceed 80 characters
+			 */
+			if (n > 80) {
+				
+				/* center the printed mirrors. Err to right */
+				for (j = (80 + 1 - (n - i)) / 2; j > 0; --j)
+					printf(" ");
+				for (j = first; j < c; ++j)
+					printf("\"%s\",", array[j].http);
+				printf("\n");
+				first = c;
+				n = i;
+				
+			}
+		}
+		
+		/* center the printed mirrors. Err to right */
+		for (j = (80 + 1 - n) / 2; j > 0; --j)
+			printf(" ");
+		for (j = first; j < se; ++j)
+			printf("\"%s\",", array[j].http);
+		printf("\"%s\"\n\n", array[se].http);
+		
+		printf("\t\t};\n\n");
+		printf("\t\tint index_g = %d;\n\n\n", se + 1);
 
 		printf("\t\t/* CODE ENDS HERE */\n\n");
 		printf("Replace section after line: %d, but ", entry_line);
