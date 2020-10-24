@@ -120,14 +120,13 @@ diff_cmp0(const void *a, const void *b)
 static char*
 strnrcomma(char *start, char *end)
 {
-	char *a = start - 1;
-	char *found = NULL;
+	char *a = end;
 	
-	while (++a < end) {
+	while (--a >= start) {
 		if (*a == ',')
-			found = a;
+			return a;
 	}
-	return found;
+	return NULL;
 }
 
 static int
