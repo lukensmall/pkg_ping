@@ -120,18 +120,6 @@ diff_cmp0(const void *a, const void *b)
 	return 0;
 }
 
-/* return the last comma from searching from 'start' to less than 'end' */
-static char*
-strnrcomma(char *start, char *end)
-{
-	char *a = end;
-	while (--a >= start) {
-		if (*a == ',')
-			return a;
-	}
-	return NULL;
-}
-
 static int
 label_cmp_minus_usa(const void *a, const void *b)
 {
@@ -173,18 +161,27 @@ label_cmp_minus_usa(const void *a, const void *b)
 		 * one found in the previous iteration
 		 */
 		
-		red = strnrcomma(one_label, red);
-		if (red == NULL) {
-			red = one_label - 2;
-			i = 1;
+		while (--red >= one_label) {
+			if (*red == ',')
+				goto red_jump;
 		}
+		--red;
+		i = 1;
+		
+		
+red_jump:
 
 
-		blue = strnrcomma(two_label, blue);
-		if (blue == NULL) {
-			blue = two_label - 2;
-			--i;
+		while (--blue >= two_label) {
+			if (*blue == ',')
+				goto blue_jump;
 		}
+		--blue;
+		--i;
+		
+		
+blue_jump:
+
 
 		ret = strcmp(red + 2, blue + 2);
 		
