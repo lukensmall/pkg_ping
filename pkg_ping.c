@@ -161,7 +161,7 @@ label_cmp_minus_usa(const void *a, const void *b)
 		 * one found in the previous iteration
 		 */
 		
-		while (--red >= one_label) {
+		while (one_label <= --red) {
 			if (*red == ',')
 				goto red_jump;
 		}
@@ -172,7 +172,7 @@ label_cmp_minus_usa(const void *a, const void *b)
 red_jump:
 
 
-		while (--blue >= two_label) {
+		while (two_label <= --blue) {
 			if (*blue == ',')
 				goto blue_jump;
 		}
@@ -885,8 +885,8 @@ jump_f:
            "ftp.rnl.tecnico.ulisboa.pt","mirror.csclub.uwaterloo.ca",
    "mirror.hs-esslingen.de","mirrors.pidginhost.com","openbsd.cs.toronto.edu",
     "*artfiles.org/openbsd","mirror.bytemark.co.uk","mirror.planetunix.net",
-     "www.mirrorservice.org","ftp4.usa.openbsd.org","mirror.aarnet.edu.au",
-      "mirror.exonetric.net","mirror.fsrv.services","openbsd.c3sl.ufpr.br",
+     "www.mirrorservice.org","ftp4.usa.openbsd.org","mirror.exonetric.net",
+      "mirror.fsrv.services","mirror.serverion.com","openbsd.c3sl.ufpr.br",
        "ftp.usa.openbsd.org","ftp2.eu.openbsd.org","mirror.leaseweb.com",
         "mirrors.gigenet.com","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
          "mirror.fsmg.org.nz","mirror.ungleich.ch","mirrors.dotsrc.org",
@@ -944,30 +944,30 @@ jump_f:
 				_exit(1);
 			}
 			
-			index_g = arc4random_uniform(index_g);
+			i = arc4random_uniform(index_g);
 		
-			if (ftp_list_g[index_g][0] == '*') {
+			if (ftp_list_g[i][0] == '*') {
 				i = snprintf(line, n,
 				   "https://%s/ftplist",
-				   1 + ftp_list_g[index_g]);
+				   1 + ftp_list_g[i]);
 			} else {
 				i = snprintf(line, n,
 				    "https://%s/pub/OpenBSD/ftplist",
-				    ftp_list_g[index_g]);
+				    ftp_list_g[i]);
 			}
 
 		} else {
 			
-			index = arc4random_uniform(index);
+			i = arc4random_uniform(index);
 			
-			if (ftp_list[index][0] == '*') {
+			if (ftp_list[i][0] == '*') {
 				i = snprintf(line, n,
 				    "https://%s/ftplist",
-				    1 + ftp_list[index]);
+				    1 + ftp_list[i]);
 			} else {
 				i = snprintf(line, n,
 				    "https://%s/pub/OpenBSD/ftplist",
-				    ftp_list[index]);
+				    ftp_list[i]);
 			}
 		}
 
