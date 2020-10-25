@@ -877,7 +877,7 @@ jump_f:
 		
 		entry_line = __LINE__;
 
-		char *ftp_list[55] = {
+		char *ftp_list[56] = {
 
          "openbsd.mirror.netelligent.ca","mirrors.syringanetworks.net",
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
@@ -885,23 +885,26 @@ jump_f:
            "ftp.rnl.tecnico.ulisboa.pt","mirror.csclub.uwaterloo.ca",
    "mirror.hs-esslingen.de","mirrors.pidginhost.com","openbsd.cs.toronto.edu",
     "*artfiles.org/openbsd","mirror.bytemark.co.uk","mirror.planetunix.net",
-     "www.mirrorservice.org","ftp4.usa.openbsd.org","mirror.exonetric.net",
-      "mirror.fsrv.services","mirror.serverion.com","openbsd.c3sl.ufpr.br",
-       "ftp.usa.openbsd.org","ftp2.eu.openbsd.org","mirror.leaseweb.com",
-        "mirrors.gigenet.com","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
-         "mirror.fsmg.org.nz","mirror.ungleich.ch","mirrors.dotsrc.org",
-          "openbsd.ipacct.com","ftp.hostserver.de","mirrors.sonic.net",
-  "mirrors.ucr.ac.cr","mirror.labkom.id","mirror.litnet.lt","mirror.yandex.ru",
-    "cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.esc7.net",
-     "mirror.vdms.com","mirrors.mit.edu","ftp.icm.edu.pl","mirror.one.com",
- "ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp","ftp.eenet.ee",
-      "ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl","ftp.fau.de","ftp.fsn.hu",
-                                  "openbsd.hk"
+     "www.mirrorservice.org","ftp4.usa.openbsd.org","mirror.aarnet.edu.au",
+      "mirror.exonetric.net","mirror.fsrv.services","mirror.serverion.com",
+       "openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
+        "mirror.leaseweb.com","mirrors.gigenet.com","ftp.eu.openbsd.org",
+         "ftp.fr.openbsd.org","mirror.fsmg.org.nz","mirror.ungleich.ch",
+         "mirrors.dotsrc.org","openbsd.ipacct.com","ftp.hostserver.de",
+ "mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.labkom.id","mirror.litnet.lt",
+    "mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp",
+     "mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu","ftp.icm.edu.pl",
+        "mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de",
+   "www.ftp.ne.jp","ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl",
+                     "ftp.fau.de","ftp.fsn.hu","openbsd.hk"
 
 		};
 
-		int index = 55;
+		int index = 56;
 
+
+
+		/* Trusted OpenBSD.org domain mirrors */
 
 		char *ftp_list_g[8] = {
 
@@ -1842,12 +1845,11 @@ restart_program:
 		printf("\"%s\"\n\n", array[se].http);
 		
 		printf("\t\t};\n\n");
-		printf("\t\tint index = %d;\n\n\n", se + 1);
+		printf("\t\tint index = %d;\n\n\n\n", se + 1);
 
 
 		/* 
-		 * load diff with what will be printed http lengths
-		 *          then process http for printing
+		 * make non-openbsd.org mirrors diff == 0
 		 */
 		for (c = 0; c <= se; ++c) {
 			if (strstr(array[c].http, "openbsd.org") == NULL &&
@@ -1858,6 +1860,7 @@ restart_program:
 		/* sort by longest length first, subsort http alphabetically */
 		qsort(array, se + 1, sizeof(struct mirror_st), diff_cmp_g);
 
+		/* eliminate non-openbsd.org mirrors from being displayed */
 		for (c = 0; c <= se; ++c) {
 			if (array[c].diff == 0)
 				break;
@@ -1865,6 +1868,7 @@ restart_program:
 		
 		se = --c;
 		
+		printf("\t\t/* Trusted OpenBSD.org domain mirrors */\n\n");
 		printf("\t\tchar *ftp_list_g[%d] = {\n\n", se + 1);
 		
 		
