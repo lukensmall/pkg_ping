@@ -52,7 +52,11 @@
  * 
  * 	If you want bleeding edge performance, you can try:
  * 
+ * 	(clang based)
  *	cc pkg_ping.c -Ofast -o pkg_ping
+ * 
+ * 	(everything else and clang)
+ * 	cc pkg_ping.c -O3 -o pkg_ping
  * 
  * 	You probably won't see an appreciable performance gain between
  * 	the dns caching, which uses getaddrinfo(3) and the ftp(1) calls
@@ -148,20 +152,18 @@ label_cmp_minus_usa(const void *a, const void *b)
 	 
 	red = strrchr(one_label, ',');
 	if (red == NULL) {
-		red = one_label;;
+		red = one_label - 2;
 		i = 1;
-	} else
-		red += 2;
+	}
 
 
 	blue = strrchr(two_label, ',');
 	if (blue == NULL) {
-		blue = two_label;
+		blue = two_label - 2;
 		--i;
-	} else
-		blue += 2;
+	}
 
-	ret = strcmp(red, blue);
+	ret = strcmp(red + 2, blue + 2);
 	
 	while(ret == 0 && i == 3) {
 		
@@ -171,22 +173,20 @@ label_cmp_minus_usa(const void *a, const void *b)
 		 * one found in the previous iteration
 		 */
 		
-		red = strnrcomma(one_label, red - 2);
+		red = strnrcomma(one_label, red);
 		if (red == NULL) {
-			red = one_label;
+			red = one_label - 2;
 			i = 1;
-		} else
-			red += 2;
+		}
 
 
-		blue = strnrcomma(two_label, blue - 2);
+		blue = strnrcomma(two_label, blue);
 		if (blue == NULL) {
-			blue = two_label;
+			blue = two_label - 2;
 			--i;
-		} else
-			blue += 2;
+		}
 
-		ret = strcmp(red, blue);
+		ret = strcmp(red + 2, blue + 2);
 		
 	}
 
