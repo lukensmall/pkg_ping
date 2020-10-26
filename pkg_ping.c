@@ -85,7 +85,7 @@
 #include <time.h>
 #include <unistd.h>
 
-int8_t h;
+int8_t h = 0;
 
 struct mirror_st {
 	char *label;
@@ -318,21 +318,28 @@ main(int argc, char *argv[])
 {
 	int8_t root_user = (getuid() == 0);
 	int8_t to_file = root_user;
-	int8_t num, current, secure, usa, verbose, s_set;
-	int8_t generate, override, dns_cache_d, six, next;
+	int8_t num = 0, current = 0, secure = 0, verbose = 0;
+	int8_t generate = 0, override = 0, six = 0, next = 0, s_set = 0;
+	int8_t dns_cache_d = 1, usa = 1;
 	int16_t loop = 20;
-	long double s, S;
-	pid_t ftp_pid, write_pid, dns_cache_d_pid;
-	int kq, i, pos, c, n, array_max, array_length, tag_len;
-	int pos_max, std_err, entry_line = 0, exit_line = 0;
-	int dns_cache_d_socket[2];
-	int write_pipe[2], ftp_out[2], block_pipe[2];
-	struct timespec start, end, timeout;
-	char *line0, *line, *release, *tag, *time = NULL;
-	struct mirror_st *array;
+	long double s = 5, S = 5;
+	pid_t ftp_pid = 0, write_pid = 0, dns_cache_d_pid = 0;
+	int kq = 0, i = 0, pos = 0, c = 0, n = 0;
+	int array_max = 0, array_length = 0, tag_len = 0;
+	int pos_max = 0, std_err = 0, entry_line = 0, exit_line = 0;
+	int dns_cache_d_socket[2] = { 0, 0 };
+	int write_pipe[2] = { 0, 0 };
+	int ftp_out[2] = { 0, 0 };
+	int block_pipe[2] = { 0, 0 };
+	struct timespec start = { 0, 0 }, end = { 0, 0 }, timeout = { 0, 0 };
+	char *line0 = NULL, *line = NULL, *release = NULL;
+	char *tag = NULL, *time = NULL;
+	struct mirror_st *array = NULL;
+	size_t len = 0;
+	char v = '\0';
+	
 	struct kevent ke;
-	size_t len;
-	char v;
+	bzero(&ke, sizeof(struct kevent));
 	
 	/* .05 seconds for an ftp SIGINT to turn into a SIGKILL */
 	const struct timespec timeout_kill = { 0, 50000000 };
@@ -367,9 +374,6 @@ main(int argc, char *argv[])
 			errx(1, "limit arguments to less than length 50");
 	}
 
-	verbose = secure = current = override = six = generate = next = 0;
-	usa = dns_cache_d = 1;
-	s = 5;
 
 	while ((c = getopt(argc, argv, "6dfghOl:nSs:uvV")) != -1) {
 		switch (c) {
@@ -517,9 +521,22 @@ main(int argc, char *argv[])
 					  
 		close(dns_cache_d_socket[1]);
 
-		uint8_t line_max;
-		struct addrinfo hints, *res0, *res;
+		uint8_t line_max = 0;
+		struct addrinfo *res0 = NULL, *res = NULL;
 		
+		struct addrinfo hints;
+		bzero(&hints, sizeof(hints));
+		
+		struct sockaddr_in *sa4 = NULL;
+		uint32_t sui4 = 0;
+
+		struct sockaddr_in6 *sa6 = NULL;
+		unsigned char *suc6 = NULL;
+
+		int8_t max = 0, i_temp = 0, i_max = 0;
+		char six_available = '0';
+
+
 		if (secure)
 			line0 = strdup("https");
 		else
@@ -559,7 +576,7 @@ dns_loop:
 			printf("DNS caching: %s\n", line);
 
 
-		bzero(&hints, sizeof(struct addrinfo));
+		bzero(&hints, sizeof(hints));
 		hints.ai_flags = AI_FQDN;
 		hints.ai_family = AF_UNSPEC;
 		hints.ai_socktype = SOCK_STREAM;
@@ -579,14 +596,7 @@ dns_loop:
 			goto dns_loop;
 		}
 
-		struct sockaddr_in *sa4;
-		uint32_t sui4;
-
-		struct sockaddr_in6 *sa6;
-		unsigned char *suc6;
-
-		int8_t max, i_temp, i_max;
-		char six_available = '0';
+		six_available = '0';
 
 		for (res = res0; res; res = res->ai_next) {
 
@@ -712,8 +722,9 @@ jump_dns:
 	write_pid = fork();
 	if (write_pid == (pid_t) 0) {
 
-		char *file_w;
-		FILE *pkg_write;
+		char *file_w = NULL;
+		FILE *pkg_write = NULL;
+		int received = 0;
 
 		if (pledge("stdio cpath wpath", NULL) == -1) {
 			printf("%s ", strerror(errno));
@@ -749,7 +760,7 @@ jump_dns:
 			_exit(1);
 		}
 		
-		int received = ke.data;
+		received = ke.data;
 
 		/* parent exited before sending data */
 		if (received == 0) {
@@ -873,7 +884,7 @@ jump_f:
 		
 		entry_line = __LINE__;
 
-		char *ftp_list[55] = {
+		char *ftp_list[56] = {
 
          "openbsd.mirror.netelligent.ca","mirrors.syringanetworks.net",
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
@@ -888,15 +899,15 @@ jump_f:
          "ftp.fr.openbsd.org","mirror.fsmg.org.nz","mirror.ungleich.ch",
          "mirrors.dotsrc.org","openbsd.ipacct.com","ftp.hostserver.de",
  "mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.labkom.id","mirror.litnet.lt",
-    "mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org","mirror.esc7.net",
-     "mirror.vdms.com","mirrors.mit.edu","ftp.icm.edu.pl","mirror.one.com",
- "ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp","ftp.eenet.ee",
-      "ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl","ftp.fau.de","ftp.fsn.hu",
-                                  "openbsd.hk"
+    "mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp",
+     "mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu","ftp.icm.edu.pl",
+        "mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de",
+   "www.ftp.ne.jp","ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl",
+                     "ftp.fau.de","ftp.fsn.hu","openbsd.hk"
 
 		};
 
-		int index = 55;
+		int index = 56;
 
 
 
@@ -1009,15 +1020,14 @@ jump_f:
 	/* Let's do some work while ftp is downloading ftplist */
 	
 	if (time == NULL) {
-		s_set = 0;
-		
-		time = malloc(50);
+		n = 30;
+		time = malloc(n);
 		if (time == NULL) {
 			kill(ftp_pid, SIGINT);
 			errx(1, "malloc");
 		}
-		n = snprintf(time, 50, "%Lf", s);
-		if (n >= 50) {
+		i = snprintf(time, n, "%Lf", s);
+		if (i >= n) {
 			kill(ftp_pid, SIGINT);
 			errx(1, "snprintf, line: %d", __LINE__);
 		}
@@ -1199,7 +1209,6 @@ jump_f:
 		errx(1, "calloc");
 	}
 
-	num = pos = pos_max = array_length = 0;
 
 	h = strlen("http://");
 
@@ -1765,7 +1774,7 @@ restart_program:
 		}
 
 
-		char *cut;
+		char *cut = NULL;
 
 		if (!generate)
 			goto generate_jump;
@@ -1811,7 +1820,7 @@ restart_program:
 		printf("\t\tchar *ftp_list[%d] = {\n\n", se + 1);
 
 		
-		int16_t j, first = 0;
+		int16_t j = 0, first = 0;
 		
 		n = 0;
 		for (c = 0; c <= se; ++c) {
