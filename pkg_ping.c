@@ -724,7 +724,6 @@ jump_dns:
 
 		char *file_w = NULL;
 		FILE *pkg_write = NULL;
-		int received = 0;
 
 		if (pledge("stdio cpath wpath", NULL) == -1) {
 			printf("%s ", strerror(errno));
@@ -760,7 +759,7 @@ jump_dns:
 			_exit(1);
 		}
 		
-		received = ke.data;
+		int received = ke.data;
 
 		/* parent exited before sending data */
 		if (received == 0) {
