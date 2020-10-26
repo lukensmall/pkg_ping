@@ -52,10 +52,10 @@
  * 
  * 	If you want bleeding edge performance, you can try:
  * 
- * 	(clang based)
+ * 	(clang based systems)
  *	cc pkg_ping.c -Ofast -o pkg_ping
  * 
- * 	(everything else and clang)
+ * 	(gcc and clang based systems)
  * 	cc pkg_ping.c -O3 -o pkg_ping
  * 
  * 	You probably won't see an appreciable performance gain between
@@ -215,7 +215,7 @@ diff_cmp_minus_usa(const void *a, const void *b)
 	if (one_diff > two_diff)
 		return 1;
 
-	/* reverse subsort label */
+	/* reverse subsort label_cmp_minus_usa */
 	return label_cmp_minus_usa(b, a);
 }
 
