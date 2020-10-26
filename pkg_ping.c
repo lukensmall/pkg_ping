@@ -156,8 +156,8 @@ label_cmp_minus_usa(const void *a, const void *b)
 	while(ret == 0 && i == 3) {
 		
 		/* 
-		 * mark the location of the latest comma.
-		 * Search for the last comma before the 
+		 * start from the latest comma,
+		 * search for the last comma before the 
 		 * one found in the previous iteration
 		 */
 		
@@ -168,9 +168,7 @@ label_cmp_minus_usa(const void *a, const void *b)
 		--red;
 		i = 1;
 		
-		
 red_jump:
-
 
 		while (two_label <= --blue) {
 			if (*blue == ',')
@@ -179,9 +177,7 @@ red_jump:
 		--blue;
 		--i;
 		
-		
 blue_jump:
-
 
 		ret = strcmp(red + 2, blue + 2);
 		
@@ -877,7 +873,7 @@ jump_f:
 		
 		entry_line = __LINE__;
 
-		char *ftp_list[56] = {
+		char *ftp_list[55] = {
 
          "openbsd.mirror.netelligent.ca","mirrors.syringanetworks.net",
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
@@ -892,15 +888,15 @@ jump_f:
          "ftp.fr.openbsd.org","mirror.fsmg.org.nz","mirror.ungleich.ch",
          "mirrors.dotsrc.org","openbsd.ipacct.com","ftp.hostserver.de",
  "mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.labkom.id","mirror.litnet.lt",
-    "mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp",
-     "mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu","ftp.icm.edu.pl",
-        "mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de",
-   "www.ftp.ne.jp","ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl",
-                     "ftp.fau.de","ftp.fsn.hu","openbsd.hk"
+    "mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org","mirror.esc7.net",
+     "mirror.vdms.com","mirrors.mit.edu","ftp.icm.edu.pl","mirror.one.com",
+ "ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp","ftp.eenet.ee",
+      "ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl","ftp.fau.de","ftp.fsn.hu",
+                                  "openbsd.hk"
 
 		};
 
-		int index = 56;
+		int index = 55;
 
 
 
@@ -1060,7 +1056,8 @@ jump_f:
 		if (sysctl(mib, 2, NULL, &len, NULL, 0) == -1) {
 			printf("%s ", strerror(errno));
 			kill(ftp_pid, SIGINT);		
-			errx(1, "sysctl, line: %d", __LINE__);
+			printf("sysctl, line: %d", __LINE__);
+			return 1;
 		}
 		
 		line = malloc(len);
@@ -1073,7 +1070,8 @@ jump_f:
 		if (sysctl(mib, 2, line, &len, NULL, 0) == -1) {
 			printf("%s ", strerror(errno));
 			kill(ftp_pid, SIGINT);		
-			errx(1, "sysctl, line: %d", __LINE__);
+			printf("sysctl, line: %d", __LINE__);
+			return 1;
 		}
 
 		/* Discovers if the kernel is not a release version */
@@ -1109,14 +1107,16 @@ jump_f:
 		if ((ulong)i < sizeof(int)) {
 			printf("%s ", strerror(errno));
 			kill(ftp_pid, SIGINT);
-			errx(1, "read line: %d", __LINE__);
+			printf("read, line: %d", __LINE__);
+			return 1;
 		}
 			
 		i = read(c, &exit_line, sizeof(int));
 		if ((ulong)i < sizeof(int)) {
 			printf("%s ", strerror(errno));
 			kill(ftp_pid, SIGINT);
-			errx(1, "read line: %d", __LINE__);
+			printf("read, line: %d", __LINE__);
+			return 1;
 		}
 		
 	} else {
@@ -1131,7 +1131,8 @@ jump_f:
 		if (uname(name) == -1) {
 			printf("%s ", strerror(errno));
 			kill(ftp_pid, SIGINT);
-			errx(1, "uname, line: %d", __LINE__);
+			printf("uname, line: %d", __LINE__);
+			return 1;
 		}
 		
 		if (next && !strcmp(name->release, "9.9")) {
@@ -1207,7 +1208,8 @@ jump_f:
 	if (kq == -1) {
 		printf("%s ", strerror(errno));
 		kill(ftp_pid, SIGINT);
-		errx(1, "kq! line: %d", __LINE__);
+		printf("kq! line: %d", __LINE__);
+		return 1;
 	}
 
 	/* 
@@ -1401,8 +1403,6 @@ jump_f:
 
 	if (secure == 1)
 		h = strlen("https://");
-	else
-		h = strlen("http://");
 
 
 	if (dns_cache_d) {
@@ -1639,7 +1639,8 @@ restart_program:
 		if (kevent(kq, &ke, 1, NULL, 0, NULL) == -1) {
 			printf("%s ", strerror(errno));
 			kill(ftp_pid, SIGINT);
-			errx(1, "kevent register fail, line: %d", __LINE__);
+			printf("kevent register fail, line: %d", __LINE__);
+			return 1;
 		}
 		
 		close(block_pipe[STDOUT_FILENO]);
@@ -1652,7 +1653,8 @@ restart_program:
 		if (i == -1) {
 			printf("%s ", strerror(errno));
 			kill(ftp_pid, SIGINT);
-			errx(1, "kevent, line: %d", __LINE__);
+			printf("kevent, line: %d", __LINE__);
+			return 1;
 		}
 		
 		/* timeout occurred before ftp() exit was received */
@@ -1660,12 +1662,15 @@ restart_program:
 			
 			kill(ftp_pid, SIGINT);
 
-			/* give it time to gracefully die, then reap event */
+			/* 
+			 * give it time to gracefully abort, play
+			 * nice with the server, then reap event
+			 */
 			i = kevent(kq, NULL, 0, &ke, 1, &timeout_kill);
 			if (i == -1) {
 				printf("%s ", strerror(errno));
-				kill(ftp_pid, SIGINT);
-				errx(1, "kevent, line: %d", __LINE__);
+				printf("kevent, line: %d", __LINE__);
+				return 1;
 			}
 			if (i == 0) {
 				
@@ -1674,8 +1679,8 @@ restart_program:
 					printf("killed\n");
 				if (kevent(kq, NULL, 0, &ke, 1, NULL) == -1) {
 					printf("%s ", strerror(errno));
-					kill(ftp_pid, SIGINT);
-					errx(1, "kevent, line: %d", __LINE__);
+					printf("kevent, line: %d", __LINE__);
+					return 1;
 				}
 			}
 			
