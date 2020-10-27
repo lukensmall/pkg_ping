@@ -189,11 +189,11 @@ blue_jump:
 		 * if red: i == 2, if blue: i == 1
 		 * the one with fewer commas is selected to be first.
 		 */
-                if (i == 1)
-                        return -1;
-                if (i == 2)
-                        return 1;
-
+		if (i == 1)
+			return -1;
+		if (i == 2)
+			return 1;
+		
 		
 		/* exactly equal labels */
 		return strcmp(
@@ -824,6 +824,8 @@ jump_dns:
 			printf("write error occurred, line: %d\n", __LINE__);
 			_exit(1);
 		}
+		
+		fclose(pkg_write);
 
 		if (verbose >= 0)
 			printf("/etc/installurl: %s", file_w);
