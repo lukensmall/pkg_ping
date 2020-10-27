@@ -189,11 +189,11 @@ blue_jump:
 		 * if red: i == 2, if blue: i == 1
 		 * the one with fewer commas is selected to be first.
 		 */
-		if (i) {
-			if (i == 1)
-				return -1;
-			return 1;
-		}
+                if (i == 1)
+                        return -1;
+                if (i == 2)
+                        return 1;
+
 		
 		/* exactly equal labels */
 		return strcmp(
