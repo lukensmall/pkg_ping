@@ -735,11 +735,11 @@ dns_loop:
 dns_exit0:
 		free(line);
 		free(line0);
-		exit(0);
+		_exit(0);
 dns_exit1:
 		free(line);
 		free(line0);
-		exit(1);
+		_exit(1);
 		
 	}
 	if (dns_cache_d_pid == -1)
@@ -1452,7 +1452,7 @@ jump_f:
 			
 		arg_v[n] = malloc(20);
 		if (arg_v[n] == NULL)
-			errx(1, "strdup");
+			errx(1, "malloc");
 		c = snprintf(arg_v[n], 20, "-l%d", loop);
 		if (c >= 20)
 			errx(1, "snprintf");
