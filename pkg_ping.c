@@ -93,6 +93,20 @@ struct mirror_st {
 	long double diff;
 };
 
+int array_length = 0;
+struct mirror_st *array = NULL;
+
+static void
+free_array()
+{
+	int i;
+	for (i = 0; i < array_length; ++i) {
+		free(array[i].label);
+		free(array[i].http);
+	}
+	free(array);
+}
+
 static int
 usa_cmp(const void *a, const void *b)
 {
@@ -126,9 +140,6 @@ label_cmp_minus_usa(const void *a, const void *b)
 	
 	char *one_label = ((struct mirror_st *) a)->label;
 	char *two_label = ((struct mirror_st *) b)->label;
-	char *red;
-	char *blue;
-	int ret;
 	int8_t i = 3;
 		
 	/* 
@@ -138,26 +149,25 @@ label_cmp_minus_usa(const void *a, const void *b)
 	 
 	 /* start with the last comma */
 	 
-	red = strrchr(one_label, ',');
+	char *red = strrchr(one_label, ',');
 	if (red == NULL) {
 		red = one_label - 2;
 		i = 1;
 	}
 
 
-	blue = strrchr(two_label, ',');
+	char *blue = strrchr(two_label, ',');
 	if (blue == NULL) {
 		blue = two_label - 2;
 		--i;
 	}
 
-	ret = strcmp(red + 2, blue + 2);
+	int ret = strcmp(red + 2, blue + 2);
 	
 	while(ret == 0 && i == 3) {
 		
 		/* 
-		 * start from the latest comma,
-		 * search for the last comma before the 
+		 * search for a comma before the 
 		 * one found in the previous iteration
 		 */
 		
@@ -185,9 +195,10 @@ blue_jump:
 
 	if (ret == 0) {
 		/* 
-		 * exactly one of red or blue is working off of a comma
-		 * if red: i == 2, if blue: i == 1
+		 * if (i):
+		 * One of red or blue has no more commas
 		 * the one with fewer commas is selected to be first.
+		 * If red: i == 1, if blue: i == 2
 		 */
 		if (i == 1)
 			return -1;
@@ -195,7 +206,12 @@ blue_jump:
 			return 1;
 		
 		
-		/* exactly equal labels */
+		/* 
+		 * exactly equal labels:
+		 * The price of checking for this initially,
+		 * (although its a simple strcmp)
+		 * isn't worth it because of its rarity.
+		 */
 		return strcmp(
 			      ((struct mirror_st *) a)->http + h,
 			      ((struct mirror_st *) b)->http + h
@@ -325,7 +341,7 @@ main(int argc, char *argv[])
 	long double s = 5, S = 5;
 	pid_t ftp_pid = 0, write_pid = 0, dns_cache_d_pid = 0;
 	int kq = 0, i = 0, pos = 0, c = 0, n = 0;
-	int array_max = 0, array_length = 0, tag_len = 0;
+	int array_max = 0, tag_len = 0;
 	int pos_max = 0, std_err = 0, entry_line = 0, exit_line = 0;
 	int dns_cache_d_socket[2] = { 0, 0 };
 	int write_pipe[2] = { 0, 0 };
@@ -334,12 +350,11 @@ main(int argc, char *argv[])
 	struct timespec start = { 0, 0 }, end = { 0, 0 }, timeout = { 0, 0 };
 	char *line0 = NULL, *line = NULL, *release = NULL;
 	char *tag = NULL, *time = NULL;
-	struct mirror_st *array = NULL;
 	size_t len = 0;
 	char v = '\0';
 	
 	struct kevent ke;
-	bzero(&ke, sizeof(struct kevent));
+	bzero(&ke, sizeof(ke));
 	
 	/* .05 seconds for an ftp SIGINT to turn into a SIGKILL */
 	const struct timespec timeout_kill = { 0, 50000000 };
@@ -541,16 +556,22 @@ main(int argc, char *argv[])
 			line0 = strdup("https");
 		else
 			line0 = strdup("www");
-		if (line0 == NULL)
-			errx(1, "strdup");
-
-		i = read(dns_cache_d_socket[0], &line_max, 1);
-		if (i < 1)
+			
+		if (line0 == NULL) {
+			printf("malloc\n");
 			_exit(1);
+		}
+		i = read(dns_cache_d_socket[0], &line_max, 1);
+		if (i < 1) {
+			printf("read, line: %d\n", __LINE__);
+			free(line0);
+			_exit(1);
+		}
 
 		line = malloc(line_max + 1);
 		if (line == NULL) {
 			printf("malloc\n");
+			free(line0);
 			_exit(1);
 		}
 		
@@ -558,17 +579,17 @@ dns_loop:
 
 		i = read(dns_cache_d_socket[0], line, line_max + 1);
 		if (i == 0)
-			_exit(0);
+			goto dns_exit0;
 
 		if (i > line_max) {
 			printf("i > line_max, line: %d\n", __LINE__);
-			_exit(1);
+			goto dns_exit1;
 		}
 		
 		if (i == -1) {
 			printf("%s ", strerror(errno));
 			printf("read error line: %d\n", __LINE__);
-			_exit(1);
+			goto dns_exit1;
 		}
 		line[i] = '\0';
 
@@ -583,16 +604,22 @@ dns_loop:
 		n = getaddrinfo(line, line0, &hints, &res0);
 		if (n) {
 			i = write(dns_cache_d_socket[0], "f", 1);
-			if (i < 1)
-				_exit(1);
+			if (i < 1) {
+				printf("%s ", strerror(errno));
+				printf("write error line: %d\n", __LINE__);
+				goto dns_exit1;
+			}
 			goto dns_loop;
 		}
 
 		if (verbose < 4 && !six) {
-			i = write(dns_cache_d_socket[0], "1", 1);
-			if (i < 1)
-				_exit(1);
 			freeaddrinfo(res0);
+			i = write(dns_cache_d_socket[0], "1", 1);
+			if (i < 1) {
+				printf("%s ", strerror(errno));
+				printf("write error line: %d\n", __LINE__);
+				goto dns_exit1;
+			}
 			goto dns_loop;
 		}
 
@@ -694,14 +721,26 @@ dns_loop:
 			}
 			printf("\n");
 		}
+		freeaddrinfo(res0);
 
 		i = write(dns_cache_d_socket[0], &six_available, 1);
 
-		if (i < 1)
-			_exit(1);
+		if (i < 1) {
+			printf("%s ", strerror(errno));
+			printf("write error line: %d\n", __LINE__);
+			goto dns_exit1;
+		}
 
-		freeaddrinfo(res0);
 		goto dns_loop;
+dns_exit0:
+		free(line);
+		free(line0);
+		exit(0);
+dns_exit1:
+		free(line);
+		free(line0);
+		exit(1);
+		
 	}
 	if (dns_cache_d_pid == -1)
 		err(1, "dns_cache_d fork, line: %d\n", __LINE__);
@@ -756,8 +795,10 @@ jump_dns:
 			printf("%s ", strerror(errno));
 			printf("write_pid kevent register fail");
 			printf(" line: %d\n", __LINE__);
+			close(kq);
 			_exit(1);
 		}
+		close(kq);
 		
 		int received = ke.data;
 
@@ -779,21 +820,23 @@ jump_dns:
 		unlink("/etc/installurl");
 		pkg_write = fopen("/etc/installurl", "w");
 
-		if (pledge("stdio", NULL) == -1) {
-			printf("%s ", strerror(errno));
-			printf("pledge, line: %d\n", __LINE__);
-			_exit(1);
-		}
-
 		if (pkg_write == NULL) {
 			printf("%s ", strerror(errno));
 			printf("/etc/installurl not opened.\n");
+			_exit(1);
+		}
+
+		if (pledge("stdio", NULL) == -1) {
+			printf("%s ", strerror(errno));
+			printf("pledge, line: %d\n", __LINE__);
+			fclose(pkg_write);
 			_exit(1);
 		}
 		
 		file_w = malloc(received + 1 + 1);
 		if (file_w == NULL) {
 			printf("malloc\n");
+			fclose(pkg_write);
 			_exit(1);
 		}
 			
@@ -802,17 +845,23 @@ jump_dns:
 		if (i < 0) {
 			printf("%s ", strerror(errno));
 			printf("read error occurred, line: %d\n", __LINE__);
+			free(file_w);
+			fclose(pkg_write);
 			_exit(1);
 		}
 
 		if (i < received) {
 			printf("didn't fully read from pipe, ");
 			printf("line: %d\n", __LINE__);
+			free(file_w);
+			fclose(pkg_write);
 			_exit(1);
 		}
 
 		if (i <= (int)(strlen("http://") + secure)) {
 			printf("read <= \"http://\", line: %d\n", __LINE__);
+			free(file_w);
+			fclose(pkg_write);
 			_exit(1);
 		}
 		
@@ -822,6 +871,8 @@ jump_dns:
 		if (i < received + 1) {
 			printf("%s ", strerror(errno));
 			printf("write error occurred, line: %d\n", __LINE__);
+			free(file_w);
+			fclose(pkg_write);
 			_exit(1);
 		}
 		
@@ -829,6 +880,8 @@ jump_dns:
 
 		if (verbose >= 0)
 			printf("/etc/installurl: %s", file_w);
+		
+		free(file_w);
 
 		_exit(0);
 
@@ -1209,6 +1262,8 @@ jump_f:
 		kill(ftp_pid, SIGINT);
 		errx(1, "calloc");
 	}
+	
+	atexit(free_array);
 
 
 	h = strlen("http://");
@@ -1310,27 +1365,24 @@ jump_f:
 		
 		/* 
 		 * safety check for label_cmp_minus_usa():
-		 * make sure there is a space after every comma
+		 * make sure there is a space after last comma
 		 * which would allow the function to make the
 		 * assumption that 2 spaces after the comma is
 		 * on the array. Otherwise, an abberrant
 		 * label could crash the program.
 		 * 
-		 * I could make the function safer, but it would
-		 * eat up more computing resources by being
-		 * redundantly and repeatedly checked.
+		 * I could make the label function safer,
+		 * but it would eat up more computing resources
+		 * being redundantly and repeatedly checked.
 		 */
 		if (verbose >= 1) {
-			line0 = line - 2;
-			do {
-				line0 = strchr(line0 + 2, ',');
-				if (line0 != NULL && line0[1] != ' ') {
-					kill(ftp_pid, SIGINT);
-					printf("label malformation: ");
-					printf("%s\n", line);
-					return 1;
-				}
-			} while (line0 != NULL);
+			line0 = strrchr(line, ',');
+			if (line0 != NULL && line0[1] != ' ') {
+				kill(ftp_pid, SIGINT);
+				printf("label malformation: ");
+				printf("%s\n", line);
+				return 1;
+			}
 		}
 		
 		array[array_length].label = strdup(line);
@@ -1557,6 +1609,11 @@ jump_f:
 				
 restart_dns_err:
 
+				close(kq);
+				close(std_err);
+				free(line);
+				free(line0);
+
 				if (verbose >= 2)
 					printf("dns_cache process issues\n\n");
 				else if (verbose >= 0) {
@@ -1636,6 +1693,7 @@ restart_program:
 			dprintf(std_err, "%s ", strerror(errno));
 			dprintf(std_err, "ftp 2 execl() failed, ");
 			dprintf(std_err, "line: %d\n", __LINE__);
+			fflush(NULL);
 			_exit(1);
 		}
 		if (ftp_pid == -1)
@@ -1741,6 +1799,10 @@ restart_program:
 		printf("\b \b");
 		fflush(stdout);
 	}
+	close(kq);
+	close(std_err);
+	free(line);
+	free(line0);
 	
 	if (verbose < 1)
 		qsort(array, array_length, sizeof(struct mirror_st), diff_cmp0);
@@ -1821,7 +1883,7 @@ restart_program:
 		printf("\t\tchar *ftp_list[%d] = {\n\n", se + 1);
 
 		
-		int16_t j = 0, first = 0;
+		int16_t j = 0, first = 0, se0 = se;
 		
 		n = 0;
 		for (c = 0; c <= se; ++c) {
@@ -1932,6 +1994,12 @@ restart_program:
 		printf("Replace section after line: %d, but ", entry_line);
 		printf("before line: %d with the code above.\n\n", exit_line);
 
+		for (i = 0; i <= se0; ++i) {
+			if (array[i].http[0] == '*')
+				array[i].http -= h - 1;
+			else
+				array[i].http -= h;
+		}
 
 		return 0;
 
@@ -1964,11 +2032,11 @@ generate_jump:
 				continue;
 			}
 			
-			cut = strchr(ac->http += h, '/');
+			cut = strchr(ac->http + h, '/');
 			if (cut)
 				*cut = '\0';
 			
-			printf("%s : ", ac->http);
+			printf("%s : ", ac->http + h);
 			
 			if (c <= te) {
 				printf("Timeout\n\n");
@@ -1978,12 +2046,11 @@ generate_jump:
 			}
 			
 			if (ac->diff == s + 1)
-				printf("Download Error");
+				printf("Download Error\n\n");
 			else if (ac->diff == s + 2)
-				printf("IPv6 DNS record not found");
+				printf("IPv6 DNS record not found\n\n");
 			else
-				printf("DNS record not found");
-			printf("\n\n");
+				printf("DNS record not found\n\n");
 				
 			if (c == ds) {
 				if (te != -1)
