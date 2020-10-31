@@ -99,12 +99,12 @@ struct mirror_st *array = NULL;
 static void
 free_array()
 {
-	int i;
-	for (i = 0; i < array_length; ++i) {
-		free(array[i].label);
-		free(array[i].http);
+	while (--array_length >= 0) {
+		free(array[array_length].label);
+		free(array[array_length].http);
 	}
 	free(array);
+	array = NULL;
 }
 
 static int
@@ -120,7 +120,6 @@ usa_cmp(const void *a, const void *b)
 	return 0;
 }
 
-/* super duper fast for verbose < 1 */
 static int
 diff_cmp0(const void *a, const void *b)
 {
@@ -143,7 +142,7 @@ label_cmp_minus_usa(const void *a, const void *b)
 	int8_t i = 3;
 		
 	/* 
-	 * We're basically comparing the labels by proper decreasing
+	 * I'm comparing the labels by proper decreasing
 	 * hierarchy, which are in reverse order between commas.
 	 */
 	 
@@ -197,7 +196,7 @@ blue_jump:
 		/* 
 		 * if (i):
 		 * One of red or blue has no more commas
-		 * the one with fewer commas is selected to be first.
+		 * the one with fewer commas is preferred.
 		 * If red: i == 1, if blue: i == 2
 		 */
 		if (i == 1)
@@ -209,8 +208,8 @@ blue_jump:
 		/* 
 		 * exactly equal labels:
 		 * The price of checking for this initially,
-		 * (although its a simple strcmp)
-		 * isn't worth it because of its rarity.
+		 * (although its a simple strcmp())
+		 * likely isn't worth it because of its rarity.
 		 */
 		return strcmp(
 			      ((struct mirror_st *) a)->http + h,
@@ -515,6 +514,11 @@ main(int argc, char *argv[])
 	if (dns_cache_d == 0)
 		goto jump_dns;
 
+	/* 
+	 * Since socketpair is close on exec, and
+	 * dns_cache_d waits on a read, dns_cache_d
+	 * won't zombify upon early parent death or exec
+	 */
 	if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC,
 	    PF_UNSPEC, dns_cache_d_socket) == -1)
 		err(1, "socketpair, line: %d\n", __LINE__);
@@ -536,7 +540,7 @@ main(int argc, char *argv[])
 					  
 		close(dns_cache_d_socket[1]);
 
-		uint8_t line_max = 0;
+		uint8_t dns_line_max = 0;
 		struct addrinfo *res0 = NULL, *res = NULL;
 		
 		struct addrinfo hints;
@@ -550,39 +554,45 @@ main(int argc, char *argv[])
 
 		int8_t max = 0, i_temp = 0, i_max = 0;
 		char six_available = '0';
+		
+		char *dns_line0 = NULL, *dns_line = NULL;
 
 
 		if (secure)
-			line0 = strdup("https");
+			dns_line0 = strdup("https");
 		else
-			line0 = strdup("www");
+			dns_line0 = strdup("www");
 			
-		if (line0 == NULL) {
+		if (dns_line0 == NULL) {
 			printf("malloc\n");
 			_exit(1);
 		}
-		i = read(dns_cache_d_socket[0], &line_max, 1);
+		i = read(dns_cache_d_socket[0], &dns_line_max, 1);
 		if (i < 1) {
 			printf("read, line: %d\n", __LINE__);
-			free(line0);
+			free(dns_line0);
 			_exit(1);
 		}
 
-		line = malloc(line_max + 1);
-		if (line == NULL) {
+		dns_line = malloc(dns_line_max + 1);
+		if (dns_line == NULL) {
 			printf("malloc\n");
-			free(line0);
+			free(dns_line0);
 			_exit(1);
 		}
 		
 dns_loop:
 
-		i = read(dns_cache_d_socket[0], line, line_max + 1);
-		if (i == 0)
-			goto dns_exit0;
+		i = read(dns_cache_d_socket[0], dns_line, dns_line_max + 1);
+		if (i == 0) {
+			free(dns_line);
+			free(dns_line0);
+			close(dns_cache_d_socket[0]);
+			_exit(0);
+		}
 
-		if (i > line_max) {
-			printf("i > line_max, line: %d\n", __LINE__);
+		if (i > dns_line_max) {
+			printf("i > dns_line_max, line: %d\n", __LINE__);
 			goto dns_exit1;
 		}
 		
@@ -591,17 +601,17 @@ dns_loop:
 			printf("read error line: %d\n", __LINE__);
 			goto dns_exit1;
 		}
-		line[i] = '\0';
+		dns_line[i] = '\0';
 
 		if (verbose == 4)
-			printf("DNS caching: %s\n", line);
+			printf("DNS caching: %s\n", dns_line);
 
 
 		bzero(&hints, sizeof(hints));
 		hints.ai_flags = AI_FQDN;
 		hints.ai_family = AF_UNSPEC;
 		hints.ai_socktype = SOCK_STREAM;
-		n = getaddrinfo(line, line0, &hints, &res0);
+		n = getaddrinfo(dns_line, dns_line0, &hints, &res0);
 		if (n) {
 			i = write(dns_cache_d_socket[0], "f", 1);
 			if (i < 1) {
@@ -732,13 +742,10 @@ dns_loop:
 		}
 
 		goto dns_loop;
-dns_exit0:
-		free(line);
-		free(line0);
-		_exit(0);
 dns_exit1:
-		free(line);
-		free(line0);
+		free(dns_line);
+		free(dns_line0);
+		close(dns_cache_d_socket[0]);
 		_exit(1);
 		
 	}
@@ -1260,6 +1267,7 @@ jump_f:
 	array = calloc(array_max, sizeof(struct mirror_st));
 	if (array == NULL) {
 		kill(ftp_pid, SIGINT);
+		free(line);
 		errx(1, "calloc");
 	}
 	
@@ -1274,6 +1282,7 @@ jump_f:
 		printf("%s ", strerror(errno));
 		kill(ftp_pid, SIGINT);
 		printf("kq! line: %d", __LINE__);
+		free(line);
 		return 1;
 	}
 
@@ -1289,11 +1298,14 @@ jump_f:
 		kill(ftp_pid, SIGINT);
 		printf("kevent, timeout0 may be too large. ");
 		printf("line: %d\n", __LINE__);
+		free(line);
 		return 1;
 	}
 	
 	if (i == 0) {
 		kill(ftp_pid, SIGINT);
+		free(line);
+		close(kq);
 		goto restart_program;
 	}
 
@@ -1303,6 +1315,7 @@ jump_f:
 			line[pos] = '\0';
 			printf("'line': %s\n", line);
 			printf("pos got too big! line: %d\n", __LINE__);
+			free(line);
 			return 1;
 		}
 		
@@ -1314,10 +1327,12 @@ jump_f:
 			}
 			line[pos++] = '\0';
 			
+			/* safety check */
 			if (strncmp(line, "http://", h)) {
 				kill(ftp_pid, SIGINT);
 				printf("'line': %s\n", line);
 				printf("bad http format, line: %d\n", __LINE__);
+				free(line);
 				return 1;
 			}				
 
@@ -1330,6 +1345,7 @@ jump_f:
 			array[array_length].http = malloc(pos);
 			if (array[array_length].http == NULL) {
 				kill(ftp_pid, SIGINT);
+				free(line);
 				errx(1, "malloc");
 			}
 			
@@ -1381,6 +1397,8 @@ jump_f:
 				kill(ftp_pid, SIGINT);
 				printf("label malformation: ");
 				printf("%s\n", line);
+				free(array[array_length].http);
+				free(line);
 				return 1;
 			}
 		}
@@ -1388,6 +1406,8 @@ jump_f:
 		array[array_length].label = strdup(line);
 		if (array[array_length].label == NULL) {
 			kill(ftp_pid, SIGINT);
+			free(array[array_length].http);
+			free(line);
 			errx(1, "strdup");
 		}
 
@@ -1399,6 +1419,7 @@ jump_f:
 
 			if (array == NULL) {
 				kill(ftp_pid, SIGINT);
+				free(line);
 				errx(1, "reallocarray");
 			}
 		}
@@ -1420,8 +1441,8 @@ jump_f:
 
 	/* 
 	 *             'ftplist' download error:
-	 * It's caused by no internet or bad dns resolution;
-	 *    Or from a faulty mirror or its bad dns info
+	 * It's caused by no internet, bad dns resolution;
+	 *   Or from a faulty mirror or its bad dns info
 	 */
 	if (n != 0 || array_length == 0) {
 		
@@ -1434,12 +1455,18 @@ jump_f:
 		}
 			
 		
-		if (verbose >= 0) {
+		if (verbose >= 0)
 			printf("There was an 'ftplist' download error.\n");
-			printf("restarting...\n");
-		}
 
+		close(kq);
 		
+restart_program:
+
+		if (verbose >= 0)
+			printf("restarting...\n");
+			
+		free_array();
+			
 		n = argc - (argc > 1 && !strncmp(argv[argc - 1], "-l", 2));
 		
 		char **arg_v = calloc(n + 1 + 1, sizeof(char*));
@@ -1475,6 +1502,7 @@ jump_f:
 				printf("dns_cache_d died prematurely\n");
 			else
 				printf("'length' not sent to dns_cache_d\n");
+			close(kq);
 			goto restart_program;
 		}
 	}
@@ -1563,7 +1591,7 @@ jump_f:
 		} else if (verbose >= 0) {
 			i = array_length - c;
 			if (c > 0) {
-				if ((i == 9) || (i == 99))
+				if ( i == 9 || i == 99 )
 					printf("\b \b");
 				n = i;
 				do {
@@ -1624,14 +1652,7 @@ restart_dns_err:
 					} while (n > 0);
 				}
 
-restart_program:
-
-				if (verbose >= 0)
-					printf("restarting...\n");
-
-				execv(argv[0], argv);
-					
-				err(1, "execv failed, line: %d", __LINE__);
+				goto restart_program;
 			}
 			
 			if (six && v == '0') {
@@ -1789,6 +1810,10 @@ restart_program:
 			array[c].diff = s;
 	}
 
+	if (dns_cache_d) {
+		close(dns_cache_d_socket[1]);
+		waitpid(dns_cache_d_pid, NULL, 0);
+	}
 
 	if (pledge("stdio exec", NULL) == -1)
 		err(1, "pledge, line: %d", __LINE__);
