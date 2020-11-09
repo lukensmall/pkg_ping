@@ -52,11 +52,7 @@
  * 
  * 	If you want bleeding edge performance, you can try:
  * 
- * 	(clang based systems)
- *	cc pkg_ping.c -Ofast -o pkg_ping
- * 
- * 	(gcc and clang based systems)
- * 	cc pkg_ping.c -O3 -o pkg_ping
+ * 	cc pkg_ping.c -march=native -O3 -pipe -o pkg_ping
  * 
  * 	You probably won't see an appreciable performance gain between
  * 	the dns caching, which uses getaddrinfo(3) and the ftp(1) calls
@@ -574,7 +570,7 @@ main(int argc, char *argv[])
 			_exit(1);
 		}
 
-		dns_line = malloc(dns_line_max + 1);
+		dns_line = (char *)malloc(dns_line_max + 1);
 		if (dns_line == NULL) {
 			printf("malloc\n");
 			free(dns_line0);
@@ -668,7 +664,7 @@ dns_loop:
 			for (i = 0; i < 16; i += 2) {
 
 				/* suc6[i] || suc6[i + 1] */
-				if (  *( (uint16_t*)(suc6 + i) )  ) {
+				if (  *( (uint16_t *)(suc6 + i) )  ) {
 					c = 0;
 					continue;
 				}
@@ -840,7 +836,7 @@ jump_dns:
 			_exit(1);
 		}
 		
-		file_w = malloc(received + 1 + 1);
+		file_w = (char *)malloc(received + 1 + 1);
 		if (file_w == NULL) {
 			printf("malloc\n");
 			fclose(pkg_write);
@@ -937,7 +933,7 @@ jump_f:
 		close(ftp_out[STDIN_FILENO]);
 
 		n = 300;
-		line = malloc(n);
+		line = (char *)malloc(n);
 		if (line == NULL) {
 			printf("malloc\n");
 			_exit(1);
@@ -945,7 +941,7 @@ jump_f:
 		
 		entry_line = __LINE__;
 
-		char *ftp_list[56] = {
+		const char *ftp_list[55] = {
 
          "openbsd.mirror.netelligent.ca","mirrors.syringanetworks.net",
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
@@ -956,33 +952,32 @@ jump_f:
      "www.mirrorservice.org","ftp4.usa.openbsd.org","mirror.aarnet.edu.au",
       "mirror.exonetric.net","mirror.fsrv.services","mirror.serverion.com",
        "openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
-        "mirror.leaseweb.com","mirrors.gigenet.com","ftp.eu.openbsd.org",
-         "ftp.fr.openbsd.org","mirror.fsmg.org.nz","mirror.ungleich.ch",
-         "mirrors.dotsrc.org","openbsd.ipacct.com","ftp.hostserver.de",
- "mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.labkom.id","mirror.litnet.lt",
-    "mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp",
-     "mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu","ftp.icm.edu.pl",
-        "mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de",
-   "www.ftp.ne.jp","ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl",
-                     "ftp.fau.de","ftp.fsn.hu","openbsd.hk"
+        "mirror.leaseweb.com","mirrors.gigenet.com","ftp.fr.openbsd.org",
+         "mirror.fsmg.org.nz","mirror.ungleich.ch","mirrors.dotsrc.org",
+          "openbsd.ipacct.com","ftp.hostserver.de","mirrors.sonic.net",
+  "mirrors.ucr.ac.cr","mirror.labkom.id","mirror.litnet.lt","mirror.yandex.ru",
+    "cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.esc7.net",
+     "mirror.vdms.com","mirrors.mit.edu","ftp.icm.edu.pl","mirror.one.com",
+ "ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp","ftp.eenet.ee",
+      "ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl","ftp.fau.de","ftp.fsn.hu",
+                                  "openbsd.hk"
 
 		};
 
-		int index = 56;
+		const uint16_t index = 55;
 
 
 
 		/* Trusted OpenBSD.org domain mirrors */
 
-		char *ftp_list_g[8] = {
+		const char *ftp_list_g[7] = {
 
    "cloudflare.cdn.openbsd.org","ftp4.usa.openbsd.org","ftp.usa.openbsd.org",
-        "ftp2.eu.openbsd.org","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
-                       "cdn.openbsd.org","ftp.OpenBSD.org"
+ "ftp2.eu.openbsd.org","ftp.fr.openbsd.org","cdn.openbsd.org","ftp.OpenBSD.org"
 
 		};
 
-		int index_g = 8;
+		const uint16_t index_g = 7;
 
 
 		exit_line = __LINE__;
@@ -1082,7 +1077,7 @@ jump_f:
 	
 	if (time == NULL) {
 		n = 30;
-		time = malloc(n);
+		time = (char *)malloc(n);
 		if (time == NULL) {
 			kill(ftp_pid, SIGINT);
 			errx(1, "malloc");
@@ -1107,7 +1102,7 @@ jump_f:
 			
 		if (i > 0) {
 			time[i] = '\0';
-			time = realloc(time, i + 1);
+			time = (char *)realloc(time, i + 1);
 			if (time == NULL) {
 				kill(ftp_pid, SIGINT);
 				errx(1, "realloc");
@@ -1131,7 +1126,7 @@ jump_f:
 			return 1;
 		}
 		
-		line = malloc(len);
+		line = (char *)malloc(len);
 		if (line == NULL) {
 			kill(ftp_pid, SIGINT);		
 			errx(1, "malloc");
@@ -1192,7 +1187,9 @@ jump_f:
 		
 	} else {
 		
-		struct utsname *name = malloc(sizeof(struct utsname));
+		struct utsname *name =
+		    (struct utsname *)malloc(sizeof(struct utsname));
+		    
 		if (name == NULL) {
 			kill(ftp_pid, SIGINT);
 			errx(1, "malloc");
@@ -1241,7 +1238,7 @@ jump_f:
 			    strlen(name->machine) + strlen("/SHA256");
 		}
 		
-		tag = malloc(tag_len + 1);
+		tag = (char *)malloc(tag_len + 1);
 		if (tag == NULL) {
 			kill(ftp_pid, SIGINT);
 			errx(1, "malloc");
@@ -1257,14 +1254,14 @@ jump_f:
 	
 	
 	/* if the index for line[] can exceed 254, it will error out */
-	line = malloc(255);
+	line = (char *)malloc(255);
 	if (line == NULL) {
 		kill(ftp_pid, SIGINT);
 		errx(1, "malloc");
 	}
 
 	array_max = 100;
-	array = calloc(array_max, sizeof(struct mirror_st));
+	array = (struct mirror_st *)calloc(array_max, sizeof(struct mirror_st));
 	if (array == NULL) {
 		kill(ftp_pid, SIGINT);
 		free(line);
@@ -1342,7 +1339,7 @@ jump_f:
 			if (pos_max < pos)
 				pos_max = pos;
 
-			array[array_length].http = malloc(pos);
+			array[array_length].http = (char *)malloc(pos);
 			if (array[array_length].http == NULL) {
 				kill(ftp_pid, SIGINT);
 				free(line);
@@ -1414,8 +1411,8 @@ jump_f:
 
 		if (++array_length >= array_max) {
 			array_max += 20;
-			array = reallocarray(array, array_max,
-			    sizeof(struct mirror_st));
+			array = (struct mirror_st *)reallocarray(array,
+			    array_max, sizeof(struct mirror_st));
 
 			if (array == NULL) {
 				kill(ftp_pid, SIGINT);
@@ -1469,7 +1466,7 @@ restart_program:
 			
 		n = argc - (argc > 1 && !strncmp(argv[argc - 1], "-l", 2));
 		
-		char **arg_v = calloc(n + 1 + 1, sizeof(char*));
+		char **arg_v = (char **)calloc(n + 1 + 1, sizeof(char *));
 		if (arg_v == NULL)
 			errx(1, "calloc");
 			
@@ -1477,10 +1474,10 @@ restart_program:
 			arg_v[i] = argv[i];
 			
 			
-		arg_v[n] = malloc(20);
+		arg_v[n] = (char *)malloc(10);
 		if (arg_v[n] == NULL)
 			errx(1, "malloc");
-		c = snprintf(arg_v[n], 20, "-l%d", loop);
+		c = snprintf(arg_v[n], 10, "-l%d", loop);
 		if (c >= 20)
 			errx(1, "snprintf");
 			
@@ -1509,12 +1506,14 @@ restart_program:
 	
 	pos_max += tag_len;
 
-	line = malloc(pos_max);
+	line = (char *)malloc(pos_max);
 	if (line == NULL)
 		errx(1, "malloc");
 
 
-	array = reallocarray(array, array_length, sizeof(struct mirror_st));
+	array = (struct mirror_st *)reallocarray(array,
+	    array_length, sizeof(struct mirror_st));
+	    
 	if (array == NULL)
 		errx(1, "reallocarray");
 
@@ -1864,6 +1863,8 @@ restart_dns_err:
 
 		char *cut = NULL;
 
+		int16_t j = 0, first = 0, se0 = se;
+		
 		if (!generate)
 			goto generate_jump;
 
@@ -1905,11 +1906,9 @@ restart_dns_err:
 
 		printf("\n\n");
 		printf("\t\t/* CODE BEGINS HERE */\n\n\n");
-		printf("\t\tchar *ftp_list[%d] = {\n\n", se + 1);
+		printf("\t\tconst char *ftp_list[%d] = {\n\n", se + 1);
 
-		
-		int16_t j = 0, first = 0, se0 = se;
-		
+				
 		n = 0;
 		for (c = 0; c <= se; ++c) {
 
@@ -1947,7 +1946,7 @@ restart_dns_err:
 		printf("\"%s\"\n\n", array[se].http);
 		
 		printf("\t\t};\n\n");
-		printf("\t\tint index = %d;\n\n\n\n", se + 1);
+		printf("\t\tconst uint16_t index = %d;\n\n\n\n", se + 1);
 
 
 		/* 
@@ -1971,7 +1970,7 @@ restart_dns_err:
 		se = --c;
 		
 		printf("\t\t/* Trusted OpenBSD.org domain mirrors */\n\n");
-		printf("\t\tchar *ftp_list_g[%d] = {\n\n", se + 1);
+		printf("\t\tconst char *ftp_list_g[%d] = {\n\n", se + 1);
 		
 		
 		first = 0;
@@ -2013,7 +2012,7 @@ restart_dns_err:
 		printf("\"%s\"\n\n", array[se].http);
 		
 		printf("\t\t};\n\n");
-		printf("\t\tint index_g = %d;\n\n\n", se + 1);
+		printf("\t\tconst uint16_t index_g = %d;\n\n\n", se + 1);
 
 		printf("\t\t/* CODE ENDS HERE */\n\n");
 		printf("Replace section after line: %d, but ", entry_line);
