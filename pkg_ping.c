@@ -333,7 +333,7 @@ main(int argc, char *argv[])
 	int8_t generate = 0, override = 0, six = 0, next = 0, s_set = 0;
 	int8_t dns_cache_d = 1, usa = 1;
 	int16_t loop = 20;
-	long double s = 5, S = 5;
+	long double s = 5, S = 0;
 	pid_t ftp_pid = 0, write_pid = 0, dns_cache_d_pid = 0;
 	int kq = 0, i = 0, pos = 0, c = 0, n = 0;
 	int array_max = 0, tag_len = 0;
@@ -350,13 +350,13 @@ main(int argc, char *argv[])
 	
 	struct kevent ke;
 	bzero(&ke, sizeof(ke));
+
+	/* 10 seconds and 0 nanoseconds to download ftplist */
+	struct timespec timeout0 = { 10, 0 };
 	
 	/* .05 seconds for an ftp SIGINT to turn into a SIGKILL */
 	const struct timespec timeout_kill = { 0, 50000000 };
-
-	/* 5 seconds and 0 nanoseconds to download ftplist */
-	struct timespec timeout0 = { 5, 0 };
-
+		    
 	if (pledge("stdio exec proc cpath wpath dns id unveil", NULL) == -1)
 		err(1, "pledge, line: %d", __LINE__);
 
@@ -478,19 +478,6 @@ main(int argc, char *argv[])
 		errx(1, "non-option ARGV-element: %s", argv[optind]);
 	}
 	
-	if (s > 1000)
-		errx(1, "try an -s less than or equal to 1000");
-	if (s < 0.015625)
-		errx(1, "try an -s greater than or equal to 0.015625 (1/64)");
-	
-	if (s > (long double)timeout0.tv_sec) {
-		timeout0.tv_sec = (time_t) s;
-		timeout0.tv_nsec =
-		    (long) ((s - (long double) timeout0.tv_sec) *
-		    (long double) 1000000000);
-	}
-	
-
 	if (generate) {
 		if (verbose < 1)
 			verbose = 1;
@@ -501,7 +488,32 @@ main(int argc, char *argv[])
 		to_file = 0;
 		if (pledge("stdio exec proc dns id", NULL) == -1)
 			err(1, "pledge, line: %d", __LINE__);
+			
+		/* change default 's' value */
+		if (time == NULL)
+			s = 10;
 	}
+	
+	if (s > 1000)
+		errx(1, "try an -s less than or equal to 1000");
+	if (s < 0.015625)
+		errx(1, "try an -s greater than or equal to 0.015625 (1/64)");
+	
+
+	S = (long double) timeout0.tv_sec +
+	    (long double) timeout0.tv_nsec /
+	    (long double) 1000000000;
+
+	if (s > S) {
+		timeout0.tv_sec = (time_t) s;
+		timeout0.tv_nsec =
+		    (long) ((s - (long double) timeout0.tv_sec) *
+		    (long double) 1000000000);
+	}
+	
+	S = s;
+	
+
 		
 	if (dns_cache_d == 0 && verbose == 4)
 		verbose = 3;
@@ -941,30 +953,28 @@ jump_f:
 		
 		entry_line = __LINE__;
 
-		const char *ftp_list[55] = {
+		const char *ftp_list[51] = {
 
-         "openbsd.mirror.netelligent.ca","mirrors.syringanetworks.net",
-          "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
-           "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
-           "ftp.rnl.tecnico.ulisboa.pt","mirror.csclub.uwaterloo.ca",
-   "mirror.hs-esslingen.de","mirrors.pidginhost.com","openbsd.cs.toronto.edu",
-    "*artfiles.org/openbsd","mirror.bytemark.co.uk","mirror.planetunix.net",
-     "www.mirrorservice.org","ftp4.usa.openbsd.org","mirror.aarnet.edu.au",
-      "mirror.exonetric.net","mirror.fsrv.services","mirror.serverion.com",
-       "openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
-        "mirror.leaseweb.com","mirrors.gigenet.com","ftp.fr.openbsd.org",
-         "mirror.fsmg.org.nz","mirror.ungleich.ch","mirrors.dotsrc.org",
-          "openbsd.ipacct.com","ftp.hostserver.de","mirrors.sonic.net",
-  "mirrors.ucr.ac.cr","mirror.labkom.id","mirror.litnet.lt","mirror.yandex.ru",
-    "cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.esc7.net",
+          "mirrors.syringanetworks.net","openbsd.mirror.constant.com",
+           "plug-mirror.rcac.purdue.edu","cloudflare.cdn.openbsd.org",
+           "ftp.halifax.rwth-aachen.de","ftp.rnl.tecnico.ulisboa.pt",
+ "mirror.csclub.uwaterloo.ca","mirror.hs-esslingen.de","mirrors.pidginhost.com",
+    "openbsd.cs.toronto.edu","*artfiles.org/openbsd","mirror.bytemark.co.uk",
+     "mirror.planetunix.net","www.mirrorservice.org","ftp4.usa.openbsd.org",
+      "mirror.aarnet.edu.au","mirror.exonetric.net","mirror.fsrv.services",
+      "mirror.serverion.com","openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org",
+       "ftp2.eu.openbsd.org","mirror.leaseweb.com","mirrors.gigenet.com",
+         "ftp.fr.openbsd.org","mirror.fsmg.org.nz","mirror.ungleich.ch",
+         "mirrors.dotsrc.org","openbsd.ipacct.com","ftp.hostserver.de",
+ "mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.labkom.id","mirror.litnet.lt",
+    "mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp",
      "mirror.vdms.com","mirrors.mit.edu","ftp.icm.edu.pl","mirror.one.com",
  "ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp","ftp.eenet.ee",
-      "ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl","ftp.fau.de","ftp.fsn.hu",
-                                  "openbsd.hk"
+             "ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl","ftp.fau.de"
 
 		};
 
-		const uint16_t index = 55;
+		const uint16_t index = 51;
 
 
 
@@ -1554,8 +1564,6 @@ restart_program:
 
 	if (line0 == NULL)
 		errx(1, "strdup");
-
-	S = s;
 
 	timeout.tv_sec = (time_t) s;
 	timeout.tv_nsec =
