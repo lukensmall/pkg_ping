@@ -52,11 +52,11 @@
  * 
  * 	If you want bleeding edge performance, you can try:
  * 
- * 	cc pkg_ping.c -march=native -O3 -pipe -o pkg_ping
+ * 	cc pkg_ping.c -march=native -mtune=native -O3 -pipe -o pkg_ping
  * 
  * 	You probably won't see an appreciable performance gain between
- * 	the dns caching, which uses getaddrinfo(3) and the ftp(1) calls
- * 	(which also uses getaddrinfo(3)), which are time killers.
+ * 	the getaddrinfo(3) and the ftp(1) calls which fetches network data
+ * 	which is the most time consuming activity this program does by far.
  * 
  *
  * 	On big-endian systems like sparc64, you may need:
@@ -380,8 +380,11 @@ main(int argc, char *argv[])
 	}
 
 	for(i = 1; i < argc; ++i) {
-		if (strlen(argv[i]) >= 50)
-			errx(1, "limit arguments to less than length 50");
+		n = 0;
+		while (argv[i][n] != '\0') {
+			if (++n == 25)
+				errx(1, "limit arguments to less than length 25");
+		}
 	}
 
 
@@ -525,7 +528,7 @@ main(int argc, char *argv[])
 	/* 
 	 * Since socketpair is close on exec, and
 	 * dns_cache_d waits on a read, dns_cache_d
-	 * won't zombify upon early parent death or exec
+	 * won't zombify upon early parent death nor exec
 	 */
 	if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC,
 	    PF_UNSPEC, dns_cache_d_socket) == -1)
@@ -1111,12 +1114,14 @@ jump_f:
 			i = n;
 			
 		if (i > 0) {
+			char *time0 = time;
 			time[i] = '\0';
-			time = (char *)realloc(time, i + 1);
+			time = strdup(time);
 			if (time == NULL) {
 				kill(ftp_pid, SIGINT);
 				errx(1, "realloc");
 			}
+			free(time0);
 		}
 	}
 
