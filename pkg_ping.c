@@ -544,13 +544,14 @@ main(int argc, char *argv[])
 			_exit(1);
 		}
 		
-		const char hexadec[16] = { '0','1','2','3',
-					   '4','5','6','7',
-					   '8','9','a','b',
-					   'c','d','e','f' };
-					  
 		close(dns_cache_d_socket[1]);
 
+		char *hexadec = strdup("0123456789abcdef");
+		if (hexadec == NULL) {
+			printf("strdup\n");
+			_exit(1);
+		}
+					  
 		uint8_t dns_line_max = 0;
 		struct addrinfo *res0 = NULL, *res = NULL;
 		
@@ -576,11 +577,13 @@ main(int argc, char *argv[])
 			
 		if (dns_line0 == NULL) {
 			printf("malloc\n");
+			free(hexadec);
 			_exit(1);
 		}
 		i = read(dns_cache_d_socket[0], &dns_line_max, 1);
 		if (i < 1) {
 			printf("read, line: %d\n", __LINE__);
+			free(hexadec);
 			free(dns_line0);
 			_exit(1);
 		}
@@ -588,6 +591,7 @@ main(int argc, char *argv[])
 		dns_line = (char *)malloc(dns_line_max + 1);
 		if (dns_line == NULL) {
 			printf("malloc\n");
+			free(hexadec);
 			free(dns_line0);
 			_exit(1);
 		}
@@ -596,6 +600,7 @@ dns_loop:
 
 		i = read(dns_cache_d_socket[0], dns_line, dns_line_max + 1);
 		if (i == 0) {
+			free(hexadec);
 			free(dns_line);
 			free(dns_line0);
 			close(dns_cache_d_socket[0]);
@@ -754,6 +759,7 @@ dns_loop:
 
 		goto dns_loop;
 dns_exit1:
+		free(hexadec);
 		free(dns_line);
 		free(dns_line0);
 		close(dns_cache_d_socket[0]);
