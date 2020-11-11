@@ -1089,7 +1089,7 @@ jump_f:
 	/* Let's do some work while ftp is downloading ftplist */
 	
 	if (time == NULL) {
-		n = 30;
+		n = 20;
 		time = (char *)malloc(n);
 		if (time == NULL) {
 			kill(ftp_pid, SIGINT);
@@ -1279,7 +1279,6 @@ jump_f:
 	array = (struct mirror_st *)calloc(array_max, sizeof(struct mirror_st));
 	if (array == NULL) {
 		kill(ftp_pid, SIGINT);
-		free(line);
 		errx(1, "calloc");
 	}
 	
@@ -1294,7 +1293,6 @@ jump_f:
 		printf("%s ", strerror(errno));
 		kill(ftp_pid, SIGINT);
 		printf("kq! line: %d", __LINE__);
-		free(line);
 		return 1;
 	}
 
@@ -1310,14 +1308,17 @@ jump_f:
 		kill(ftp_pid, SIGINT);
 		printf("kevent, timeout0 may be too large. ");
 		printf("line: %d\n", __LINE__);
-		free(line);
 		return 1;
 	}
 	
 	if (i == 0) {
 		kill(ftp_pid, SIGINT);
 		free(line);
-		close(kq);
+		
+		/* (verbose == 0 || verbose == 1) */
+		if ((verbose >> 1) == 0)
+			printf("\b");
+	
 		goto restart_program;
 	}
 
@@ -1327,7 +1328,6 @@ jump_f:
 			line[pos] = '\0';
 			printf("'line': %s\n", line);
 			printf("pos got too big! line: %d\n", __LINE__);
-			free(line);
 			return 1;
 		}
 		
@@ -1344,7 +1344,6 @@ jump_f:
 				kill(ftp_pid, SIGINT);
 				printf("'line': %s\n", line);
 				printf("bad http format, line: %d\n", __LINE__);
-				free(line);
 				return 1;
 			}				
 
@@ -1357,7 +1356,6 @@ jump_f:
 			array[array_length].http = (char *)malloc(pos);
 			if (array[array_length].http == NULL) {
 				kill(ftp_pid, SIGINT);
-				free(line);
 				errx(1, "malloc");
 			}
 			
@@ -1410,7 +1408,6 @@ jump_f:
 				printf("label malformation: ");
 				printf("%s\n", line);
 				free(array[array_length].http);
-				free(line);
 				return 1;
 			}
 		}
@@ -1419,7 +1416,6 @@ jump_f:
 		if (array[array_length].label == NULL) {
 			kill(ftp_pid, SIGINT);
 			free(array[array_length].http);
-			free(line);
 			errx(1, "strdup");
 		}
 
@@ -1431,7 +1427,6 @@ jump_f:
 
 			if (array == NULL) {
 				kill(ftp_pid, SIGINT);
-				free(line);
 				errx(1, "reallocarray");
 			}
 		}
@@ -1470,10 +1465,11 @@ jump_f:
 		if (verbose >= 0)
 			printf("There was an 'ftplist' download error.\n");
 
-		close(kq);
-		
 restart_program:
 
+		close(kq);		
+		free(time);
+		free(release);
 		if (verbose >= 0)
 			printf("restarting...\n");
 			
@@ -1514,7 +1510,6 @@ restart_program:
 				printf("dns_cache_d died prematurely\n");
 			else
 				printf("'length' not sent to dns_cache_d\n");
-			close(kq);
 			goto restart_program;
 		}
 	}
@@ -1649,7 +1644,6 @@ restart_program:
 				
 restart_dns_err:
 
-				close(kq);
 				close(std_err);
 				free(line);
 				free(line0);
@@ -1836,7 +1830,6 @@ restart_dns_err:
 		printf("\b \b");
 		fflush(stdout);
 	}
-	close(kq);
 	close(std_err);
 	free(line);
 	free(line0);
@@ -2037,6 +2030,9 @@ restart_dns_err:
 			else
 				array[i].http -= h;
 		}
+		
+		free(time);
+		free(release);
 
 		return 0;
 
@@ -2139,6 +2135,9 @@ no_good:
 		} else
 			printf("Perhaps try with a larger -s than %s\n", time);
 
+		free(time);
+		free(release);
+
 		return 1;
 	}
 	
@@ -2154,19 +2153,20 @@ no_good:
 			goto restart_program;
 		}
 		
-		waitpid(write_pid, &i, 0);
+		waitpid(write_pid, &n, 0);
 
-		if (i != 0) {
+		if (n != 0) {
 			printf("write_pid error.\n");
 			goto restart_program;
 		}
 
-		return 0;
-	}
-
-	if (verbose >= 0) {
+	}  else if (verbose >= 0) {
 		printf("As root, type: echo \"%s\" > /etc/installurl\n",
 		    array[0].http);
 	}
+	
+	free(time);
+	free(release);
+	
 	return 0;
 }
