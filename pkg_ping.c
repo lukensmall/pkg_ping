@@ -380,11 +380,8 @@ main(int argc, char *argv[])
 	}
 
 	for(i = 1; i < argc; ++i) {
-		n = 0;
-		while (argv[i][n] != '\0') {
-			if (++n == 25)
-				errx(1, "limit arguments to less than length 25");
-		}
+		if (strlen(argv[i]) >= 25)
+			errx(1, "keep argument length under 25");
 	}
 
 
