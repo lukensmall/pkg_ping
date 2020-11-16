@@ -293,20 +293,17 @@ manpage()
 
 	printf("[-h (print this Help message and exit)]\n");
 
-	printf("[-l (ell) integer number maximum times to Loop");
+	printf("[-l (ell) quantity of Loop attempts");
 	printf(" for an 'ftplist' download error\n");
-	printf("(If left unspecified it will ");
-	printf("automatically start a 20x loop. It will call itself with ");
-	printf("an extra -l argument)]\n");
+	printf("\t(If left unspecified it will permit 20 restarts)]\n");
 
-	printf("[-O (if your kernel is a snapshot, it will Override it and ");
-	printf("search for release mirrors.\n");
-	printf("\tif your OS is a release, it will Override it and ");
-	printf("search for snapshot mirrors.)\n");
+	printf("[-O (if your OS is a snapshot, it will Override it and\n");
+	printf("\tsearch for release mirrors. if your OS is a release,\n");
+	printf("\tit will Override it and search for snapshot mirrors.)\n");
 
-	printf("[-n (search for next release package-folder!)]\n");
+	printf("[-n (search for next release's data!)]\n");
 
-	printf("[-s floating-point timeout in Seconds (eg. -s 2.3)]\n");
+	printf("[-s timeout in Seconds (eg. -s 2.3)]\n");
 
 	printf("[-S (converts http mirrors into Secure https mirrors\n");
 	printf("\thttp mirrors still preserve file integrity!)]\n");
@@ -408,8 +405,11 @@ main(int argc, char *argv[])
 			override = 1;
 			break;
 		case 'l':
-			if (strlen(optarg) > 4)
-				errx(1, "-l should be <= 4 digits long.");
+			if (strlen(optarg) > 4) {
+				printf("-l number should be less than ");
+				printf("or equal to 4 digits long.\n");
+				return 1;
+			}
 			c = -1;
 			n = 0;
 			while (optarg[++c] != '\0') {
@@ -417,7 +417,9 @@ main(int argc, char *argv[])
 					n = n * 10 + (int) (optarg[c] - '0');
 					continue;
 				}
-				errx(1, "-l has a non-digit character");
+				printf("-l should only have ");
+				printf("numerical characters\n");
+				return 1;
 			}
 			loop = n;
 			break;
@@ -440,9 +442,10 @@ main(int argc, char *argv[])
 				if (optarg[c] == '.' && ++i == 1)
 					continue;
 
-				if (optarg[c] == '-')
-					errx(1, "don't enter a negative sign.");
-				errx(1, "Bad floating point format.");
+				printf("-s should have numerical ");
+				printf("characters and a maximum ");
+				printf("of one decimal point\n");
+				return 1;
 			}
 
 			errno = 0;
@@ -959,41 +962,51 @@ jump_f:
 		
 		entry_line = __LINE__;
 
-		const char *ftp_list[51] = {
 
-          "mirrors.syringanetworks.net","openbsd.mirror.constant.com",
-           "plug-mirror.rcac.purdue.edu","cloudflare.cdn.openbsd.org",
-           "ftp.halifax.rwth-aachen.de","ftp.rnl.tecnico.ulisboa.pt",
- "mirror.csclub.uwaterloo.ca","mirror.hs-esslingen.de","mirrors.pidginhost.com",
-    "openbsd.cs.toronto.edu","*artfiles.org/openbsd","mirror.bytemark.co.uk",
-     "mirror.planetunix.net","www.mirrorservice.org","ftp4.usa.openbsd.org",
-      "mirror.aarnet.edu.au","mirror.exonetric.net","mirror.fsrv.services",
-      "mirror.serverion.com","openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org",
-       "ftp2.eu.openbsd.org","mirror.leaseweb.com","mirrors.gigenet.com",
+		/* GENERATED CODE BEGINS HERE */
+
+
+		const char *ftp_list[55] = {
+
+         "openbsd.mirror.netelligent.ca","mirrors.syringanetworks.net",
+          "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
+           "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
+           "ftp.rnl.tecnico.ulisboa.pt","mirror.csclub.uwaterloo.ca",
+   "mirror.hs-esslingen.de","mirrors.pidginhost.com","openbsd.cs.toronto.edu",
+    "*artfiles.org/openbsd","mirror.bytemark.co.uk","mirror.planetunix.net",
+     "www.mirrorservice.org","ftp4.usa.openbsd.org","mirror.aarnet.edu.au",
+      "mirror.exonetric.net","mirror.fsrv.services","mirror.serverion.com",
+       "openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
+        "mirror.leaseweb.com","mirrors.gigenet.com","ftp.eu.openbsd.org",
          "ftp.fr.openbsd.org","mirror.fsmg.org.nz","mirror.ungleich.ch",
          "mirrors.dotsrc.org","openbsd.ipacct.com","ftp.hostserver.de",
  "mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.labkom.id","mirror.litnet.lt",
     "mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp",
-     "mirror.vdms.com","mirrors.mit.edu","ftp.icm.edu.pl","mirror.one.com",
- "ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp","ftp.eenet.ee",
-             "ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl","ftp.fau.de"
+     "mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu","ftp.icm.edu.pl",
+"mirror.one.com","ftp.cc.uoc.gr","ftp.spline.de","www.ftp.ne.jp","ftp.eenet.ee",
+      "ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl","ftp.fau.de","ftp.fsn.hu",
+                                  "openbsd.hk"
 
 		};
 
-		const uint16_t index = 51;
+		const uint16_t index = 55;
 
 
 
 		/* Trusted OpenBSD.org domain mirrors */
 
-		const char *ftp_list_g[7] = {
+		const char *ftp_list_g[8] = {
 
    "cloudflare.cdn.openbsd.org","ftp4.usa.openbsd.org","ftp.usa.openbsd.org",
- "ftp2.eu.openbsd.org","ftp.fr.openbsd.org","cdn.openbsd.org","ftp.OpenBSD.org"
+        "ftp2.eu.openbsd.org","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
+                       "cdn.openbsd.org","ftp.OpenBSD.org"
 
 		};
 
-		const uint16_t index_g = 7;
+		const uint16_t index_g = 8;
+
+
+		/* GENERATED CODE ENDS HERE */
 
 
 		exit_line = __LINE__;
@@ -1914,7 +1927,7 @@ restart_dns_err:
 		qsort(array, se + 1, sizeof(struct mirror_st), diff_cmp_g);
 
 		printf("\n\n");
-		printf("\t\t/* CODE BEGINS HERE */\n\n\n");
+		printf("\t\t/* GENERATED CODE BEGINS HERE */\n\n\n");
 		printf("\t\tconst char *ftp_list[%d] = {\n\n", se + 1);
 
 				
@@ -2023,7 +2036,7 @@ restart_dns_err:
 		printf("\t\t};\n\n");
 		printf("\t\tconst uint16_t index_g = %d;\n\n\n", se + 1);
 
-		printf("\t\t/* CODE ENDS HERE */\n\n");
+		printf("\t\t/* GENERATED CODE ENDS HERE */\n\n\n\n");
 		printf("Replace section after line: %d, but ", entry_line);
 		printf("before line: %d with the code above.\n\n", exit_line);
 
