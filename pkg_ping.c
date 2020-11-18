@@ -1468,14 +1468,6 @@ jump_f:
 	 *   Or from a faulty mirror or its bad dns info
 	 */
 	if (n != 0 || array_length == 0) {
-		
-		if (loop-- == 0) {
-			if (verbose >= 0) {
-				printf("There was an ftplist download error. ");
-				printf("Looping exhausted: Try again.\n");
-			}
-			return 2;
-		}
 			
 		
 		if (verbose >= 0)
@@ -1483,6 +1475,12 @@ jump_f:
 
 restart_program:
 
+		if (loop-- == 0) {
+			if (verbose >= 0)
+				printf("Looping exhausted: Try again.\n");
+			return 2;
+		}
+		
 		close(kq);		
 		free(time);
 		free(release);
