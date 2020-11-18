@@ -268,6 +268,23 @@ diff_cmp_g(const void *a, const void *b)
 }
 
 static int
+diff_cmp_g2(const void *a, const void *b)
+{
+	struct mirror_st *one = (struct mirror_st *) a;
+	struct mirror_st *two = (struct mirror_st *) b;
+
+	/* sort the biggest diff values first */
+	if (one->diff > two->diff)
+		return -1;
+	if (one->diff < two->diff)
+		return 1;
+		
+	if (one->diff > 0)
+		return strcmp(one->http, two->http);
+	return 0;
+}
+
+static int
 label_cmp(const void *a, const void *b)
 {
 	/* list the USA mirrors first */
@@ -1135,7 +1152,7 @@ jump_f:
 			time = strdup(time);
 			if (time == NULL) {
 				kill(ftp_pid, SIGINT);
-				errx(1, "realloc");
+				errx(1, "strdup");
 			}
 			free(time0);
 		}
@@ -1481,7 +1498,7 @@ restart_program:
 			return 2;
 		}
 		
-		close(kq);		
+		close(kq);
 		free(time);
 		free(release);
 		if (verbose >= 0)
@@ -1979,7 +1996,7 @@ restart_dns_err:
 		}
 
 		/* sort by longest length first, subsort http alphabetically */
-		qsort(array, se + 1, sizeof(struct mirror_st), diff_cmp_g);
+		qsort(array, se + 1, sizeof(struct mirror_st), diff_cmp_g2);
 
 		/* eliminate non-openbsd.org mirrors from being displayed */
 		for (c = 0; c <= se; ++c) {
