@@ -982,8 +982,8 @@ jump_f:
          "mirrors.dotsrc.org","openbsd.ipacct.com","ftp.hostserver.de",
  "mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.labkom.id","mirror.litnet.lt",
     "mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp",
-     "mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu","ftp.icm.edu.pl",
-"mirror.one.com","ftp.cc.uoc.gr","ftp.spline.de","www.ftp.ne.jp","ftp.eenet.ee",
+     "mirror.esc7.net","mirror.vdms.com","ftp.icm.edu.pl","mirror.one.com",
+ "ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp","ftp.eenet.ee",
       "ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl","ftp.fau.de","ftp.fsn.hu",
                                   "openbsd.hk"
 
@@ -1017,10 +1017,10 @@ jump_f:
 		if (generate) {		
 
 		/*
-		 * I can't think of a better way to retrieve these two values
-		 * I refuse to change it every time I edit the code
-		 * and it probably preserves some memory in the parent process
-		 * by having *ftp_list[] here in the ftp process declaration
+		 * I can't think of a better way to retrieve these two values.
+		 * I refuse to change it every time I edit the code.
+		 * It probably preserves some memory in the parent process
+		 * by having *ftp_list[] here in the fork()ed ftp declaration
 		 */
 		
 			errno = 0;
@@ -1505,7 +1505,7 @@ restart_program:
 		if (arg_v[n] == NULL)
 			errx(1, "malloc");
 		c = snprintf(arg_v[n], 10, "-l%d", loop);
-		if (c >= 20)
+		if (c >= 10)
 			errx(1, "snprintf");
 			
 			
