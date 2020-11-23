@@ -55,12 +55,8 @@
  * 	cc pkg_ping.c -march=native -mtune=native -O3 -pipe -o pkg_ping
  * 
  * 	You probably won't see an appreciable performance gain between
- * 	the getaddrinfo(3) and the ftp(1) calls which fetches network data
- * 	which is the most time consuming activity this program does by far.
- * 
- *
- * 	On big-endian systems like sparc64, you may need:
- * 	cc pkg_ping.c -mlittle-endian -o pkg_ping
+ * 	the getaddrinfo(3) and the ftp(1) calls which fetch data over the 
+ * 	network. I parallelize somewhat.
  * 
  * 	program designed to be viewed with width 8 tabs
  */
@@ -338,6 +334,398 @@ manpage()
 	
 }
 
+static int
+dns_cache_d(int dns_cache_d_socket[], int8_t secure, int8_t six, int8_t verbose)
+{
+	int i = fork();
+	switch(i)
+	{
+		case -1:
+			err(1, "dns_cache_d fork, line: %d\n", __LINE__);
+		case 0:
+			break;
+		default:
+			return i;
+	}
+
+		
+	if (pledge("stdio dns", NULL) == -1) {
+		printf("%s ", strerror(errno));
+		printf("dns_cache_d pledge, line: %d\n", __LINE__);
+		_exit(1);
+	}
+	
+	close(dns_cache_d_socket[1]);
+	
+	
+	int c = 0, dns_socket = dns_cache_d_socket[0];
+				  
+	uint8_t dns_line_max = 0;
+	struct addrinfo *res0 = NULL, *res = NULL;
+	
+	struct addrinfo hints;
+	bzero(&hints, sizeof(hints));
+	
+	struct sockaddr_in *sa4 = NULL;
+	uint32_t sui4 = 0;
+
+	struct sockaddr_in6 *sa6 = NULL;
+	unsigned char *suc6 = NULL;
+
+	int8_t max = 0, i_temp = 0, i_max = 0;
+	char six_available = '0';
+	
+	char *dns_line0 = NULL, *dns_line = NULL;
+
+
+	char hexadec[16] = { '0','1','2','3',
+			     '4','5','6','7',
+			     '8','9','a','b',
+			     'c','d','e','f' };
+	
+	if (secure)
+		dns_line0 = "https";
+	else
+		dns_line0 = "http";
+
+	i = read(dns_socket, &dns_line_max, 1);
+	if (i < 1) {
+		_exit(1);
+	}
+
+	dns_line = (char *)malloc(dns_line_max + 1);
+	if (dns_line == NULL) {
+		printf("malloc\n");
+		_exit(1);
+	}
+	
+dns_loop:
+
+	i = read(dns_socket, dns_line, dns_line_max + 1);
+	if (i == 0) {
+		free(dns_line);
+		_exit(0);
+	}
+
+	if (i > dns_line_max) {
+		printf("i > dns_line_max, line: %d\n", __LINE__);
+		goto dns_exit1;
+	}
+	
+	if (i == -1) {
+		printf("%s ", strerror(errno));
+		printf("read error line: %d\n", __LINE__);
+		goto dns_exit1;
+	}
+	dns_line[i] = '\0';
+
+	if (verbose == 4)
+		printf("DNS caching: %s\n", dns_line);
+
+
+	bzero(&hints, sizeof(hints));
+	hints.ai_flags = AI_FQDN;
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	c = getaddrinfo(dns_line, dns_line0, &hints, &res0);
+	if (c) {
+		if (verbose == 4)
+			printf("%s\n", gai_strerror(c));
+		i = write(dns_socket, "f", 1);
+		if (i < 1) {
+			printf("%s ", strerror(errno));
+			printf("write error line: %d\n", __LINE__);
+			goto dns_exit1;
+		}
+		goto dns_loop;
+	}
+
+	if (verbose < 4 && !six) {
+		freeaddrinfo(res0);
+		i = write(dns_socket, "1", 1);
+		if (i < 1) {
+			printf("%s ", strerror(errno));
+			printf("write error line: %d\n", __LINE__);
+			goto dns_exit1;
+		}
+		goto dns_loop;
+	}
+
+	six_available = 'f';
+
+	for (res = res0; res; res = res->ai_next) {
+
+		if (res->ai_family == AF_INET) {
+			if (six_available == 'f')
+				six_available = '0';
+			if (six)
+				continue;
+			sa4 = (struct sockaddr_in *) res->ai_addr;
+			sui4 = sa4->sin_addr.s_addr;
+			printf("       %hhu.%hhu.%hhu.%hhu\n",
+			    (uint8_t) sui4,
+			    (uint8_t)(sui4 >>  8),
+			    (uint8_t)(sui4 >> 16),
+			    (uint8_t)(sui4 >> 24));
+			continue;
+		}
+		
+		if (res->ai_family != AF_INET6) 
+			continue;
+
+		six_available = '1';
+		if (verbose < 4)
+			break;
+
+		printf("       ");
+
+		sa6 = (struct sockaddr_in6 *) res->ai_addr;
+		suc6 = sa6->sin6_addr.s6_addr;
+
+		c = max = 0;
+		i_max = -1;
+
+		/* load largest >1 gap beginning into i_max */
+		for (i = 0; i < 16; i += 2) {
+
+			/* suc6[i] || suc6[i + 1] */
+			if (  *( (uint16_t *)(suc6 + i) )  ) {
+				c = 0;
+				continue;
+			}
+			
+			if (c == 0) {
+				i_temp = i;
+				c = 1;
+				continue;
+			}
+			
+			if (max < ++c) {
+				max = c;
+				i_max = i_temp;
+			}
+		}
+
+		/* 
+		 *                  ">> 4" == "/ 16"
+		 *              "max << 1" == "2 * max"
+		 *            "& 15" == "& 0x0f" == "% 16"
+		 *  'i' is even so I can use "i|1" instead of "i+1",
+		 * which may be more efficient. I think it's prettier
+		 */
+		for (i = 0; i < 16; i += 2) {
+
+			if (i == i_max) {
+				if (i == 0)
+					printf("::");
+				else
+					printf(":");
+				i += max << 1;
+				if (i >= 16)
+					break;
+			}
+			
+			if (suc6[i  ] >> 4) {
+				printf("%c%c%c%c",
+				    hexadec[suc6[i  ] >> 4],
+				    hexadec[suc6[i  ] & 15],
+				    hexadec[suc6[i|1] >> 4],
+				    hexadec[suc6[i|1] & 15]);
+				    
+			} else if (suc6[i  ]) {
+				printf("%c%c%c",
+				    hexadec[suc6[i  ]     ],
+				    hexadec[suc6[i|1] >> 4],
+				    hexadec[suc6[i|1] & 15]);
+				    
+			} else if (suc6[i|1] >> 4) {
+				printf("%c%c",
+				    hexadec[suc6[i|1] >> 4],
+				    hexadec[suc6[i|1] & 15]);
+			} else {
+				printf("%c",
+				    hexadec[suc6[i|1]     ]);
+			}
+			
+			if (i < 14)
+				printf(":");
+		}
+		printf("\n");
+	}
+	freeaddrinfo(res0);
+
+	i = write(dns_socket, &six_available, 1);
+
+	if (i < 1) {
+		printf("%s ", strerror(errno));
+		printf("write error line: %d\n", __LINE__);
+		goto dns_exit1;
+	}
+
+	goto dns_loop;
+	
+dns_exit1:
+
+	free(dns_line);
+	_exit(1);
+
+
+}
+
+static int
+file_d(int write_pipe[], int dns_socket, int8_t secure, int8_t verbose)
+{
+	int i = fork();
+	switch(i)
+	{
+		case -1:
+			err(1, "file_d fork, line: %d\n", __LINE__);
+		case 0:
+			break;
+		default:
+			return i;
+	}
+	
+	int kq = 0;
+	char *file_w = NULL;
+	FILE *pkg_write = NULL;
+	
+	struct kevent ke;
+	bzero(&ke, sizeof(ke));
+
+	if (pledge("stdio cpath wpath", NULL) == -1) {
+		printf("%s ", strerror(errno));
+		printf("pledge, line: %d\n", __LINE__);
+		_exit(1);
+	}
+	close(write_pipe[STDOUT_FILENO]);
+
+	close(dns_socket);
+
+
+	kq = kqueue();
+	if (kq == -1) {
+		printf("%s ", strerror(errno));
+		printf("kq! line: %d\n", __LINE__);
+		_exit(1);
+	}
+	
+	/* 
+	 * It probably seems like overkill to use a kqueue for
+	 * a single file descriptor with no timeout, but I 
+	 * don't have to guess about how much data will
+	 * be sent down the pipe. I can allocate the perfect
+	 * amount of buffer space AFTER the pipe receives it.
+	 */
+	EV_SET(&ke, write_pipe[STDIN_FILENO], EVFILT_READ,
+	    EV_ADD | EV_ONESHOT, 0, 0, NULL);
+	if (kevent(kq, &ke, 1, &ke, 1, NULL) == -1) {
+		printf("%s ", strerror(errno));
+		printf("write_pid kevent register fail");
+		printf(" line: %d\n", __LINE__);
+		close(kq);
+		_exit(1);
+	}
+	close(kq);
+	
+	int received = ke.data;
+
+	/* parent exited before sending data */
+	if (received == 0) {
+		printf("/etc/installurl not written.\n");
+		_exit(1);
+	}
+	if (received > 300) {
+		printf("received mirror is too large\n");
+		printf("/etc/installurl not written.\n");
+		_exit(1);
+	}
+	
+	if (verbose >= 1)
+		printf("\n");
+
+	/* unlink() to prevent possible symlinks by...root? */
+	unlink("/etc/installurl");
+	pkg_write = fopen("/etc/installurl", "w");
+
+	if (pkg_write == NULL) {
+		printf("%s ", strerror(errno));
+		printf("/etc/installurl not opened.\n");
+		_exit(1);
+	}
+
+	if (pledge("stdio", NULL) == -1) {
+		printf("%s ", strerror(errno));
+		printf("pledge, line: %d\n", __LINE__);
+		fclose(pkg_write);
+		_exit(1);
+	}
+	
+	file_w = (char *)malloc(received + 1 + 1);
+	if (file_w == NULL) {
+		printf("malloc\n");
+		fclose(pkg_write);
+		_exit(1);
+	}
+		
+	i = read(write_pipe[STDIN_FILENO], file_w, received);
+
+	if (i < 0) {
+		printf("%s ", strerror(errno));
+		printf("read error occurred, line: %d\n", __LINE__);
+		free(file_w);
+		fclose(pkg_write);
+		_exit(1);
+	}
+
+	if (i < received) {
+		printf("didn't fully read from pipe, ");
+		printf("line: %d\n", __LINE__);
+		free(file_w);
+		fclose(pkg_write);
+		_exit(1);
+	}
+	
+	memcpy(file_w + received, "\n", 1 + 1);
+
+	if (secure == 1) {
+		if (strncmp(file_w, "https://", 8) != 0) {
+			printf("file_w does't begin with ");
+			printf("\"https://\", line: %d\n", __LINE__);
+			free(file_w);
+			fclose(pkg_write);
+			_exit(1);
+		}
+	} else {
+		if (strncmp(file_w, "http://", 7) != 0) {
+			printf("file_w does't begin with ");
+			printf("\"http://\", line: %d\n", __LINE__);
+			free(file_w);
+			fclose(pkg_write);
+			_exit(1);
+		}
+	}
+
+	i = fwrite(file_w, 1, received + 1, pkg_write);
+	if (i < received + 1) {
+		printf("%s ", strerror(errno));
+		printf("write error occurred, line: %d\n", __LINE__);
+		free(file_w);
+		fclose(pkg_write);
+		_exit(1);
+	}
+	
+	fclose(pkg_write);
+
+	if (verbose >= 0)
+		printf("/etc/installurl: %s", file_w);
+	
+	free(file_w);
+
+	_exit(0);
+}
+
+
 int
 main(int argc, char *argv[])
 {
@@ -345,17 +733,19 @@ main(int argc, char *argv[])
 	int8_t to_file = root_user;
 	int8_t num = 0, current = 0, secure = 0, verbose = 0;
 	int8_t generate = 0, override = 0, six = 0, next = 0, s_set = 0;
-	int8_t dns_cache_d = 1, usa = 1;
+	int8_t dns_cache = 1, usa = 1;
 	int16_t loop = 20;
-	long double s = 5, S = 0;
+	long double S = 0;
 	pid_t ftp_pid = 0, write_pid = 0, dns_cache_d_pid = 0;
 	int kq = 0, i = 0, pos = 0, c = 0, n = 0;
 	int array_max = 0, tag_len = 0;
 	int pos_max = 0, std_err = 0, entry_line = 0, exit_line = 0;
-	int dns_cache_d_socket[2] = { 0, 0 };
-	int write_pipe[2] = { 0, 0 };
-	int ftp_out[2] = { 0, 0 };
-	int block_pipe[2] = { 0, 0 };
+	
+	int dns_cache_d_socket[2] = { -1, -1 };
+	int         write_pipe[2] = { -1, -1 };
+	int            ftp_out[2] = { -1, -1 };
+	int         block_pipe[2] = { -1, -1 };
+	
 	struct timespec start = { 0, 0 }, end = { 0, 0 }, timeout = { 0, 0 };
 	char *line0 = NULL, *line = NULL, *release = NULL;
 	char *tag = NULL, *time = NULL;
@@ -364,6 +754,9 @@ main(int argc, char *argv[])
 	
 	struct kevent ke;
 	bzero(&ke, sizeof(ke));
+
+	/* 5 second default mirror timeout */
+	long double s = 5;
 
 	/* 10 seconds and 0 nanoseconds to download ftplist */
 	struct timespec timeout0 = { 10, 0 };
@@ -405,7 +798,7 @@ main(int argc, char *argv[])
 			six = 1;
 			break;
 		case 'd':
-			dns_cache_d = 0;
+			dns_cache = 0;
 			break;
 		case 'f':
 			to_file = 0;
@@ -422,23 +815,21 @@ main(int argc, char *argv[])
 			override = 1;
 			break;
 		case 'l':
-			if (strlen(optarg) > 4) {
-				printf("-l number should be less than ");
-				printf("or equal to 4 digits long.\n");
+			if (strlen(optarg) >= 5) {
+				printf("-l value should be less ");
+				printf("than 5 digits long.\n");
 				return 1;
 			}
-			c = -1;
-			n = 0;
-			while (optarg[++c] != '\0') {
-				if (optarg[c] >= '0' && optarg[c] <= '9') {
-					n = n * 10 + (int) (optarg[c] - '0');
-					continue;
+			c = 0;
+			loop = 0;
+			do {
+				if (optarg[c] < '0' || optarg[c] > '9') {
+					printf("-l value should only have ");
+					printf("numerical characters\n");
+					return 1;
 				}
-				printf("-l should only have ");
-				printf("numerical characters\n");
-				return 1;
-			}
-			loop = n;
+				loop = loop * 10 + optarg[c] - '0';
+			} while (optarg[++c] != '\0');
 			break;
 		case 'n':
 			next = 1;
@@ -459,7 +850,7 @@ main(int argc, char *argv[])
 				if (optarg[c] == '.' && ++i == 1)
 					continue;
 
-				printf("-s should have numerical ");
+				printf("-s value should have numerical ");
 				printf("characters and a maximum ");
 				printf("of one decimal point\n");
 				return 1;
@@ -502,14 +893,14 @@ main(int argc, char *argv[])
 		if (verbose < 1)
 			verbose = 1;
 		secure = 1;
-		dns_cache_d = 1;
+		dns_cache = 1;
 		next = 0;
 		override = 0;
 		to_file = 0;
 		if (pledge("stdio exec proc dns id", NULL) == -1)
 			err(1, "pledge, line: %d", __LINE__);
 			
-		/* change default 's' value */
+		/* change default 's' value if not specified */
 		if (time == NULL)
 			s = 10;
 	}
@@ -535,405 +926,32 @@ main(int argc, char *argv[])
 	
 
 		
-	if (dns_cache_d == 0 && verbose == 4)
+	if (dns_cache == 0 && verbose == 4)
 		verbose = 3;
 
 
-	if (dns_cache_d == 0)
-		goto jump_dns;
+	if (dns_cache == 1) {
 
-	/* 
-	 * Since socketpair is close on exec, and
-	 * dns_cache_d waits on a read, dns_cache_d
-	 * won't zombify upon early parent death nor exec
-	 */
-	if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC,
-	    PF_UNSPEC, dns_cache_d_socket) == -1)
-		err(1, "socketpair, line: %d\n", __LINE__);
+		if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC,
+		    PF_UNSPEC, dns_cache_d_socket) == -1)
+			err(1, "socketpair, line: %d\n", __LINE__);
 
-	dns_cache_d_pid = fork();
-	if (dns_cache_d_pid == (pid_t) 0) {
+		dns_cache_d_pid =
+		    dns_cache_d(dns_cache_d_socket, secure, six, verbose);
 
-			
-		if (pledge("stdio dns", NULL) == -1) {
-			printf("%s ", strerror(errno));
-			printf("dns_cache_d pledge, line: %d\n", __LINE__);
-			_exit(1);
-		}
-		
-		close(dns_cache_d_socket[1]);
-
-		char *hexadec = strdup("0123456789abcdef");
-		if (hexadec == NULL) {
-			printf("strdup\n");
-			_exit(1);
-		}
-					  
-		uint8_t dns_line_max = 0;
-		struct addrinfo *res0 = NULL, *res = NULL;
-		
-		struct addrinfo hints;
-		bzero(&hints, sizeof(hints));
-		
-		struct sockaddr_in *sa4 = NULL;
-		uint32_t sui4 = 0;
-
-		struct sockaddr_in6 *sa6 = NULL;
-		unsigned char *suc6 = NULL;
-
-		int8_t max = 0, i_temp = 0, i_max = 0;
-		char six_available = '0';
-		
-		char *dns_line0 = NULL, *dns_line = NULL;
-
-
-		if (secure)
-			dns_line0 = strdup("https");
-		else
-			dns_line0 = strdup("www");
-			
-		if (dns_line0 == NULL) {
-			printf("malloc\n");
-			free(hexadec);
-			_exit(1);
-		}
-		i = read(dns_cache_d_socket[0], &dns_line_max, 1);
-		if (i < 1) {
-			printf("read, line: %d\n", __LINE__);
-			free(hexadec);
-			free(dns_line0);
-			_exit(1);
-		}
-
-		dns_line = (char *)malloc(dns_line_max + 1);
-		if (dns_line == NULL) {
-			printf("malloc\n");
-			free(hexadec);
-			free(dns_line0);
-			_exit(1);
-		}
-		
-dns_loop:
-
-		i = read(dns_cache_d_socket[0], dns_line, dns_line_max + 1);
-		if (i == 0) {
-			free(hexadec);
-			free(dns_line);
-			free(dns_line0);
-			close(dns_cache_d_socket[0]);
-			_exit(0);
-		}
-
-		if (i > dns_line_max) {
-			printf("i > dns_line_max, line: %d\n", __LINE__);
-			goto dns_exit1;
-		}
-		
-		if (i == -1) {
-			printf("%s ", strerror(errno));
-			printf("read error line: %d\n", __LINE__);
-			goto dns_exit1;
-		}
-		dns_line[i] = '\0';
-
-		if (verbose == 4)
-			printf("DNS caching: %s\n", dns_line);
-
-
-		bzero(&hints, sizeof(hints));
-		hints.ai_flags = AI_FQDN;
-		hints.ai_family = AF_UNSPEC;
-		hints.ai_socktype = SOCK_STREAM;
-		n = getaddrinfo(dns_line, dns_line0, &hints, &res0);
-		if (n) {
-			i = write(dns_cache_d_socket[0], "f", 1);
-			if (i < 1) {
-				printf("%s ", strerror(errno));
-				printf("write error line: %d\n", __LINE__);
-				goto dns_exit1;
-			}
-			goto dns_loop;
-		}
-
-		if (verbose < 4 && !six) {
-			freeaddrinfo(res0);
-			i = write(dns_cache_d_socket[0], "1", 1);
-			if (i < 1) {
-				printf("%s ", strerror(errno));
-				printf("write error line: %d\n", __LINE__);
-				goto dns_exit1;
-			}
-			goto dns_loop;
-		}
-
-		six_available = '0';
-
-		for (res = res0; res; res = res->ai_next) {
-
-			if (res->ai_family == AF_INET) {
-				if (six)
-					continue;
-				sa4 = (struct sockaddr_in *) res->ai_addr;
-				sui4 = sa4->sin_addr.s_addr;
-				printf("       %u.%u.%u.%u\n",
-				     sui4        & 0xff,
-				    (sui4 >>  8) & 0xff,
-				    (sui4 >> 16) & 0xff,
-				     sui4 >> 24        );
-				continue;
-			}
-			
-			/* res->ai_family == AF_INET6 */
-
-			six_available = '1';
-			if (verbose < 4)
-				break;
-
-			printf("       ");
-
-			sa6 = (struct sockaddr_in6 *) res->ai_addr;
-			suc6 = sa6->sin6_addr.s6_addr;
-
-			c = max = 0;
-			i_max = -1;
-
-			/* load largest >1 gap beginning into i_max */
-			for (i = 0; i < 16; i += 2) {
-
-				/* suc6[i] || suc6[i + 1] */
-				if (  *( (uint16_t *)(suc6 + i) )  ) {
-					c = 0;
-					continue;
-				}
-				
-				if (c == 0) {
-					i_temp = i;
-					c = 1;
-					continue;
-				}
-				
-				if (max < ++c) {
-					max = c;
-					i_max = i_temp;
-				}
-			}
-
-			/* 
-			 *                  ">> 4" == "/ 16"
-			 *              "max << 1" == "2 * max"
-			 *            "& 15" == "& 0x0f" == "% 16"
-			 *  'i' is even so I can use "i|1" instead of "i+1",
-			 * which may be more efficient. I think it's prettier
-			 */
-			for (i = 0; i < 16; i += 2) {
-
-				if (i == i_max) {
-					if (i == 0)
-						printf("::");
-					else
-						printf(":");
-					i += max << 1;
-					if (i >= 16)
-						break;
-				}
-				
-				if (suc6[i  ] >> 4) {
-					printf("%c%c%c%c",
-					    hexadec[suc6[i  ] >> 4],
-					    hexadec[suc6[i  ] & 15],
-					    hexadec[suc6[i|1] >> 4],
-					    hexadec[suc6[i|1] & 15]);
-					    
-				} else if (suc6[i  ]) {
-					printf("%c%c%c",
-					    hexadec[suc6[i  ]     ],
-					    hexadec[suc6[i|1] >> 4],
-					    hexadec[suc6[i|1] & 15]);
-					    
-				} else if (suc6[i|1] >> 4) {
-					printf("%c%c",
-					    hexadec[suc6[i|1] >> 4],
-					    hexadec[suc6[i|1] & 15]);
-				} else {
-					printf("%c",
-					    hexadec[suc6[i|1]     ]);
-				}
-				
-				if (i < 14)
-					printf(":");
-			}
-			printf("\n");
-		}
-		freeaddrinfo(res0);
-
-		i = write(dns_cache_d_socket[0], &six_available, 1);
-
-		if (i < 1) {
-			printf("%s ", strerror(errno));
-			printf("write error line: %d\n", __LINE__);
-			goto dns_exit1;
-		}
-
-		goto dns_loop;
-dns_exit1:
-		free(hexadec);
-		free(dns_line);
-		free(dns_line0);
 		close(dns_cache_d_socket[0]);
-		_exit(1);
-		
 	}
-	if (dns_cache_d_pid == -1)
-		err(1, "dns_cache_d fork, line: %d\n", __LINE__);
 
-	close(dns_cache_d_socket[0]);
+	if (to_file == 1) {
 
-jump_dns:
+		if (pipe2(write_pipe, O_CLOEXEC) == -1)
+			err(1, "pipe2, line: %d", __LINE__);
 
-	if (to_file == 0)
-		goto jump_f;
-
-	if (pledge("stdio exec proc cpath wpath id", NULL) == -1)
-		err(1, "pledge, line: %d", __LINE__);
-
-	if (pipe2(write_pipe, O_CLOEXEC) == -1)
-		err(1, "pipe2, line: %d", __LINE__);
-
-	write_pid = fork();
-	if (write_pid == (pid_t) 0) {
-
-		char *file_w = NULL;
-		FILE *pkg_write = NULL;
-
-		if (pledge("stdio cpath wpath", NULL) == -1) {
-			printf("%s ", strerror(errno));
-			printf("pledge, line: %d\n", __LINE__);
-			_exit(1);
-		}
-		close(write_pipe[STDOUT_FILENO]);
-
-		if (dns_cache_d)
-			close(dns_cache_d_socket[1]);
-
-
-		kq = kqueue();
-		if (kq == -1) {
-			printf("%s ", strerror(errno));
-			printf("kq! line: %d\n", __LINE__);
-			_exit(1);
-		}
-		
-		/* 
-		 * It probably seems like overkill to use a kqueue for
-		 * a single file descriptor with no timeout, but I 
-		 * don't have to guess about how much data will
-		 * be sent down the pipe. I can allocate the perfect
-		 * amount of buffer space AFTER the pipe receives it.
-		 */
-		EV_SET(&ke, write_pipe[STDIN_FILENO], EVFILT_READ,
-		    EV_ADD | EV_ONESHOT, 0, 0, NULL);
-		if (kevent(kq, &ke, 1, &ke, 1, NULL) == -1) {
-			printf("%s ", strerror(errno));
-			printf("write_pid kevent register fail");
-			printf(" line: %d\n", __LINE__);
-			close(kq);
-			_exit(1);
-		}
-		close(kq);
-		
-		int received = ke.data;
-
-		/* parent exited before sending data */
-		if (received == 0) {
-			printf("/etc/installurl not written.\n");
-			_exit(1);
-		}
-		if (received > 300) {
-			printf("received mirror is too large\n");
-			printf("/etc/installurl not written.\n");
-			_exit(1);
-		}
-		
-		if (verbose >= 1)
-			printf("\n");
-
-		/* unlink() to prevent possible symlinks by...root? */
-		unlink("/etc/installurl");
-		pkg_write = fopen("/etc/installurl", "w");
-
-		if (pkg_write == NULL) {
-			printf("%s ", strerror(errno));
-			printf("/etc/installurl not opened.\n");
-			_exit(1);
-		}
-
-		if (pledge("stdio", NULL) == -1) {
-			printf("%s ", strerror(errno));
-			printf("pledge, line: %d\n", __LINE__);
-			fclose(pkg_write);
-			_exit(1);
-		}
-		
-		file_w = (char *)malloc(received + 1 + 1);
-		if (file_w == NULL) {
-			printf("malloc\n");
-			fclose(pkg_write);
-			_exit(1);
-		}
+		write_pid =
+		    file_d(write_pipe, dns_cache_d_socket[1], secure, verbose);
 			
-		i = read(write_pipe[STDIN_FILENO], file_w, received);
-
-		if (i < 0) {
-			printf("%s ", strerror(errno));
-			printf("read error occurred, line: %d\n", __LINE__);
-			free(file_w);
-			fclose(pkg_write);
-			_exit(1);
-		}
-
-		if (i < received) {
-			printf("didn't fully read from pipe, ");
-			printf("line: %d\n", __LINE__);
-			free(file_w);
-			fclose(pkg_write);
-			_exit(1);
-		}
-
-		if (i <= (int)(strlen("http://") + secure)) {
-			printf("read <= \"http://\", line: %d\n", __LINE__);
-			free(file_w);
-			fclose(pkg_write);
-			_exit(1);
-		}
-		
-		memcpy(file_w + received, "\n", 1 + 1);
-
-		i = fwrite(file_w, 1, received + 1, pkg_write);
-		if (i < received + 1) {
-			printf("%s ", strerror(errno));
-			printf("write error occurred, line: %d\n", __LINE__);
-			free(file_w);
-			fclose(pkg_write);
-			_exit(1);
-		}
-		
-		fclose(pkg_write);
-
-		if (verbose >= 0)
-			printf("/etc/installurl: %s", file_w);
-		
-		free(file_w);
-
-		_exit(0);
-
+		close(write_pipe[STDIN_FILENO]);
 	}
-	if (write_pid == -1)
-		err(1, "write fork, line: %d", __LINE__);
-
-	close(write_pipe[STDIN_FILENO]);
-
-
-jump_f:
 
 
 	if (root_user == 1) {
@@ -1533,7 +1551,7 @@ restart_program:
 		h = strlen("https://");
 
 
-	if (dns_cache_d) {
+	if (dns_cache) {
 		uint8_t length = pos_max - h;
 		i = write(dns_cache_d_socket[1], &length, 1);
 		if (i < 1) {
@@ -1643,7 +1661,7 @@ restart_program:
 
 
 
-		if (dns_cache_d) {
+		if (dns_cache) {
 		
 			char *host = h + line;
 			
@@ -1847,7 +1865,7 @@ restart_dns_err:
 			array[c].diff = s;
 	}
 
-	if (dns_cache_d) {
+	if (dns_cache) {
 		close(dns_cache_d_socket[1]);
 		waitpid(dns_cache_d_pid, NULL, 0);
 	}
