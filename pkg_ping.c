@@ -134,8 +134,8 @@ label_cmp_minus_usa(const void *a, const void *b)
 	int8_t i = 3;
 		
 	/* 
-	 * I'm comparing the labels by proper decreasing
-	 * hierarchy, which are in reverse order between commas.
+	 * compare the labels alphabetically by proper decreasing
+	 * hierarchy which are in reverse order between commas.
 	 */
 	 
 	 /* start with the last comma */
@@ -187,8 +187,9 @@ blue_jump:
 	if (ret == 0) {
 		/* 
 		 * if (i):
-		 * One of red or blue has no more commas
-		 * the one with fewer commas is preferred.
+		 * One of red or blue has no more comma
+		 * separated entries while remaining, equal.
+		 * The one with fewer commas is preferred.
 		 * If red: i == 1, if blue: i == 2
 		 */
 		if (i == 1)
@@ -252,31 +253,39 @@ diff_cmp(const void *a, const void *b)
 static int
 diff_cmp_g(const void *a, const void *b)
 {
-	struct mirror_st *one = (struct mirror_st *) a;
-	struct mirror_st *two = (struct mirror_st *) b;
+	long double one_diff = ((struct mirror_st *) a)->diff;
+	long double two_diff = ((struct mirror_st *) b)->diff;
 
 	/* sort the biggest diff values first */
-	if (one->diff > two->diff)
+	if (one_diff > two_diff)
 		return -1;
-	if (one->diff < two->diff)
+	if (one_diff < two_diff)
 		return 1;
-	return strcmp(one->http, two->http);
+		
+	return strcmp(
+		      ((struct mirror_st *) a)->http,
+		      ((struct mirror_st *) b)->http
+		     );
 }
 
 static int
 diff_cmp_g2(const void *a, const void *b)
 {
-	struct mirror_st *one = (struct mirror_st *) a;
-	struct mirror_st *two = (struct mirror_st *) b;
+	long double one_diff = ((struct mirror_st *) a)->diff;
+	long double two_diff = ((struct mirror_st *) b)->diff;
 
 	/* sort the biggest diff values first */
-	if (one->diff > two->diff)
+	if (one_diff > two_diff)
 		return -1;
-	if (one->diff < two->diff)
+	if (one_diff < two_diff)
 		return 1;
 		
-	if (one->diff > 0)
-		return strcmp(one->http, two->http);
+	if (one_diff > 0) {
+		return strcmp(
+			      ((struct mirror_st *) a)->http,
+			      ((struct mirror_st *) b)->http
+			     );
+	}
 	return 0;
 }
 
@@ -335,7 +344,8 @@ manpage()
 }
 
 static int
-dns_cache_d(int dns_cache_d_socket[], int8_t secure, int8_t six, int8_t verbose)
+dns_cache_d(const int dns_cache_d_socket[], const int8_t secure,
+	    const int8_t six, const int8_t verbose)
 {
 	int i = fork();
 	switch(i)
@@ -393,7 +403,7 @@ dns_cache_d(int dns_cache_d_socket[], int8_t secure, int8_t six, int8_t verbose)
 		_exit(1);
 	}
 
-	dns_line = (char *)malloc(dns_line_max + 1);
+	dns_line = malloc(dns_line_max + 1);
 	if (dns_line == NULL) {
 		printf("malloc\n");
 		_exit(1);
@@ -572,8 +582,16 @@ dns_exit1:
 
 }
 
+/*
+ * I considered keeping this functionality in main(), but
+ * if there's a possibility of the main() getting overrun,
+ * this process performs some sanity checks to, among
+ * other things, prevent /etc/installurl from becoming a
+ * massive file which fills up the partition.
+ */
 static int
-file_d(int write_pipe[], int dns_socket, int8_t secure, int8_t verbose)
+file_d(const int write_pipe[], const int dns_socket,
+       const int8_t secure, const int8_t verbose)
 {
 	int i = fork();
 	switch(i)
@@ -585,30 +603,32 @@ file_d(int write_pipe[], int dns_socket, int8_t secure, int8_t verbose)
 		default:
 			return i;
 	}
-	
-	int kq = 0;
-	char *file_w = NULL;
-	FILE *pkg_write = NULL;
-	
-	struct kevent ke;
-	bzero(&ke, sizeof(ke));
 
 	if (pledge("stdio cpath wpath", NULL) == -1) {
 		printf("%s ", strerror(errno));
 		printf("pledge, line: %d\n", __LINE__);
 		_exit(1);
 	}
-	close(write_pipe[STDOUT_FILENO]);
-
-	close(dns_socket);
-
-
-	kq = kqueue();
+	
+	int kq = kqueue();
 	if (kq == -1) {
 		printf("%s ", strerror(errno));
 		printf("kq! line: %d\n", __LINE__);
 		_exit(1);
 	}
+	
+	char *file_w = NULL;
+	FILE *pkg_write = NULL;
+	
+	struct kevent ke;
+	bzero(&ke, sizeof(ke));
+	
+	close(write_pipe[STDOUT_FILENO]);
+
+	close(dns_socket);
+
+
+	
 	
 	/* 
 	 * It probably seems like overkill to use a kqueue for
@@ -661,7 +681,7 @@ file_d(int write_pipe[], int dns_socket, int8_t secure, int8_t verbose)
 		_exit(1);
 	}
 	
-	file_w = (char *)malloc(received + 1 + 1);
+	file_w = malloc(received + 1 + 1);
 	if (file_w == NULL) {
 		printf("malloc\n");
 		fclose(pkg_write);
@@ -669,6 +689,7 @@ file_d(int write_pipe[], int dns_socket, int8_t secure, int8_t verbose)
 	}
 		
 	i = read(write_pipe[STDIN_FILENO], file_w, received);
+	close(write_pipe[STDIN_FILENO]);
 
 	if (i < 0) {
 		printf("%s ", strerror(errno));
@@ -792,7 +813,7 @@ main(int argc, char *argv[])
 	}
 
 
-	while ((c = getopt(argc, argv, "6dfghOl:nSs:uvV")) != -1) {
+	while ((c = getopt(argc, argv, "6dfghl:OnSs:uvV")) != -1) {
 		switch (c) {
 		case '6':
 			six = 1;
@@ -811,25 +832,25 @@ main(int argc, char *argv[])
 		case 'h':
 			manpage();
 			return 0;
-		case 'O':
-			override = 1;
-			break;
 		case 'l':
 			if (strlen(optarg) >= 5) {
 				printf("-l value should be less ");
 				printf("than 5 digits long.\n");
 				return 1;
 			}
-			c = 0;
-			loop = 0;
+			
+			c = loop = 0;
 			do {
 				if (optarg[c] < '0' || optarg[c] > '9') {
 					printf("-l value should only have ");
-					printf("numerical characters\n");
+					printf("numeric characters\n");
 					return 1;
 				}
 				loop = loop * 10 + optarg[c] - '0';
 			} while (optarg[++c] != '\0');
+			break;
+		case 'O':
+			override = 1;
 			break;
 		case 'n':
 			next = 1;
@@ -838,23 +859,21 @@ main(int argc, char *argv[])
 			secure = 1;
 			break;
 		case 's':
-			c = -1;
-			i = 0;
-			
 			if (!strcmp(optarg, "."))
-				errx(1, "-s cannot be: .");
+				errx(1, "-s should not be: \".\"");
 			
-			while (optarg[++c] != '\0') {
+			c = i = 0;
+			do {
 				if (optarg[c] >= '0' && optarg[c] <= '9')
 					continue;
 				if (optarg[c] == '.' && ++i == 1)
 					continue;
 
-				printf("-s value should have numerical ");
+				printf("-s value should have only numeric ");
 				printf("characters and a maximum ");
 				printf("of one decimal point\n");
 				return 1;
-			}
+			} while (optarg[++c] != '\0');
 
 			errno = 0;
 			s = strtold(optarg, NULL);
@@ -989,7 +1008,7 @@ main(int argc, char *argv[])
 		close(ftp_out[STDIN_FILENO]);
 
 		n = 300;
-		line = (char *)malloc(n);
+		line = malloc(n);
 		if (line == NULL) {
 			printf("malloc\n");
 			_exit(1);
@@ -1011,13 +1030,13 @@ main(int argc, char *argv[])
     "*artfiles.org/openbsd","mirror.bytemark.co.uk","mirror.planetunix.net",
      "www.mirrorservice.org","ftp4.usa.openbsd.org","mirror.aarnet.edu.au",
       "mirror.exonetric.net","mirror.fsrv.services","mirror.serverion.com",
-       "openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
-        "mirror.leaseweb.com","mirrors.gigenet.com","ftp.eu.openbsd.org",
-         "ftp.fr.openbsd.org","mirror.fsmg.org.nz","mirror.ungleich.ch",
-         "mirrors.dotsrc.org","openbsd.ipacct.com","ftp.hostserver.de",
- "mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.labkom.id","mirror.litnet.lt",
-    "mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp",
-     "mirror.esc7.net","mirror.vdms.com","ftp.icm.edu.pl","mirror.one.com",
+       "ftp.usa.openbsd.org","ftp2.eu.openbsd.org","mirror.leaseweb.com",
+        "mirrors.gigenet.com","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
+         "mirror.fsmg.org.nz","mirror.ungleich.ch","mirrors.dotsrc.org",
+          "openbsd.ipacct.com","ftp.hostserver.de","mirrors.sonic.net",
+  "mirrors.ucr.ac.cr","mirror.labkom.id","mirror.litnet.lt","mirror.yandex.ru",
+    "cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.esc7.net",
+     "mirror.vdms.com","mirrors.mit.edu","ftp.icm.edu.pl","mirror.one.com",
  "ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp","ftp.eenet.ee",
       "ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl","ftp.fau.de","ftp.fsn.hu",
                                   "openbsd.hk"
@@ -1141,7 +1160,7 @@ main(int argc, char *argv[])
 	
 	if (time == NULL) {
 		n = 20;
-		time = (char *)malloc(n);
+		time = malloc(n);
 		if (time == NULL) {
 			kill(ftp_pid, SIGINT);
 			errx(1, "malloc");
@@ -1192,7 +1211,7 @@ main(int argc, char *argv[])
 			return 1;
 		}
 		
-		line = (char *)malloc(len);
+		line = malloc(len);
 		if (line == NULL) {
 			kill(ftp_pid, SIGINT);		
 			errx(1, "malloc");
@@ -1304,7 +1323,7 @@ main(int argc, char *argv[])
 			    strlen(name->machine) + strlen("/SHA256");
 		}
 		
-		tag = (char *)malloc(tag_len + 1);
+		tag = malloc(tag_len + 1);
 		if (tag == NULL) {
 			kill(ftp_pid, SIGINT);
 			errx(1, "malloc");
@@ -1320,14 +1339,14 @@ main(int argc, char *argv[])
 	
 	
 	/* if the index for line[] can exceed 254, it will error out */
-	line = (char *)malloc(255);
+	line = malloc(255);
 	if (line == NULL) {
 		kill(ftp_pid, SIGINT);
 		errx(1, "malloc");
 	}
 
 	array_max = 100;
-	array = (struct mirror_st *)calloc(array_max, sizeof(struct mirror_st));
+	array = calloc(array_max, sizeof(struct mirror_st));
 	if (array == NULL) {
 		kill(ftp_pid, SIGINT);
 		errx(1, "calloc");
@@ -1404,7 +1423,7 @@ main(int argc, char *argv[])
 			if (pos_max < pos)
 				pos_max = pos;
 
-			array[array_length].http = (char *)malloc(pos);
+			array[array_length].http = malloc(pos);
 			if (array[array_length].http == NULL) {
 				kill(ftp_pid, SIGINT);
 				errx(1, "malloc");
@@ -1473,8 +1492,8 @@ main(int argc, char *argv[])
 
 		if (++array_length >= array_max) {
 			array_max += 20;
-			array = (struct mirror_st *)reallocarray(array,
-			    array_max, sizeof(struct mirror_st));
+			array = reallocarray(array, array_max,
+			    sizeof(struct mirror_st));
 
 			if (array == NULL) {
 				kill(ftp_pid, SIGINT);
@@ -1526,20 +1545,19 @@ restart_program:
 			
 		n = argc - (argc > 1 && !strncmp(argv[argc - 1], "-l", 2));
 		
-		char **arg_v = (char **)calloc(n + 1 + 1, sizeof(char *));
+		char **arg_v = calloc(n + 1 + 1, sizeof(char *));
 		if (arg_v == NULL)
 			errx(1, "calloc");
 			
 		for (i = 0; i < n; ++i)
 			arg_v[i] = argv[i];
 			
-			
-		arg_v[n] = (char *)malloc(10);
+		arg_v[n] = malloc(10);
 		if (arg_v[n] == NULL)
 			errx(1, "malloc");
 		c = snprintf(arg_v[n], 10, "-l%d", loop);
 		if (c >= 10)
-			errx(1, "snprintf");
+			errx(1, "snprintf, line: %d", __LINE__);
 			
 			
 		execv(arg_v[0], arg_v);
@@ -1565,13 +1583,12 @@ restart_program:
 	
 	pos_max += tag_len;
 
-	line = (char *)malloc(pos_max);
+	line = malloc(pos_max);
 	if (line == NULL)
 		errx(1, "malloc");
 
 
-	array = (struct mirror_st *)reallocarray(array,
-	    array_length, sizeof(struct mirror_st));
+	array = reallocarray(array, array_length, sizeof(struct mirror_st));
 	    
 	if (array == NULL)
 		errx(1, "reallocarray");
