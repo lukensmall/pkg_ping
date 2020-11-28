@@ -451,13 +451,22 @@ dns_loop:
 	}
 
 	if (verbose < 4 && !six) {
-		freeaddrinfo(res0);
-		i = write(dns_socket, "1", 1);
+		for (res = res0; res; res = res->ai_next) {
+			if (res->ai_family == AF_INET ||
+			    res->ai_family == AF_INET6)
+				break;
+		}
+		if (res == NULL)
+			i = write(dns_socket, "f", 1);
+		else
+			i = write(dns_socket, "1", 1);
+			
 		if (i < 1) {
 			printf("%s ", strerror(errno));
 			printf("write error line: %d\n", __LINE__);
 			goto dns_exit1;
 		}
+		freeaddrinfo(res0);
 		goto dns_loop;
 	}
 
