@@ -433,7 +433,7 @@ dns_loop:
 		printf("DNS caching: %s\n", dns_line);
 
 
-	bzero(&hints, sizeof(hints));
+	bzero(&hints, sizeof(struct addrinfo));
 	hints.ai_flags = AI_FQDN;
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
@@ -1195,7 +1195,7 @@ main(int argc, char *argv[])
 		if (i > 0) {
 			char *time0 = time;
 			time[i] = '\0';
-			time = strdup(time);
+			time = strdup(time0);
 			if (time == NULL) {
 				kill(ftp_pid, SIGINT);
 				errx(1, "strdup");
@@ -1253,8 +1253,6 @@ main(int argc, char *argv[])
 	
 	if (generate == 1) {
 		
-		release = NULL;
-
 		tag = strdup("/timestamp");
 		if (tag == NULL) {
 			kill(ftp_pid, SIGINT);
@@ -1975,8 +1973,21 @@ restart_dns_err:
 		}
 		
 		if (n == 1) {
+			
 			printf("Couldn't find any openbsd.org mirrors.\n");
 			printf("Try again with a larger timeout!\n");
+			
+			for (i = 0; i <= se0; ++i) {
+				if (array[i].http[0] == '*')
+					array[i].http -= h - 1;
+				else
+					array[i].http -= h;
+			}
+			
+			free(time);
+			free(release);
+
+			return 1;
 		}
 
 		/* 
