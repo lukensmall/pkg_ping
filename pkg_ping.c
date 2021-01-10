@@ -279,8 +279,14 @@ diff_cmp_g2(const void *a, const void *b)
 		return -1;
 	if (one_diff < two_diff)
 		return 1;
-		
-	if (one_diff > 0) {
+	
+	/* 
+	 * both diffs will be equal here and most of
+	 *      the time will be equal to zero.
+	 *        if they are zero, the http
+	 *       comparison isn't interesting.
+	 */
+	if (one_diff) {
 		return strcmp(
 			      ((struct mirror_st *) a)->http,
 			      ((struct mirror_st *) b)->http
@@ -338,7 +344,7 @@ manpage()
 	printf("[-V (no Verbose output. No output but error messages)]\n\n");
 	
 	
-	printf("More information at ");
+	printf("More information at: ");
 	printf("https://github.com/lukensmall/pkg_ping\n\n");
 	
 }
@@ -403,14 +409,17 @@ dns_cache_d(const int dns_cache_d_socket[], const int8_t secure,
 		_exit(1);
 	}
 
-	dns_line = malloc(dns_line_max + 1);
+	dns_line = calloc(dns_line_max + 1, sizeof(char));
 	if (dns_line == NULL) {
-		printf("malloc\n");
+		printf("calloc\n");
 		_exit(1);
 	}
 	
+	if (0) {
 dns_loop:
-
+		bzero(&hints, sizeof(struct addrinfo));
+	}
+	
 	i = read(dns_socket, dns_line, dns_line_max + 1);
 	if (i == 0) {
 		free(dns_line);
@@ -433,7 +442,6 @@ dns_loop:
 		printf("DNS caching: %s\n", dns_line);
 
 
-	bzero(&hints, sizeof(struct addrinfo));
 	hints.ai_flags = AI_FQDN;
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
@@ -690,9 +698,9 @@ file_d(const int write_pipe[], const int dns_socket,
 		_exit(1);
 	}
 	
-	file_w = malloc(received + 1 + 1);
+	file_w = calloc(received + 1 + 1, sizeof(char));
 	if (file_w == NULL) {
-		printf("malloc\n");
+		printf("calloc\n");
 		fclose(pkg_write);
 		_exit(1);
 	}
@@ -777,7 +785,7 @@ main(int argc, char *argv[])
 	int         block_pipe[2] = { -1, -1 };
 	
 	struct timespec start = { 0, 0 }, end = { 0, 0 }, timeout = { 0, 0 };
-	char *line0 = NULL, *line = NULL, *release = NULL;
+	char *line_t = NULL, *line0 = NULL, *line = NULL, *release = NULL;
 	char *tag = NULL, *time = NULL;
 	size_t len = 0;
 	char v = '\0';
@@ -1017,9 +1025,9 @@ main(int argc, char *argv[])
 		close(ftp_out[STDIN_FILENO]);
 
 		n = 300;
-		line = malloc(n);
+		line = calloc(n, sizeof(char));
 		if (line == NULL) {
-			printf("malloc\n");
+			printf("calloc\n");
 			_exit(1);
 		}
 		
@@ -1029,7 +1037,7 @@ main(int argc, char *argv[])
 		/* GENERATED CODE BEGINS HERE */
 
 
-		const char *ftp_list[55] = {
+		const char *ftp_list[54] = {
 
          "openbsd.mirror.netelligent.ca","mirrors.syringanetworks.net",
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
@@ -1038,21 +1046,20 @@ main(int argc, char *argv[])
    "mirror.hs-esslingen.de","mirrors.pidginhost.com","openbsd.cs.toronto.edu",
     "*artfiles.org/openbsd","mirror.bytemark.co.uk","mirror.planetunix.net",
      "www.mirrorservice.org","ftp4.usa.openbsd.org","mirror.aarnet.edu.au",
-      "mirror.exonetric.net","mirror.fsrv.services","mirror.serverion.com",
-       "ftp.usa.openbsd.org","ftp2.eu.openbsd.org","mirror.leaseweb.com",
-        "mirrors.gigenet.com","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
-         "mirror.fsmg.org.nz","mirror.ungleich.ch","mirrors.dotsrc.org",
-          "openbsd.ipacct.com","ftp.hostserver.de","mirrors.sonic.net",
-  "mirrors.ucr.ac.cr","mirror.labkom.id","mirror.litnet.lt","mirror.yandex.ru",
-    "cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.esc7.net",
-     "mirror.vdms.com","mirrors.mit.edu","ftp.icm.edu.pl","mirror.one.com",
- "ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp","ftp.eenet.ee",
-      "ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl","ftp.fau.de","ftp.fsn.hu",
-                                  "openbsd.hk"
+       "openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
+        "mirror.leaseweb.com","mirrors.gigenet.com","ftp.eu.openbsd.org",
+         "ftp.fr.openbsd.org","mirror.fsmg.org.nz","mirror.ungleich.ch",
+         "mirrors.dotsrc.org","openbsd.ipacct.com","ftp.hostserver.de",
+ "ftp.man.poznan.pl","mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.labkom.id",
+   "mirror.litnet.lt","mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org",
+    "ftp.jaist.ac.jp","mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu",
+       "ftp.icm.edu.pl","mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie",
+  "ftp.spline.de","www.ftp.ne.jp","ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp",
+               "ftp.bit.nl","ftp.fau.de","ftp.fsn.hu","openbsd.hk"
 
 		};
 
-		const uint16_t index = 55;
+		const uint16_t index = 54;
 
 
 
@@ -1169,10 +1176,10 @@ main(int argc, char *argv[])
 	
 	if (time == NULL) {
 		n = 20;
-		time = malloc(n);
+		time = calloc(n, sizeof(char));
 		if (time == NULL) {
 			kill(ftp_pid, SIGINT);
-			errx(1, "malloc");
+			errx(1, "calloc");
 		}
 		i = snprintf(time, n, "%Lf", s);
 		if (i >= n) {
@@ -1220,10 +1227,10 @@ main(int argc, char *argv[])
 			return 1;
 		}
 		
-		line = malloc(len);
+		line = calloc(len, sizeof(char));
 		if (line == NULL) {
 			kill(ftp_pid, SIGINT);		
-			errx(1, "malloc");
+			errx(1, "calloc");
 		}
 			
 		/* read results of "sysctl kern.version" into 'line' */
@@ -1280,11 +1287,11 @@ main(int argc, char *argv[])
 	} else {
 		
 		struct utsname *name =
-		    (struct utsname *)malloc(sizeof(struct utsname));
+		    (struct utsname *)calloc(1, sizeof(struct utsname));
 		    
 		if (name == NULL) {
 			kill(ftp_pid, SIGINT);
-			errx(1, "malloc");
+			errx(1, "calloc");
 		}
 		
 		
@@ -1330,10 +1337,10 @@ main(int argc, char *argv[])
 			    strlen(name->machine) + strlen("/SHA256");
 		}
 		
-		tag = malloc(tag_len + 1);
+		tag = calloc(tag_len + 1, sizeof(char));
 		if (tag == NULL) {
 			kill(ftp_pid, SIGINT);
-			errx(1, "malloc");
+			errx(1, "calloc");
 		}
 
 		if (current == 1)
@@ -1346,10 +1353,10 @@ main(int argc, char *argv[])
 	
 	
 	/* if the index for line[] can exceed 254, it will error out */
-	line = malloc(255);
+	line = calloc(255, sizeof(char));
 	if (line == NULL) {
 		kill(ftp_pid, SIGINT);
-		errx(1, "malloc");
+		errx(1, "calloc");
 	}
 
 	array_max = 100;
@@ -1430,10 +1437,10 @@ main(int argc, char *argv[])
 			if (pos_max < pos)
 				pos_max = pos;
 
-			array[array_length].http = malloc(pos);
+			array[array_length].http = calloc(pos, sizeof(char));
 			if (array[array_length].http == NULL) {
 				kill(ftp_pid, SIGINT);
-				errx(1, "malloc");
+				errx(1, "calloc");
 			}
 			
 			if (secure) {
@@ -1479,8 +1486,8 @@ main(int argc, char *argv[])
 		 * being redundantly and repeatedly checked.
 		 */
 		if (verbose >= 1) {
-			line0 = strrchr(line, ',');
-			if (line0 != NULL && line0[1] != ' ') {
+			line_t = strrchr(line, ',');
+			if (line_t != NULL && line_t[1] != ' ') {
 				kill(ftp_pid, SIGINT);
 				printf("label malformation: ");
 				printf("%s\n", line);
@@ -1559,9 +1566,9 @@ restart_program:
 		for (i = 0; i < n; ++i)
 			arg_v[i] = argv[i];
 			
-		arg_v[n] = malloc(10);
+		arg_v[n] = calloc(10, sizeof(char));
 		if (arg_v[n] == NULL)
-			errx(1, "malloc");
+			errx(1, "calloc");
 		c = snprintf(arg_v[n], 10, "-l%d", loop);
 		if (c >= 10)
 			errx(1, "snprintf, line: %d", __LINE__);
@@ -1590,9 +1597,9 @@ restart_program:
 	
 	pos_max += tag_len;
 
-	line = malloc(pos_max);
+	line = calloc(pos_max, sizeof(char));
 	if (line == NULL)
-		errx(1, "malloc");
+		errx(1, "calloc");
 
 
 	array = reallocarray(array, array_length, sizeof(struct mirror_st));
@@ -1625,18 +1632,15 @@ restart_program:
 
 	if (six == 1) {
 		if (verbose >= 3)
-			line0 = strdup("-vim6o-");
+			line0 = "-vim6o-";
 		else
-			line0 = strdup("-ViM6o-");
+			line0 = "-ViM6o-";
 	} else {
 		if (verbose >= 3)
-			line0 = strdup("-vimo-");
+			line0 = "-vimo-";
 		else
-			line0 = strdup("-ViMo-");
+			line0 = "-ViMo-";
 	}
-
-	if (line0 == NULL)
-		errx(1, "strdup");
 
 	timeout.tv_sec = (time_t) s;
 	timeout.tv_nsec =
@@ -1719,7 +1723,6 @@ restart_dns_err:
 
 				close(std_err);
 				free(line);
-				free(line0);
 
 				if (verbose >= 2)
 					printf("dns_cache process issues\n\n");
@@ -1905,7 +1908,6 @@ restart_dns_err:
 	}
 	close(std_err);
 	free(line);
-	free(line0);
 	
 	if (verbose < 1)
 		qsort(array, array_length, sizeof(struct mirror_st), diff_cmp0);
@@ -2001,7 +2003,7 @@ restart_dns_err:
 		printf("\t\tconst char *ftp_list[%d] = {\n\n", se + 1);
 
 				
-		n = 0;
+		// n = 0;
 		for (c = 0; c <= se; ++c) {
 
 			/* 
@@ -2042,7 +2044,7 @@ restart_dns_err:
 
 
 		/* 
-		 * make non-openbsd.org mirrors diff == 0
+		 * make non-openbsd.org mirrors: diff == 0
 		 */
 		for (c = 0; c <= se; ++c) {
 			if (strstr(array[c].http, "openbsd.org") == NULL &&
@@ -2059,10 +2061,10 @@ restart_dns_err:
 				break;
 		}
 		
-		se = --c;
+		se = c - 1;
 		
 		printf("\t\t/* Trusted OpenBSD.org domain mirrors */\n\n");
-		printf("\t\tconst char *ftp_list_g[%d] = {\n\n", se + 1);
+		printf("\t\tconst char *ftp_list_g[%d] = {\n\n", c);
 		
 		
 		first = 0;
