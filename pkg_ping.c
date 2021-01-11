@@ -1,7 +1,7 @@
 /*
  * BSD 2-Clause License
  *
- * Copyright (c) 2016 - 2020, Luke N Small, lukensmall@gmail.com
+ * Copyright (c) 2016 - 2021, Luke N Small, lukensmall@gmail.com
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -158,7 +158,7 @@ label_cmp_minus_usa(const void *a, const void *b)
 	while(ret == 0 && i == 3) {
 		
 		/* 
-		 * search for a comma before the 
+		 * search for a comma before the
 		 * one found in the previous iteration
 		 */
 		
@@ -380,7 +380,7 @@ dns_cache_d(const int dns_cache_d_socket[], const int8_t secure,
 	struct addrinfo *res0 = NULL, *res = NULL;
 	
 	struct addrinfo hints;
-	bzero(&hints, sizeof(hints));
+	memset(&hints, 0, sizeof(hints));
 	
 	struct sockaddr_in *sa4 = NULL;
 	uint32_t sui4 = 0;
@@ -417,7 +417,7 @@ dns_cache_d(const int dns_cache_d_socket[], const int8_t secure,
 	
 	if (0) {
 dns_loop:
-		bzero(&hints, sizeof(struct addrinfo));
+		memset(&hints, 0, sizeof(struct addrinfo));
 	}
 	
 	i = read(dns_socket, dns_line, dns_line_max + 1);
@@ -638,7 +638,7 @@ file_d(const int write_pipe[], const int dns_socket,
 	FILE *pkg_write = NULL;
 	
 	struct kevent ke;
-	bzero(&ke, sizeof(ke));
+	memset(&ke, 0, sizeof(ke));
 	
 	close(write_pipe[STDOUT_FILENO]);
 
@@ -791,7 +791,7 @@ main(int argc, char *argv[])
 	char v = '\0';
 	
 	struct kevent ke;
-	bzero(&ke, sizeof(ke));
+	memset(&ke, 0, sizeof(ke));
 
 	/* 5 second default mirror timeout */
 	long double s = 5;
@@ -947,20 +947,6 @@ main(int argc, char *argv[])
 		errx(1, "try an -s greater than or equal to 0.015625 (1/64)");
 	
 
-	S = (long double) timeout0.tv_sec +
-	    (long double) timeout0.tv_nsec /
-	    (long double) 1000000000;
-
-	if (s > S) {
-		timeout0.tv_sec = (time_t) s;
-		timeout0.tv_nsec =
-		    (long) ((s - (long double) timeout0.tv_sec) *
-		    (long double) 1000000000);
-	}
-	
-	S = s;
-	
-
 		
 	if (dns_cache == 0 && verbose == 4)
 		verbose = 3;
@@ -1037,7 +1023,7 @@ main(int argc, char *argv[])
 		/* GENERATED CODE BEGINS HERE */
 
 
-		const char *ftp_list[54] = {
+		const char *ftp_list[53] = {
 
          "openbsd.mirror.netelligent.ca","mirrors.syringanetworks.net",
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
@@ -1055,11 +1041,11 @@ main(int argc, char *argv[])
     "ftp.jaist.ac.jp","mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu",
        "ftp.icm.edu.pl","mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie",
   "ftp.spline.de","www.ftp.ne.jp","ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp",
-               "ftp.bit.nl","ftp.fau.de","ftp.fsn.hu","openbsd.hk"
+                     "ftp.bit.nl","ftp.fau.de","ftp.fsn.hu"
 
 		};
 
-		const uint16_t index = 54;
+		const uint16_t index = 53;
 
 
 
@@ -1173,6 +1159,20 @@ main(int argc, char *argv[])
 
 
 	/* Let's do some work while ftp is downloading ftplist */
+	
+	
+	S = (long double) timeout0.tv_sec +
+	    (long double) timeout0.tv_nsec /
+	    (long double) 1000000000;
+
+	if (s > S) {
+		timeout0.tv_sec = (time_t) s;
+		timeout0.tv_nsec =
+		    (long) ((s - (long double) timeout0.tv_sec) *
+		    (long double) 1000000000);
+	}
+	
+	S = s;
 	
 	if (time == NULL) {
 		n = 20;
@@ -1987,14 +1987,13 @@ restart_dns_err:
 			}
 			
 			free(time);
-			free(release);
 
 			return 1;
 		}
 
 		/* 
 		 * sort by longest length first, subsort http alphabetically 
-		 *           it makes it kinda look like a flower.
+		 *           It makes it kinda look like a flower.
 		 */
 		qsort(array, se + 1, sizeof(struct mirror_st), diff_cmp_g);
 
@@ -2055,7 +2054,7 @@ restart_dns_err:
 		/* sort by longest length first, subsort http alphabetically */
 		qsort(array, se + 1, sizeof(struct mirror_st), diff_cmp_g2);
 
-		/* eliminate non-openbsd.org mirrors from being displayed */
+		/* stop non-openbsd.org mirrors from being displayed */
 		for (c = 0; c <= se; ++c) {
 			if (array[c].diff == 0)
 				break;
@@ -2120,7 +2119,6 @@ restart_dns_err:
 		}
 		
 		free(time);
-		free(release);
 
 		return 0;
 
