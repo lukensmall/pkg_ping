@@ -329,7 +329,7 @@ manpage()
 	printf("\tsearch for release mirrors. if your OS is a release,\n");
 	printf("\tit will Override it and search for snapshot mirrors.)\n");
 
-	printf("[-n (search for next release's data!)]\n");
+	printf("[-n (search for mirrors with the next release!)]\n");
 
 	printf("[-s timeout in Seconds (eg. -s 2.3)]\n");
 
