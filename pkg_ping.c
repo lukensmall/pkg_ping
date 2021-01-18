@@ -353,18 +353,6 @@ static int
 dns_cache_d(const int dns_cache_d_socket[], const int8_t secure,
 	    const int8_t six, const int8_t verbose)
 {
-	int i = fork();
-	switch(i)
-	{
-		case -1:
-			err(1, "dns_cache_d fork, line: %d\n", __LINE__);
-		case 0:
-			break;
-		default:
-			return i;
-	}
-
-		
 	if (pledge("stdio dns", NULL) == -1) {
 		printf("%s ", strerror(errno));
 		printf("dns_cache_d pledge, line: %d\n", __LINE__);
@@ -374,7 +362,7 @@ dns_cache_d(const int dns_cache_d_socket[], const int8_t secure,
 	close(dns_cache_d_socket[1]);
 	
 	
-	int c = 0, dns_socket = dns_cache_d_socket[0];
+	int i = 0, c = 0, dns_socket = dns_cache_d_socket[0];
 				  
 	uint8_t dns_line_max = 0;
 	struct addrinfo *res0 = NULL, *res = NULL;
@@ -431,7 +419,7 @@ dns_loop:
 		goto dns_exit1;
 	}
 	
-	if (i == -1) {
+	if (i < 0) {
 		printf("%s ", strerror(errno));
 		printf("read error line: %d\n", __LINE__);
 		goto dns_exit1;
@@ -595,8 +583,6 @@ dns_exit1:
 
 	free(dns_line);
 	_exit(1);
-
-
 }
 
 /*
@@ -610,16 +596,6 @@ static int
 file_d(const int write_pipe[], const int dns_socket,
        const int8_t secure, const int8_t verbose)
 {
-	int i = fork();
-	switch(i)
-	{
-		case -1:
-			err(1, "file_d fork, line: %d\n", __LINE__);
-		case 0:
-			break;
-		default:
-			return i;
-	}
 
 	if (pledge("stdio cpath wpath", NULL) == -1) {
 		printf("%s ", strerror(errno));
@@ -627,6 +603,7 @@ file_d(const int write_pipe[], const int dns_socket,
 		_exit(1);
 	}
 	
+	int i = 0;
 	int kq = kqueue();
 	if (kq == -1) {
 		printf("%s ", strerror(errno));
@@ -958,9 +935,18 @@ main(int argc, char *argv[])
 		    PF_UNSPEC, dns_cache_d_socket) == -1)
 			err(1, "socketpair, line: %d\n", __LINE__);
 
-		dns_cache_d_pid =
-		    dns_cache_d(dns_cache_d_socket, secure, six, verbose);
-
+		dns_cache_d_pid = fork();
+		switch(dns_cache_d_pid) {
+			case -1:
+				err(1, "dns_cache_d fork, line: %d\n",
+				    __LINE__);
+			case 0:
+				dns_cache_d(dns_cache_d_socket, secure,
+				    six, verbose);
+				errx(1, "dns_cache_d returned! line: %d\n",
+				    __LINE__);
+		}
+		
 		close(dns_cache_d_socket[0]);
 	}
 
@@ -969,9 +955,17 @@ main(int argc, char *argv[])
 		if (pipe2(write_pipe, O_CLOEXEC) == -1)
 			err(1, "pipe2, line: %d", __LINE__);
 
-		write_pid =
-		    file_d(write_pipe, dns_cache_d_socket[1], secure, verbose);
-			
+		write_pid = fork();
+		switch(write_pid) {
+			case -1:
+				err(1, "file_d fork, line: %d\n", __LINE__);
+			case 0:
+				file_d(write_pipe, dns_cache_d_socket[1],
+				    secure, verbose);
+				errx(1, "file_d returned! line: %d\n",
+				    __LINE__);
+		}
+		
 		close(write_pipe[STDIN_FILENO]);
 	}
 
@@ -1023,7 +1017,7 @@ main(int argc, char *argv[])
 		/* GENERATED CODE BEGINS HERE */
 
 
-		const char *ftp_list[53] = {
+		const char *ftp_list[55] = {
 
          "openbsd.mirror.netelligent.ca","mirrors.syringanetworks.net",
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
@@ -1032,20 +1026,20 @@ main(int argc, char *argv[])
    "mirror.hs-esslingen.de","mirrors.pidginhost.com","openbsd.cs.toronto.edu",
     "*artfiles.org/openbsd","mirror.bytemark.co.uk","mirror.planetunix.net",
      "www.mirrorservice.org","ftp4.usa.openbsd.org","mirror.aarnet.edu.au",
-       "openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
-        "mirror.leaseweb.com","mirrors.gigenet.com","ftp.eu.openbsd.org",
-         "ftp.fr.openbsd.org","mirror.fsmg.org.nz","mirror.ungleich.ch",
-         "mirrors.dotsrc.org","openbsd.ipacct.com","ftp.hostserver.de",
- "ftp.man.poznan.pl","mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.labkom.id",
-   "mirror.litnet.lt","mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org",
-    "ftp.jaist.ac.jp","mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu",
-       "ftp.icm.edu.pl","mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie",
-  "ftp.spline.de","www.ftp.ne.jp","ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp",
-                     "ftp.bit.nl","ftp.fau.de","ftp.fsn.hu"
+      "mirror.exonetric.net","openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org",
+       "ftp2.eu.openbsd.org","mirror.leaseweb.com","mirrors.gigenet.com",
+         "ftp.eu.openbsd.org","ftp.fr.openbsd.org","mirror.fsmg.org.nz",
+         "mirror.ungleich.ch","mirrors.dotsrc.org","openbsd.ipacct.com",
+"ftp.hostserver.de","ftp.man.poznan.pl","mirrors.sonic.net","mirrors.ucr.ac.cr",
+   "mirror.labkom.id","mirror.litnet.lt","mirror.yandex.ru","cdn.openbsd.org",
+    "ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.esc7.net","mirror.vdms.com",
+      "mirrors.mit.edu","ftp.icm.edu.pl","mirror.one.com","ftp.cc.uoc.gr",
+ "ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp","ftp.eenet.ee","ftp.nluug.nl",
+       "ftp.riken.jp","ftp.bit.nl","ftp.fau.de","ftp.fsn.hu","openbsd.hk"
 
 		};
 
-		const uint16_t index = 53;
+		const uint16_t index = 55;
 
 
 
