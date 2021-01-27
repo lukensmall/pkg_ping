@@ -1116,8 +1116,10 @@ main(int argc, char *argv[])
 			}
 		}
 
-		if (i >= n) {
-			printf("'line' length >= %d, line: %d\n", n, __LINE__);
+		if (i >= n || i < 0) {
+			if (i < 0)
+				printf("snprintf error ");
+			printf("'line' length >= %d, line: %d\n", i, __LINE__);
 			_exit(1);
 		}
 		
@@ -1176,7 +1178,7 @@ main(int argc, char *argv[])
 			errx(1, "calloc");
 		}
 		i = snprintf(time, n, "%Lf", s);
-		if (i >= n) {
+		if (i >= n || i < 0) {
 			kill(ftp_pid, SIGINT);
 			errx(1, "snprintf, line: %d", __LINE__);
 		}
@@ -1280,8 +1282,7 @@ main(int argc, char *argv[])
 		
 	} else {
 		
-		struct utsname *name =
-		    (struct utsname *)calloc(1, sizeof(struct utsname));
+		struct utsname *name = calloc(1, sizeof(struct utsname));
 		    
 		if (name == NULL) {
 			kill(ftp_pid, SIGINT);
@@ -1314,7 +1315,7 @@ main(int argc, char *argv[])
 			n = strlen(release) + 1;
 			i = snprintf(release, n, "%.1f", atof(release) + .1);
 			    
-			if (i >= n) {
+			if (i >= n || i < 0) {
 				kill(ftp_pid, SIGINT);
 				printf("release: %s, ", release);
 				printf("snprintf, line: %d\n", __LINE__);
@@ -1559,12 +1560,13 @@ restart_program:
 			
 		for (i = 0; i < n; ++i)
 			arg_v[i] = argv[i];
-			
-		arg_v[n] = calloc(10, sizeof(char));
+		
+		len = 10;
+		arg_v[n] = calloc(len, sizeof(char));
 		if (arg_v[n] == NULL)
 			errx(1, "calloc");
-		c = snprintf(arg_v[n], 10, "-l%d", loop);
-		if (c >= 10)
+		c = snprintf(arg_v[n], len, "-l%d", loop);
+		if (c >= len || c < 0)
 			errx(1, "snprintf, line: %d", __LINE__);
 			
 			
