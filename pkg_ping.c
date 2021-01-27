@@ -1561,12 +1561,12 @@ restart_program:
 		for (i = 0; i < n; ++i)
 			arg_v[i] = argv[i];
 		
-		len = 10;
-		arg_v[n] = calloc(len, sizeof(char));
+		int n_len = 10;
+		arg_v[n] = calloc(n_len, sizeof(char));
 		if (arg_v[n] == NULL)
 			errx(1, "calloc");
-		c = snprintf(arg_v[n], len, "-l%d", loop);
-		if (c >= len || c < 0)
+		c = snprintf(arg_v[n], n_len, "-l%d", loop);
+		if (c >= n_len || c < 0)
 			errx(1, "snprintf, line: %d", __LINE__);
 			
 			
