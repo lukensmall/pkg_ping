@@ -379,27 +379,25 @@ dns_cache_d(const int dns_cache_d_socket[], const int8_t secure,
 	int8_t max = 0, i_temp = 0, i_max = 0;
 	char six_available = '0';
 	
-	char *dns_line0 = NULL, *dns_line = NULL;
-
-
-	char hexadec[16] = { '0','1','2','3',
-			     '4','5','6','7',
-			     '8','9','a','b',
-			     'c','d','e','f' };
+	char *dns_line = NULL;
 	
-	if (secure)
-		dns_line0 = "https";
-	else
-		dns_line0 = "http";
+	const char *dns_line0 = (secure == 1) ? "https" : "http";
 
+	const char hexadec[16] = { '0','1','2','3',
+				   '4','5','6','7',
+				   '8','9','a','b',
+				   'c','d','e','f' };
+	
 	i = read(dns_socket, &dns_line_max, 1);
 	if (i < 1) {
+		close(dns_socket);
 		_exit(1);
 	}
 
 	dns_line = calloc(dns_line_max + 1, sizeof(char));
 	if (dns_line == NULL) {
 		printf("calloc\n");
+		close(dns_socket);
 		_exit(1);
 	}
 	
@@ -411,6 +409,7 @@ dns_loop:
 	i = read(dns_socket, dns_line, dns_line_max + 1);
 	if (i == 0) {
 		free(dns_line);
+		close(dns_socket);
 		_exit(0);
 	}
 
@@ -582,6 +581,7 @@ dns_loop:
 dns_exit1:
 
 	free(dns_line);
+	close(dns_socket);
 	_exit(1);
 }
 
@@ -593,8 +593,7 @@ dns_exit1:
  * massive file which fills up the partition.
  */
 static int
-file_d(const int write_pipe[], const int dns_socket,
-       const int8_t secure, const int8_t verbose)
+file_d(const int write_pipe[], const int8_t secure, const int8_t verbose)
 {
 
 	if (pledge("stdio cpath wpath", NULL) == -1) {
@@ -618,9 +617,6 @@ file_d(const int write_pipe[], const int dns_socket,
 	memset(&ke, 0, sizeof(ke));
 	
 	close(write_pipe[STDOUT_FILENO]);
-
-	close(dns_socket);
-
 
 	
 	
@@ -960,8 +956,8 @@ main(int argc, char *argv[])
 			case -1:
 				err(1, "file_d fork, line: %d\n", __LINE__);
 			case 0:
-				file_d(write_pipe, dns_cache_d_socket[1],
-				    secure, verbose);
+				close(dns_cache_d_socket[1]);
+				file_d(write_pipe, secure, verbose);
 				errx(1, "file_d returned! line: %d\n",
 				    __LINE__);
 		}
@@ -979,6 +975,57 @@ main(int argc, char *argv[])
 	}
 
 
+	entry_line = __LINE__;
+
+
+	/* GENERATED CODE BEGINS HERE */
+
+
+	const char *ftp_list[54] = {
+
+         "openbsd.mirror.netelligent.ca","mirrors.syringanetworks.net",
+          "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
+           "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
+           "ftp.rnl.tecnico.ulisboa.pt","mirror.csclub.uwaterloo.ca",
+   "mirror.hs-esslingen.de","mirrors.pidginhost.com","openbsd.cs.toronto.edu",
+    "*artfiles.org/openbsd","mirror.bytemark.co.uk","mirror.planetunix.net",
+     "www.mirrorservice.org","ftp4.usa.openbsd.org","mirror.aarnet.edu.au",
+      "mirror.exonetric.net","openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org",
+       "ftp2.eu.openbsd.org","mirror.leaseweb.com","mirrors.gigenet.com",
+         "ftp.eu.openbsd.org","ftp.fr.openbsd.org","mirror.fsmg.org.nz",
+         "mirror.ungleich.ch","mirrors.dotsrc.org","openbsd.ipacct.com",
+"ftp.hostserver.de","ftp.man.poznan.pl","mirrors.sonic.net","mirrors.ucr.ac.cr",
+   "mirror.labkom.id","mirror.litnet.lt","mirror.yandex.ru","cdn.openbsd.org",
+    "ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.esc7.net","mirror.vdms.com",
+      "mirrors.mit.edu","ftp.icm.edu.pl","mirror.one.com","ftp.cc.uoc.gr",
+  "ftp.spline.de","www.ftp.ne.jp","ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp",
+               "ftp.bit.nl","ftp.fau.de","ftp.fsn.hu","openbsd.hk"
+
+	};
+
+	const uint16_t index = 54;
+
+
+
+	/* Trusted OpenBSD.org domain mirrors */
+
+	const char *ftp_list_g[8] = {
+
+   "cloudflare.cdn.openbsd.org","ftp4.usa.openbsd.org","ftp.usa.openbsd.org",
+        "ftp2.eu.openbsd.org","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
+                       "cdn.openbsd.org","ftp.OpenBSD.org"
+
+	};
+
+	const uint16_t index_g = 8;
+
+
+	/* GENERATED CODE ENDS HERE */
+
+
+	exit_line = __LINE__;
+
+
 	if (pipe(ftp_out) == -1)
 		err(1, "pipe, line: %d", __LINE__);
 
@@ -986,8 +1033,6 @@ main(int argc, char *argv[])
 	ftp_pid = fork();
 	if (ftp_pid == (pid_t) 0) {
 
-	
-		
 		if (root_user == 1) {
 		/* 
 		 * user _pkgfetch: ftp will regain read pledge
@@ -1010,84 +1055,10 @@ main(int argc, char *argv[])
 			printf("calloc\n");
 			_exit(1);
 		}
-		
-		entry_line = __LINE__;
-
-
-		/* GENERATED CODE BEGINS HERE */
-
-
-		const char *ftp_list[55] = {
-
-         "openbsd.mirror.netelligent.ca","mirrors.syringanetworks.net",
-          "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
-           "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
-           "ftp.rnl.tecnico.ulisboa.pt","mirror.csclub.uwaterloo.ca",
-   "mirror.hs-esslingen.de","mirrors.pidginhost.com","openbsd.cs.toronto.edu",
-    "*artfiles.org/openbsd","mirror.bytemark.co.uk","mirror.planetunix.net",
-     "www.mirrorservice.org","ftp4.usa.openbsd.org","mirror.aarnet.edu.au",
-      "mirror.exonetric.net","openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org",
-       "ftp2.eu.openbsd.org","mirror.leaseweb.com","mirrors.gigenet.com",
-         "ftp.eu.openbsd.org","ftp.fr.openbsd.org","mirror.fsmg.org.nz",
-         "mirror.ungleich.ch","mirrors.dotsrc.org","openbsd.ipacct.com",
-"ftp.hostserver.de","ftp.man.poznan.pl","mirrors.sonic.net","mirrors.ucr.ac.cr",
-   "mirror.labkom.id","mirror.litnet.lt","mirror.yandex.ru","cdn.openbsd.org",
-    "ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.esc7.net","mirror.vdms.com",
-      "mirrors.mit.edu","ftp.icm.edu.pl","mirror.one.com","ftp.cc.uoc.gr",
- "ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp","ftp.eenet.ee","ftp.nluug.nl",
-       "ftp.riken.jp","ftp.bit.nl","ftp.fau.de","ftp.fsn.hu","openbsd.hk"
-
-		};
-
-		const uint16_t index = 55;
-
-
-
-		/* Trusted OpenBSD.org domain mirrors */
-
-		const char *ftp_list_g[8] = {
-
-   "cloudflare.cdn.openbsd.org","ftp4.usa.openbsd.org","ftp.usa.openbsd.org",
-        "ftp2.eu.openbsd.org","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
-                       "cdn.openbsd.org","ftp.OpenBSD.org"
-
-		};
-
-		const uint16_t index_g = 8;
-
-
-		/* GENERATED CODE ENDS HERE */
-
-
-		exit_line = __LINE__;
-
 
 		c = ftp_out[STDOUT_FILENO];
 		
-		if (generate) {		
-
-		/*
-		 * I can't think of a better way to retrieve these two values.
-		 * I refuse to change it every time I edit the code.
-		 * It probably preserves some memory in the parent process
-		 * by having *ftp_list[] here in the fork()ed ftp declaration
-		 */
-		
-			errno = 0;
-			i = write(c, &entry_line, sizeof(int));
-			if (i < (int)sizeof(int)) {
-				if (errno)
-					printf("%s ", strerror(errno));
-				printf("ftp write, line: %d\n", __LINE__);
-				_exit(1);
-			}
-			i = write(c, &exit_line, sizeof(int));
-			if (i < (int)sizeof(int)) {
-				if (errno)
-					printf("%s ", strerror(errno));
-				printf("ftp write, line: %d\n", __LINE__);
-				_exit(1);
-			}
+		if (generate) {				
 			
 			i = arc4random_uniform(index_g);
 		
@@ -1263,22 +1234,6 @@ main(int argc, char *argv[])
 		}
 
 		tag_len = strlen(tag);
-
-		i = read(c, &entry_line, sizeof(int));
-		if ((ulong)i < sizeof(int)) {
-			printf("%s ", strerror(errno));
-			kill(ftp_pid, SIGINT);
-			printf("read, line: %d", __LINE__);
-			return 1;
-		}
-			
-		i = read(c, &exit_line, sizeof(int));
-		if ((ulong)i < sizeof(int)) {
-			printf("%s ", strerror(errno));
-			kill(ftp_pid, SIGINT);
-			printf("read, line: %d", __LINE__);
-			return 1;
-		}
 		
 	} else {
 		
@@ -1561,12 +1516,12 @@ restart_program:
 		for (i = 0; i < n; ++i)
 			arg_v[i] = argv[i];
 		
-		int n_len = 10;
-		arg_v[n] = calloc(n_len, sizeof(char));
+		len = 10;
+		arg_v[n] = calloc(len, sizeof(char));
 		if (arg_v[n] == NULL)
 			errx(1, "calloc");
-		c = snprintf(arg_v[n], n_len, "-l%d", loop);
-		if (c >= n_len || c < 0)
+		c = snprintf(arg_v[n], len, "-l%d", loop);
+		if (c >= len || c < 0)
 			errx(1, "snprintf, line: %d", __LINE__);
 			
 			
@@ -1994,8 +1949,8 @@ restart_dns_err:
 		qsort(array, se + 1, sizeof(struct mirror_st), diff_cmp_g);
 
 		printf("\n\n");
-		printf("\t\t/* GENERATED CODE BEGINS HERE */\n\n\n");
-		printf("\t\tconst char *ftp_list[%d] = {\n\n", se + 1);
+		printf("\t/* GENERATED CODE BEGINS HERE */\n\n\n");
+		printf("\tconst char *ftp_list[%d] = {\n\n", se + 1);
 
 				
 		// n = 0;
@@ -2034,8 +1989,8 @@ restart_dns_err:
 			printf("\"%s\",", array[j].http);
 		printf("\"%s\"\n\n", array[se].http);
 		
-		printf("\t\t};\n\n");
-		printf("\t\tconst uint16_t index = %d;\n\n\n\n", se + 1);
+		printf("\t};\n\n");
+		printf("\tconst uint16_t index = %d;\n\n\n\n", se + 1);
 
 
 		/* 
@@ -2058,8 +2013,8 @@ restart_dns_err:
 		
 		se = c - 1;
 		
-		printf("\t\t/* Trusted OpenBSD.org domain mirrors */\n\n");
-		printf("\t\tconst char *ftp_list_g[%d] = {\n\n", c);
+		printf("\t/* Trusted OpenBSD.org domain mirrors */\n\n");
+		printf("\tconst char *ftp_list_g[%d] = {\n\n", c);
 		
 		
 		first = 0;
@@ -2100,10 +2055,10 @@ restart_dns_err:
 			printf("\"%s\",", array[j].http);
 		printf("\"%s\"\n\n", array[se].http);
 		
-		printf("\t\t};\n\n");
-		printf("\t\tconst uint16_t index_g = %d;\n\n\n", se + 1);
+		printf("\t};\n\n");
+		printf("\tconst uint16_t index_g = %d;\n\n\n", se + 1);
 
-		printf("\t\t/* GENERATED CODE ENDS HERE */\n\n\n\n");
+		printf("\t/* GENERATED CODE ENDS HERE */\n\n\n\n");
 		printf("Replace section after line: %d, but ", entry_line);
 		printf("before line: %d with the code above.\n\n", exit_line);
 
