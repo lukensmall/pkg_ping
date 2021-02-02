@@ -61,19 +61,20 @@
  * 	program designed to be viewed with width 8 tabs
  */
 
-#include <err.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <netdb.h>
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <sys/types.h>
 #include <sys/event.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/utsname.h>
 #include <sys/wait.h>
+#include <netdb.h>
+#include <err.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -736,14 +737,15 @@ file_d(const int write_pipe[], const int8_t secure, const int8_t verbose)
 	_exit(0);
 }
 
-static int restart(int argc, char *argv[], int16_t loop, int8_t verbose)
+static
+void restart(int argc, char *argv[], int16_t loop, int8_t verbose)
 {
 	int i = 0;
 	
 	if (loop-- == 0) {
 		if (verbose >= 0)
 			printf("Looping exhausted: Try again.\n");
-		return 2;
+		exit(2);
 	}
 	
 	if (verbose >= 0)
@@ -1401,7 +1403,7 @@ main(int argc, char *argv[])
 		close(kq);
 		free(time);
 		free(release);
-		return restart(argc, argv, loop, verbose);
+		restart(argc, argv, loop, verbose);
 	}
 
 	while (read(c, &v, 1) == 1) {
@@ -1542,7 +1544,7 @@ main(int argc, char *argv[])
 		close(kq);
 		free(time);
 		free(release);
-		return restart(argc, argv, loop, verbose);
+		restart(argc, argv, loop, verbose);
 	}
 
 	if (secure == 1)
@@ -1561,7 +1563,7 @@ main(int argc, char *argv[])
 			close(kq);
 			free(time);
 			free(release);
-			return restart(argc, argv, loop, verbose);
+			restart(argc, argv, loop, verbose);
 		}
 	}
 	
@@ -1707,7 +1709,7 @@ restart_dns_err:
 				close(kq);
 				free(time);
 				free(release);
-				return restart(argc, argv, loop, verbose);
+				restart(argc, argv, loop, verbose);
 			}
 			
 			if (six && v == '0') {
@@ -2214,7 +2216,7 @@ no_good:
 		if (i < n) {
 			printf("not all of mirror sent to write_pid\n");
 			
-			return restart(argc, argv, loop, verbose);
+			restart(argc, argv, loop, verbose);
 		}
 		
 		waitpid(write_pid, &n, 0);
@@ -2222,7 +2224,7 @@ no_good:
 		if (n != 0) {
 			printf("write_pid error.\n");
 			
-			return restart(argc, argv, loop, verbose);
+			restart(argc, argv, loop, verbose);
 
 		}
 
