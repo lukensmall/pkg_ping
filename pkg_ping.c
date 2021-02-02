@@ -31,7 +31,8 @@
 
 
 /*
- * 	Originally used this idea from "Dan Mclaughlin" on misc@
+ * 	Originally used the following from "Dan Mclaughlin"
+ *                  on openbsd-misc mailing list
  * 	   
  *
  * 	    ftp -o - http://www.openbsd.org/ftp.html | \
@@ -41,7 +42,7 @@
  * 	         -e 's:^\(       [hfr].*\):\1:p'
  * 
  * 
- * 	     I still don't know what all of that means.
+ * 	   (I still don't know what all of that means)
  */
 
 /*
@@ -56,9 +57,9 @@
  * 
  * 	You probably won't see an appreciable performance gain between
  * 	the getaddrinfo(3) and the ftp(1) calls which fetch data over the 
- * 	network. I parallelize somewhat.
+ * 	network.
  * 
- * 	program designed to be viewed with width 8 tabs
+ * 	program designed to be viewed with tabs which are 8 characters wide
  */
 
 #include <sys/types.h>
@@ -67,10 +68,11 @@
 #include <sys/sysctl.h>
 #include <sys/utsname.h>
 #include <sys/wait.h>
-#include <netdb.h>
+
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <netdb.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -78,16 +80,16 @@
 #include <time.h>
 #include <unistd.h>
 
-int8_t h = 0;
-
 struct mirror_st {
 	char *label;
 	char *http;
 	long double diff;
 };
 
+int8_t h = 0;
 int array_length = 0;
 struct mirror_st *array = NULL;
+extern char *malloc_options;
 
 static void
 free_array()
@@ -110,19 +112,6 @@ usa_cmp(const void *a, const void *b)
 			return -1;
 		return 1;
 	}
-	return 0;
-}
-
-static int
-diff_cmp0(const void *a, const void *b)
-{
-	long double one_diff = ((struct mirror_st *) a)->diff;
-	long double two_diff = ((struct mirror_st *) b)->diff;
-
-	if (one_diff < two_diff)
-		return -1;
-	if (one_diff > two_diff)
-		return 1;
 	return 0;
 }
 
@@ -395,9 +384,9 @@ dns_cache_d(const int dns_cache_d_socket[], const int8_t secure,
 		_exit(1);
 	}
 
-	dns_line = calloc(dns_line_max + 1, sizeof(char));
+	dns_line = malloc(dns_line_max + 1);
 	if (dns_line == NULL) {
-		printf("calloc\n");
+		printf("malloc\n");
 		close(dns_socket);
 		_exit(1);
 	}
@@ -672,9 +661,9 @@ file_d(const int write_pipe[], const int8_t secure, const int8_t verbose)
 		_exit(1);
 	}
 	
-	file_w = calloc(received + 1 + 1, sizeof(char));
+	file_w = malloc(received + 1 + 1);
 	if (file_w == NULL) {
-		printf("calloc\n");
+		printf("malloc\n");
 		fclose(pkg_write);
 		_exit(1);
 	}
@@ -737,8 +726,8 @@ file_d(const int write_pipe[], const int8_t secure, const int8_t verbose)
 	_exit(0);
 }
 
-static
-void restart(int argc, char *argv[], int16_t loop, int8_t verbose)
+static void
+restart(int argc, char *argv[], int16_t loop, int8_t verbose)
 {
 	int i = 0;
 	
@@ -763,9 +752,9 @@ void restart(int argc, char *argv[], int16_t loop, int8_t verbose)
 		arg_v[i] = argv[i];
 	
 	int len = 10;
-	arg_v[n] = calloc(len, sizeof(char));
+	arg_v[n] = malloc(len);
 	if (arg_v[n] == NULL)
-		errx(1, "calloc");
+		errx(1, "malloc");
 	int c = snprintf(arg_v[n], len, "-l%d", loop);
 	if (c >= len || c < 0)
 		errx(1, "snprintf, line: %d", __LINE__);
@@ -803,6 +792,8 @@ main(int argc, char *argv[])
 	size_t len = 0;
 	char v = '\0';
 	
+	malloc_options = "CFGJU";
+	
 	struct kevent ke;
 	memset(&ke, 0, sizeof(ke));
 
@@ -839,12 +830,12 @@ main(int argc, char *argv[])
 
 	for(i = 1; i < argc; ++i) {
 		if (strlen(argv[i]) >= 25)
-			errx(1, "keep argument length under 25");
+			errx(1, "keep argument lengths under 25");
 	}
 	
 
 	if (argc >= 30) {
-		i = (argc > 1 && !strncmp(argv[argc - 1], "-l", 2));
+		i = !strncmp(argv[argc - 1], "-l", 2);
 		if (argc - i >= 30)
 			errx(1, "keep argument count under 30");
 	}
@@ -871,7 +862,7 @@ main(int argc, char *argv[])
 			return 0;
 		case 'l':
 			if (strlen(optarg) >= 5) {
-				printf("-l value should be less ");
+				printf("-l should be less ");
 				printf("than 5 digits long.\n");
 				return 1;
 			}
@@ -879,7 +870,7 @@ main(int argc, char *argv[])
 			c = loop = 0;
 			do {
 				if (optarg[c] < '0' || optarg[c] > '9') {
-					printf("-l value should only have ");
+					printf("-l should only have ");
 					printf("numeric characters\n");
 					return 1;
 				}
@@ -1028,7 +1019,7 @@ main(int argc, char *argv[])
 	/* GENERATED CODE BEGINS HERE */
 
 
-	const char *ftp_list[54] = {
+	const char *ftp_list[56] = {
 
          "openbsd.mirror.netelligent.ca","mirrors.syringanetworks.net",
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
@@ -1037,24 +1028,25 @@ main(int argc, char *argv[])
    "mirror.hs-esslingen.de","mirrors.pidginhost.com","openbsd.cs.toronto.edu",
     "*artfiles.org/openbsd","mirror.bytemark.co.uk","mirror.planetunix.net",
      "www.mirrorservice.org","ftp4.usa.openbsd.org","mirror.aarnet.edu.au",
-      "mirror.exonetric.net","openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org",
-       "ftp2.eu.openbsd.org","mirror.leaseweb.com","mirrors.gigenet.com",
-         "ftp.eu.openbsd.org","ftp.fr.openbsd.org","mirror.fsmg.org.nz",
-         "mirror.ungleich.ch","mirrors.dotsrc.org","openbsd.ipacct.com",
-"ftp.hostserver.de","ftp.man.poznan.pl","mirrors.sonic.net","mirrors.ucr.ac.cr",
-   "mirror.labkom.id","mirror.litnet.lt","mirror.yandex.ru","cdn.openbsd.org",
-    "ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.esc7.net","mirror.vdms.com",
-      "mirrors.mit.edu","ftp.icm.edu.pl","mirror.one.com","ftp.cc.uoc.gr",
-  "ftp.spline.de","www.ftp.ne.jp","ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp",
-               "ftp.bit.nl","ftp.fau.de","ftp.fsn.hu","openbsd.hk"
+      "mirror.exonetric.net","mirror.serverion.com","openbsd.c3sl.ufpr.br",
+       "ftp.usa.openbsd.org","ftp2.eu.openbsd.org","mirror.leaseweb.com",
+        "mirrors.gigenet.com","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
+         "mirror.fsmg.org.nz","mirror.ungleich.ch","mirrors.dotsrc.org",
+          "openbsd.ipacct.com","ftp.hostserver.de","ftp.man.poznan.pl",
+ "mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.labkom.id","mirror.litnet.lt",
+    "mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp",
+     "mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu","ftp.icm.edu.pl",
+        "mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de",
+   "www.ftp.ne.jp","ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl",
+                     "ftp.fau.de","ftp.fsn.hu","openbsd.hk"
 
 	};
 
-	const uint16_t index = 54;
+	const uint16_t index = 56;
 
 
 
-	/* Trusted OpenBSD.org domain mirrors */
+      /* Trusted OpenBSD.org domain mirrors for generating this section */
 
 	const char *ftp_list_g[8] = {
 
@@ -1097,9 +1089,9 @@ main(int argc, char *argv[])
 		close(ftp_out[STDIN_FILENO]);
 
 		n = 300;
-		line = calloc(n, sizeof(char));
+		line = malloc(n);
 		if (line == NULL) {
-			printf("calloc\n");
+			printf("malloc\n");
 			_exit(1);
 		}
 
@@ -1190,10 +1182,10 @@ main(int argc, char *argv[])
 	
 	if (time == NULL) {
 		n = 20;
-		time = calloc(n, sizeof(char));
+		time = malloc(n);
 		if (time == NULL) {
 			kill(ftp_pid, SIGINT);
-			errx(1, "calloc");
+			errx(1, "malloc");
 		}
 		i = snprintf(time, n, "%Lf", s);
 		if (i >= n || i < 0) {
@@ -1241,10 +1233,10 @@ main(int argc, char *argv[])
 			return 1;
 		}
 		
-		line = calloc(len, sizeof(char));
+		line = malloc(len);
 		if (line == NULL) {
 			kill(ftp_pid, SIGINT);		
-			errx(1, "calloc");
+			errx(1, "malloc");
 		}
 			
 		/* read results of "sysctl kern.version" into 'line' */
@@ -1284,11 +1276,11 @@ main(int argc, char *argv[])
 		
 	} else {
 		
-		struct utsname *name = calloc(1, sizeof(struct utsname));
+		struct utsname *name = malloc(sizeof(struct utsname));
 		    
 		if (name == NULL) {
 			kill(ftp_pid, SIGINT);
-			errx(1, "calloc");
+			errx(1, "malloc");
 		}
 		
 		
@@ -1334,10 +1326,10 @@ main(int argc, char *argv[])
 			    strlen(name->machine) + strlen("/SHA256");
 		}
 		
-		tag = calloc(tag_len + 1, sizeof(char));
+		tag = malloc(tag_len + 1);
 		if (tag == NULL) {
 			kill(ftp_pid, SIGINT);
-			errx(1, "calloc");
+			errx(1, "malloc");
 		}
 
 		if (current == 1)
@@ -1350,10 +1342,10 @@ main(int argc, char *argv[])
 	
 	
 	/* if the index for line[] can exceed 254, it will error out */
-	line = calloc(255, sizeof(char));
+	line = malloc(255);
 	if (line == NULL) {
 		kill(ftp_pid, SIGINT);
-		errx(1, "calloc");
+		errx(1, "malloc");
 	}
 
 	array_max = 100;
@@ -1437,10 +1429,10 @@ main(int argc, char *argv[])
 			if (pos_max < pos)
 				pos_max = pos;
 
-			array[array_length].http = calloc(pos, sizeof(char));
+			array[array_length].http = malloc(pos);
 			if (array[array_length].http == NULL) {
 				kill(ftp_pid, SIGINT);
-				errx(1, "calloc");
+				errx(1, "malloc");
 			}
 			
 			if (secure) {
@@ -1569,9 +1561,9 @@ main(int argc, char *argv[])
 	
 	pos_max += tag_len;
 
-	line = calloc(pos_max, sizeof(char));
+	line = malloc(pos_max);
 	if (line == NULL)
-		errx(1, "calloc");
+		errx(1, "malloc");
 
 
 	array = reallocarray(array, array_length, sizeof(struct mirror_st));
@@ -1886,9 +1878,26 @@ restart_dns_err:
 	close(std_err);
 	free(line);
 	
-	if (verbose < 1)
-		qsort(array, array_length, sizeof(struct mirror_st), diff_cmp0);
-	else {
+	if (verbose < 1) {
+		struct mirror_st *ac = array + array_length - 1;
+		
+		struct mirror_st *fastest = ac;
+		long double fastest_diff = ac->diff;
+		struct mirror_st swap;
+
+		while (array <= --ac) {
+			if (ac->diff < fastest_diff) {
+				fastest_diff = ac->diff;
+				fastest = ac;
+			}
+		}
+
+		if (array != fastest) {
+			memcpy(&swap, fastest, sizeof(struct mirror_st));
+			memcpy(fastest, array, sizeof(struct mirror_st));
+			memcpy(array, &swap, sizeof(struct mirror_st));
+		}
+	} else {
 		if (usa == 0) {
 			qsort(array, array_length, sizeof(struct mirror_st),
 			    diff_cmp_minus_usa);
@@ -2039,7 +2048,8 @@ restart_dns_err:
 		
 		se = c - 1;
 		
-		printf("\t/* Trusted OpenBSD.org domain mirrors */\n\n");
+		printf("      /* Trusted OpenBSD.org domain n");
+		printf("mirrors for generating this section */\n\n");
 		printf("\tconst char *ftp_list_g[%d] = {\n\n", c);
 		
 		
