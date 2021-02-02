@@ -736,6 +736,44 @@ file_d(const int write_pipe[], const int8_t secure, const int8_t verbose)
 	_exit(0);
 }
 
+static int restart(int argc, char *argv[], int16_t loop, int8_t verbose)
+{
+	int i = 0;
+	
+	if (loop-- == 0) {
+		if (verbose >= 0)
+			printf("Looping exhausted: Try again.\n");
+		return 2;
+	}
+	
+	if (verbose >= 0)
+		printf("restarting...\n");
+		
+	free_array();
+		
+	int n = argc - (argc > 1 && !strncmp(argv[argc - 1], "-l", 2));
+	
+	char **arg_v = calloc(n + 1 + 1, sizeof(char *));
+	if (arg_v == NULL)
+		errx(1, "calloc");
+		
+	for (i = 0; i < n; ++i)
+		arg_v[i] = argv[i];
+	
+	int len = 10;
+	arg_v[n] = calloc(len, sizeof(char));
+	if (arg_v[n] == NULL)
+		errx(1, "calloc");
+	int c = snprintf(arg_v[n], len, "-l%d", loop);
+	if (c >= len || c < 0)
+		errx(1, "snprintf, line: %d", __LINE__);
+		
+		
+	execv(arg_v[0], arg_v);
+
+	err(1, "execv failed, line: %d", __LINE__);
+}
+
 
 int
 main(int argc, char *argv[])
@@ -800,6 +838,13 @@ main(int argc, char *argv[])
 	for(i = 1; i < argc; ++i) {
 		if (strlen(argv[i]) >= 25)
 			errx(1, "keep argument length under 25");
+	}
+	
+
+	if (argc >= 30) {
+		i = (argc > 1 && !strncmp(argv[argc - 1], "-l", 2));
+		if (argc - i >= 30)
+			errx(1, "keep argument count under 30");
 	}
 
 
@@ -1353,7 +1398,10 @@ main(int argc, char *argv[])
 		if ((verbose >> 1) == 0)
 			printf("\b");
 	
-		goto restart_program;
+		close(kq);
+		free(time);
+		free(release);
+		return restart(argc, argv, loop, verbose);
 	}
 
 	while (read(c, &v, 1) == 1) {
@@ -1491,43 +1539,10 @@ main(int argc, char *argv[])
 		if (verbose >= 0)
 			printf("There was an 'ftplist' download error.\n");
 
-restart_program:
-
-		if (loop-- == 0) {
-			if (verbose >= 0)
-				printf("Looping exhausted: Try again.\n");
-			return 2;
-		}
-		
 		close(kq);
 		free(time);
 		free(release);
-		if (verbose >= 0)
-			printf("restarting...\n");
-			
-		free_array();
-			
-		n = argc - (argc > 1 && !strncmp(argv[argc - 1], "-l", 2));
-		
-		char **arg_v = calloc(n + 1 + 1, sizeof(char *));
-		if (arg_v == NULL)
-			errx(1, "calloc");
-			
-		for (i = 0; i < n; ++i)
-			arg_v[i] = argv[i];
-		
-		len = 10;
-		arg_v[n] = calloc(len, sizeof(char));
-		if (arg_v[n] == NULL)
-			errx(1, "calloc");
-		c = snprintf(arg_v[n], len, "-l%d", loop);
-		if (c >= len || c < 0)
-			errx(1, "snprintf, line: %d", __LINE__);
-			
-			
-		execv(arg_v[0], arg_v);
-
-		err(1, "execv failed, line: %d", __LINE__);
+		return restart(argc, argv, loop, verbose);
 	}
 
 	if (secure == 1)
@@ -1542,7 +1557,11 @@ restart_program:
 				printf("dns_cache_d died prematurely\n");
 			else
 				printf("'length' not sent to dns_cache_d\n");
-			goto restart_program;
+				
+			close(kq);
+			free(time);
+			free(release);
+			return restart(argc, argv, loop, verbose);
 		}
 	}
 	
@@ -1685,7 +1704,10 @@ restart_dns_err:
 					} while (n > 0);
 				}
 
-				goto restart_program;
+				close(kq);
+				free(time);
+				free(release);
+				return restart(argc, argv, loop, verbose);
 			}
 			
 			if (six && v == '0') {
@@ -1842,6 +1864,8 @@ restart_dns_err:
 		} else if (array[c].diff > s)
 			array[c].diff = s;
 	}
+	
+	close(kq);
 
 	if (dns_cache) {
 		close(dns_cache_d_socket[1]);
@@ -2178,6 +2202,8 @@ no_good:
 		return 1;
 	}
 	
+	free(time);
+	free(release);
 	
 	if (to_file) {
 		
@@ -2187,23 +2213,23 @@ no_good:
 
 		if (i < n) {
 			printf("not all of mirror sent to write_pid\n");
-			goto restart_program;
+			
+			return restart(argc, argv, loop, verbose);
 		}
 		
 		waitpid(write_pid, &n, 0);
 
 		if (n != 0) {
 			printf("write_pid error.\n");
-			goto restart_program;
+			
+			return restart(argc, argv, loop, verbose);
+
 		}
 
 	}  else if (verbose >= 0) {
 		printf("As root, type: echo \"%s\" > /etc/installurl\n",
 		    array[0].http);
 	}
-	
-	free(time);
-	free(release);
 	
 	return 0;
 }
