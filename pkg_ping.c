@@ -1884,6 +1884,7 @@ restart_dns_err:
 		struct mirror_st *fastest = ac;
 		long double fastest_diff = ac->diff;
 		struct mirror_st swap;
+		memset(&swap, 0, sizeof(swap));
 
 		while (array <= --ac) {
 			if (ac->diff < fastest_diff) {
