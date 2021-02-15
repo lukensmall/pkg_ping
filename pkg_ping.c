@@ -384,9 +384,9 @@ dns_cache_d(const int dns_cache_d_socket[], const int8_t secure,
 		_exit(1);
 	}
 
-	dns_line = malloc(dns_line_max + 1);
+	dns_line = calloc(dns_line_max + 1, sizeof(char));
 	if (dns_line == NULL) {
-		printf("malloc\n");
+		printf("calloc\n");
 		close(dns_socket);
 		_exit(1);
 	}
@@ -661,9 +661,9 @@ file_d(const int write_pipe[], const int8_t secure, const int8_t verbose)
 		_exit(1);
 	}
 	
-	file_w = malloc(received + 1 + 1);
+	file_w = calloc(received + 1 + 1, sizeof(char));
 	if (file_w == NULL) {
-		printf("malloc\n");
+		printf("calloc\n");
 		fclose(pkg_write);
 		_exit(1);
 	}
@@ -752,9 +752,9 @@ restart(int argc, char *argv[], int16_t loop, int8_t verbose)
 		arg_v[i] = argv[i];
 	
 	int len = 10;
-	arg_v[n] = malloc(len);
+	arg_v[n] = calloc(len, sizeof(char));
 	if (arg_v[n] == NULL)
-		errx(1, "malloc");
+		errx(1, "calloc");
 	int c = snprintf(arg_v[n], len, "-l%d", loop);
 	if (c >= len || c < 0)
 		errx(1, "snprintf, line: %d", __LINE__);
@@ -769,6 +769,8 @@ restart(int argc, char *argv[], int16_t loop, int8_t verbose)
 int
 main(int argc, char *argv[])
 {
+	malloc_options = "CFGjjU";
+	
 	int8_t root_user = (getuid() == 0);
 	int8_t to_file = root_user;
 	int8_t num = 0, current = 0, secure = 0, verbose = 0;
@@ -791,8 +793,6 @@ main(int argc, char *argv[])
 	char *tag = NULL, *time = NULL;
 	size_t len = 0;
 	char v = '\0';
-	
-	malloc_options = "CFGJU";
 	
 	struct kevent ke;
 	memset(&ke, 0, sizeof(ke));
@@ -1089,9 +1089,9 @@ main(int argc, char *argv[])
 		close(ftp_out[STDIN_FILENO]);
 
 		n = 300;
-		line = malloc(n);
+		line = calloc(n, sizeof(char));
 		if (line == NULL) {
-			printf("malloc\n");
+			printf("calloc\n");
 			_exit(1);
 		}
 
@@ -1182,10 +1182,10 @@ main(int argc, char *argv[])
 	
 	if (time == NULL) {
 		n = 20;
-		time = malloc(n);
+		time = calloc(n, sizeof(char));
 		if (time == NULL) {
 			kill(ftp_pid, SIGINT);
-			errx(1, "malloc");
+			errx(1, "calloc");
 		}
 		i = snprintf(time, n, "%Lf", s);
 		if (i >= n || i < 0) {
@@ -1233,10 +1233,10 @@ main(int argc, char *argv[])
 			return 1;
 		}
 		
-		line = malloc(len);
+		line = calloc(len, sizeof(char));
 		if (line == NULL) {
 			kill(ftp_pid, SIGINT);		
-			errx(1, "malloc");
+			errx(1, "calloc");
 		}
 			
 		/* read results of "sysctl kern.version" into 'line' */
@@ -1276,11 +1276,11 @@ main(int argc, char *argv[])
 		
 	} else {
 		
-		struct utsname *name = malloc(sizeof(struct utsname));
+		struct utsname *name = calloc(1, sizeof(struct utsname));
 		    
 		if (name == NULL) {
 			kill(ftp_pid, SIGINT);
-			errx(1, "malloc");
+			errx(1, "calloc");
 		}
 		
 		
@@ -1326,10 +1326,10 @@ main(int argc, char *argv[])
 			    strlen(name->machine) + strlen("/SHA256");
 		}
 		
-		tag = malloc(tag_len + 1);
+		tag = calloc(tag_len + 1, sizeof(char));
 		if (tag == NULL) {
 			kill(ftp_pid, SIGINT);
-			errx(1, "malloc");
+			errx(1, "calloc");
 		}
 
 		if (current == 1)
@@ -1342,10 +1342,10 @@ main(int argc, char *argv[])
 	
 	
 	/* if the index for line[] can exceed 254, it will error out */
-	line = malloc(255);
+	line = calloc(255, sizeof(char));
 	if (line == NULL) {
 		kill(ftp_pid, SIGINT);
-		errx(1, "malloc");
+		errx(1, "calloc");
 	}
 
 	array_max = 100;
@@ -1429,10 +1429,10 @@ main(int argc, char *argv[])
 			if (pos_max < pos)
 				pos_max = pos;
 
-			array[array_length].http = malloc(pos);
+			array[array_length].http = calloc(pos, sizeof(char));
 			if (array[array_length].http == NULL) {
 				kill(ftp_pid, SIGINT);
-				errx(1, "malloc");
+				errx(1, "calloc");
 			}
 			
 			if (secure) {
@@ -1498,7 +1498,7 @@ main(int argc, char *argv[])
 
 		if (++array_length >= array_max) {
 			array_max += 20;
-			array = reallocarray(array, array_max,
+			array = recallocarray(array, array_max - 20, array_max,
 			    sizeof(struct mirror_st));
 
 			if (array == NULL) {
@@ -1561,10 +1561,9 @@ main(int argc, char *argv[])
 	
 	pos_max += tag_len;
 
-	line = malloc(pos_max);
+	line = calloc(pos_max, sizeof(char));
 	if (line == NULL)
-		errx(1, "malloc");
-
+		errx(1, "calloc");
 
 	array = reallocarray(array, array_length, sizeof(struct mirror_st));
 	    
@@ -1883,21 +1882,25 @@ restart_dns_err:
 		
 		struct mirror_st *fastest = ac;
 		long double fastest_diff = ac->diff;
-		struct mirror_st swap;
-		memset(&swap, 0, sizeof(swap));
 
 		while (array <= --ac) {
 			if (ac->diff < fastest_diff) {
 				fastest_diff = ac->diff;
 				fastest = ac;
 			}
-		}
-
+		}			
+			
 		if (array != fastest) {
-			memcpy(&swap, fastest, sizeof(struct mirror_st));
-			memcpy(fastest, array, sizeof(struct mirror_st));
-			memcpy(array, &swap, sizeof(struct mirror_st));
+			
+			free(array->label);
+			free(array->http);
+			
+			memcpy(array, fastest, sizeof(struct mirror_st));
+			
+			fastest->label = NULL;
+			fastest->http = NULL;
 		}
+		
 	} else {
 		if (usa == 0) {
 			qsort(array, array_length, sizeof(struct mirror_st),
