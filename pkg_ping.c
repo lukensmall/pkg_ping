@@ -769,6 +769,12 @@ restart(int argc, char *argv[], int16_t loop, int8_t verbose)
 int
 main(int argc, char *argv[])
 {
+	/* 
+	 * I specified no junking here:
+	 * I use calloc() calls to allocate everything, so it doesn't
+	 * need junking there and there's nothing special being
+	 * stored, so it doesn't need to junk before free()
+	 */
 	malloc_options = "CFGjjU";
 	
 	int8_t root_user = (getuid() == 0);
