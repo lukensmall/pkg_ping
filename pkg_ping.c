@@ -1028,7 +1028,7 @@ main(int argc, char *argv[])
 	/* GENERATED CODE BEGINS HERE */
 
 
-	const char *ftp_list[56] = {
+	const char *ftp_list[55] = {
 
          "openbsd.mirror.netelligent.ca","mirrors.syringanetworks.net",
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
@@ -1045,13 +1045,13 @@ main(int argc, char *argv[])
  "mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.labkom.id","mirror.litnet.lt",
     "mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp",
      "mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu","ftp.icm.edu.pl",
-        "mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de",
-   "www.ftp.ne.jp","ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl",
-                     "ftp.fau.de","ftp.fsn.hu","openbsd.hk"
+"mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie","www.ftp.ne.jp","ftp.eenet.ee",
+      "ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl","ftp.fau.de","ftp.fsn.hu",
+                                  "openbsd.hk"
 
 	};
 
-	const uint16_t index = 56;
+	const uint16_t index = 55;
 
 
 
@@ -2060,7 +2060,7 @@ restart_dns_err:
 		
 		se = c - 1;
 		
-		printf("      /* Trusted OpenBSD.org domain n");
+		printf("      /* Trusted OpenBSD.org domain ");
 		printf("mirrors for generating this section */\n\n");
 		printf("\tconst char *ftp_list_g[%d] = {\n\n", c);
 		
