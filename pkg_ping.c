@@ -94,9 +94,9 @@ extern char *malloc_options;
 static void
 free_array()
 {
-	while (--array_length >= 0) {
-		free(array[array_length].label);
-		free(array[array_length].http);
+	while (array_length != 0) {
+		free(array[--array_length].label);
+		free(array[  array_length].http);
 	}
 	free(array);
 	array = NULL;
@@ -786,7 +786,7 @@ main(int argc, char *argv[])
 	long double S = 0;
 	pid_t ftp_pid = 0, write_pid = 0, dns_cache_d_pid = 0;
 	int kq = 0, i = 0, pos = 0, c = 0, n = 0;
-	int array_max = 0, tag_len = 0;
+	int array_max = 100, tag_len = 0;
 	int pos_max = 0, std_err = 0, entry_line = 0, exit_line = 0;
 	
 	int dns_cache_d_socket[2] = { -1, -1 };
@@ -835,15 +835,18 @@ main(int argc, char *argv[])
 	}
 
 	for(i = 1; i < argc; ++i) {
-		if (strlen(argv[i]) >= 25)
-			errx(1, "keep argument lengths under 25");
+		line0 = line_t = argv[i] - 1;
+		while (*++line_t != '\0') {
+			if (line_t - line0 == 50)
+				errx(1, "keep argument lengths under 50");
+		}
 	}
 	
 
-	if (argc >= 30) {
+	if (argc >= 25) {
 		i = !strncmp(argv[argc - 1], "-l", 2);
-		if (argc - i >= 30)
-			errx(1, "keep argument count under 30");
+		if (argc - i >= 25)
+			errx(1, "keep argument count under 25");
 	}
 
 
@@ -1354,7 +1357,6 @@ main(int argc, char *argv[])
 		errx(1, "calloc");
 	}
 
-	array_max = 100;
 	array = calloc(array_max, sizeof(struct mirror_st));
 	if (array == NULL) {
 		kill(ftp_pid, SIGINT);
@@ -1487,9 +1489,9 @@ main(int argc, char *argv[])
 			line_t = strrchr(line, ',');
 			if (line_t != NULL && line_t[1] != ' ') {
 				kill(ftp_pid, SIGINT);
-				printf("label malformation: ");
-				printf("%s\n", line);
 				free(array[array_length].http);
+				printf("label malformation: %s ", line);
+				printf("line: %d\n", __LINE__);
 				return 1;
 			}
 		}
@@ -1502,9 +1504,9 @@ main(int argc, char *argv[])
 		}
 
 
-		if (++array_length >= array_max) {
-			array_max += 20;
-			array = recallocarray(array, array_max - 20, array_max,
+		if (++array_length == array_max) {
+			array_max += 50;
+			array = recallocarray(array, array_length, array_max,
 			    sizeof(struct mirror_st));
 
 			if (array == NULL) {
