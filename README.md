@@ -81,12 +81,8 @@ if no -v or if -V is used, so if you want the fastest single result, don't use -
 
 If it is run as root, it will make ftp calls run as user pkg_fetch.
 
-If the parent process spins up dns caching, file writing and is calling ftp, it can run 4 processes at one time, all with very different pledge() sets.
+If the parent process spins up dns caching, file writing and is calling ftp, it can run 4 processes at one time, all with very different pledge sets.
 
-If you are running this from a script, I suggest making a loop and specifying the -r flag.
-If your computer doesn't yet have internet access, it will also have this error and will restart until you do have internet access. 
-You will likely find it easier to handle an error in a loop than it is to kill a constantly restarting process.
-It generates a different random mirror from which to download ftplist everytime it runs.
 
 If it returns 1, something very bad has occurred or the timeout value is too low to find a successful mirror;
 something that running it again won't likely solve.
