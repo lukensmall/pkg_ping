@@ -4,7 +4,7 @@ as root, will write the fastest successful one to disk unless -f is used.
 
 I didn't think about it before, but perhaps some of you may be put off by the source code containing a hard-coded mirror snippet array.
 If you don't trust the array, you can run it with the -g flag and it will print out another hard-coded mirror source code section generated from
-openbsd.org mirrors owned by the OpenBSD project. I designed this feature for you to substitute my generated code section.
+openbsd.org domain mirrors from the OpenBSD project. I designed this feature for you to substitute my generated code section.
 
 Compiler optimizations for speed is not worth the extra second of compile time. Waiting for ftp calls and dns queries will take up the vast majority of the
 run-time; everything else happens in the blink of an eye.
@@ -14,8 +14,8 @@ immediately takes away the possibility to unveil() any further.
 
 It automatically discovers whether you are running a release vs a current or beta snapshot!
 
-It defaults to precaching your dns server by looking up a mirror's ip address(es);
-this way, there is no inconsistency caused by ftp timed with inconsistent dns query times.
+It defaults to precaching your dns server by looking up a mirror's ip address(es)
+so there is no inconsistency caused by determining ftp download speed with inconsistent dns query times.
 
 It restarts for most initial ftp call error cases which can be fixed with a different random number.
 
@@ -35,7 +35,7 @@ It uses several commandline options:
 -g generates the massive https list from which to retrieve and parse "ftplist", which you no doubt, noticed when
    you look at the source code. It downloads an 11 byte timestamp which is in all mirrors, whereas not all mirrors
    might have snapshots of your architecture or version. It presets options such as minimum verboseness of -v, 
-   -f, and finally: -S because the mirror list needs to be securely downloaded.
+   -f, and finally: -S because the mirror list needs to be securely downloaded. This flag will also override -O and -n.
 
 -h will print the "help" options.
 
@@ -57,8 +57,8 @@ It uses several commandline options:
    http mirrors are likely faster than all https mirror selections, however they pass over the internet without encryption.
    Integrity is still preserved by not using -S, but it will not provide secrecy...maybe you don't want the internets to know you're downloading hot-babe! LOL!
 
--u will make it search for only non-USA mirrors for export encryption
-   compliance if you are searching from outside of the USA and Canada.
+-u will make it avoid loading mirrors with "USA" in the label for encryption export compliance if you are searching from outside of the USA and Canada.
+I'm not sure if this eliminates all mirrors located in the USA. Use your best judgement.
 
 -v will show when it is fetching "ftplist" from one of the many hard coded mirrors, prints out the results 
    sorted in reverse order by time or if it is timed out, or a download error,
@@ -79,7 +79,8 @@ It uses several commandline options:
 pkg_ping will shorten the timeout period to the download time of the fastest previous mirror throughout ftp timing calls
 if no -v or if -V is used, so if you want the fastest single result, don't use -v or you could use -V, but it won't print the result to the screen.
 
-If it is run as root, it will make ftp calls run as user pkg_fetch.
+If it is run as root, it will make ftp calling processes change to the pkg_fetch user which only has read access to the /var/empty directory,
+and ftp(1) doesn't unveil() so it may actually be safer to run as root.
 
 If the parent process spins up dns caching, file writing and is calling ftp, it can run 4 processes at one time, all with very different pledge sets.
 
