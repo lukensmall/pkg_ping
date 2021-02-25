@@ -276,7 +276,7 @@ diff_cmp_g2(const void *a, const void *b)
 	 *        if they are zero, the http
 	 *       comparison isn't interesting.
 	 */
-	if (one_diff) {
+	if (one_diff != 0) {
 		return strcmp(
 			      ((struct mirror_st *) a)->http,
 			      ((struct mirror_st *) b)->http
@@ -1268,8 +1268,6 @@ main(int argc, char *argv[])
 			else
 				printf("showing release mirrors\n\n");
 		}
-		if (current == 1)
-			next = 0;
 	}
 	
 	if (generate == 1) {
