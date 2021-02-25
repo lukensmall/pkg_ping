@@ -49,6 +49,8 @@ It uses several commandline options:
 -O will override and search for snapshot mirrors if it is a release; and will search for release mirrors if it a snapshot.
    Useful when you are running a pre-release snapshot without available release mirrors or...are just curious?
 
+-p searches for previous release package folders! It subtracts .1 to your version and searches for the release.
+
 -n searches for next release package folders! It adds .1 to your version and searches for the release.
 
 -s will accept floating-point timeout like 1.5 seconds using strtold() and handrolled validation, eg. "-s 1.5", default 5.
