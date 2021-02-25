@@ -340,19 +340,16 @@ manpage()
 }
 
 static int
-dns_cache_d(const int dns_cache_d_socket[], const int8_t secure,
+dns_cache_d(const int dns_socket, const int8_t secure,
 	    const int8_t six, const int8_t verbose)
 {
 	if (pledge("stdio dns", NULL) == -1) {
 		printf("%s ", strerror(errno));
 		printf("dns_cache_d pledge, line: %d\n", __LINE__);
 		_exit(1);
-	}
+	}	
 	
-	close(dns_cache_d_socket[1]);
-	
-	
-	int i = 0, c = 0, dns_socket = dns_cache_d_socket[0];
+	int i = 0, c = 0;
 				  
 	uint8_t dns_line_max = 0;
 	struct addrinfo *res0 = NULL, *res = NULL;
@@ -984,7 +981,8 @@ main(int argc, char *argv[])
 				err(1, "dns_cache_d fork, line: %d\n",
 				    __LINE__);
 			case 0:
-				dns_cache_d(dns_cache_d_socket, secure,
+				close(dns_cache_d_socket[1]);
+				dns_cache_d(dns_cache_d_socket[0], secure,
 				    six, verbose);
 				errx(1, "dns_cache_d returned! line: %d\n",
 				    __LINE__);
@@ -1025,10 +1023,10 @@ main(int argc, char *argv[])
 	entry_line = __LINE__;
 
 
-	/* GENERATED CODE BEGINS HERE */
+                        /* GENERATED CODE BEGINS HERE */
 
 
-	const char *ftp_list[55] = {
+	const char *ftp_list[54] = {
 
          "openbsd.mirror.netelligent.ca","mirrors.syringanetworks.net",
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
@@ -1045,17 +1043,16 @@ main(int argc, char *argv[])
  "mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.labkom.id","mirror.litnet.lt",
     "mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp",
      "mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu","ftp.icm.edu.pl",
-"mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie","www.ftp.ne.jp","ftp.eenet.ee",
-      "ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl","ftp.fau.de","ftp.fsn.hu",
-                                  "openbsd.hk"
+"mirror.one.com","ftp.cc.uoc.gr","ftp.spline.de","www.ftp.ne.jp","ftp.eenet.ee",
+      "ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl","ftp.fau.de","ftp.fsn.hu"
 
 	};
 
-	const uint16_t index = 55;
+	const uint16_t index = 54;
 
 
 
-      /* Trusted OpenBSD.org domain mirrors for generating this section */
+     /* Trusted OpenBSD.org subdomain mirrors for generating this section */
 
 	const char *ftp_list_g[8] = {
 
@@ -1068,7 +1065,7 @@ main(int argc, char *argv[])
 	const uint16_t index_g = 8;
 
 
-	/* GENERATED CODE ENDS HERE */
+                         /* GENERATED CODE ENDS HERE */
 
 
 	exit_line = __LINE__;
@@ -1104,8 +1101,6 @@ main(int argc, char *argv[])
 			_exit(1);
 		}
 
-		c = ftp_out[STDOUT_FILENO];
-		
 		if (generate) {				
 			
 			i = arc4random_uniform(index_g);
@@ -1138,7 +1133,9 @@ main(int argc, char *argv[])
 		if (i >= n || i < 0) {
 			if (i < 0)
 				printf("snprintf error ");
-			printf("'line' length >= %d, line: %d\n", i, __LINE__);
+			else
+				printf("'line' length >= %d, ", i);
+			printf("line: %d\n", __LINE__);
 			_exit(1);
 		}
 		
@@ -1150,7 +1147,7 @@ main(int argc, char *argv[])
 		}
 
 
-		if (dup2(c, STDOUT_FILENO) == -1) {
+		if (dup2(ftp_out[STDOUT_FILENO], STDOUT_FILENO) == -1) {
 			printf("%s ", strerror(errno));
 			printf("ftp STDOUT dup2, line: %d\n", __LINE__);
 			_exit(1);
@@ -1271,6 +1268,8 @@ main(int argc, char *argv[])
 			else
 				printf("showing release mirrors\n\n");
 		}
+		if (current == 1)
+			next = 0;
 	}
 	
 	if (generate == 1) {
@@ -1652,7 +1651,7 @@ main(int argc, char *argv[])
 				do {
 					printf("\b");
 					n /= 10;
-				} while (n > 0);
+				} while (n != 0);
 			}
 			printf("%d", i);
 			fflush(stdout);
@@ -1702,7 +1701,7 @@ restart_dns_err:
 					do {
 						printf("\b \b");
 						n /= 10;
-					} while (n > 0);
+					} while (n != 0);
 				}
 
 				close(kq);
@@ -1888,8 +1887,8 @@ restart_dns_err:
 	if (verbose < 1) {
 		struct mirror_st *ac = array + array_length - 1;
 		
-		struct mirror_st *fastest = ac;
 		long double fastest_diff = ac->diff;
+		struct mirror_st *fastest = ac;
 
 		while (array <= --ac) {
 			if (ac->diff < fastest_diff) {
@@ -1957,6 +1956,11 @@ restart_dns_err:
 		n = 1;
 		for (c = 0; c <= se; ++c) {
 			cut = strstr(array[c].http += h, "/pub/OpenBSD");
+			
+			if (cut && array[c].http + strlen(array[c].http)
+			    != cut + 12)
+				cut = NULL;
+			
 			if (cut == NULL) {
 				(array[c].http -= 1)[0] = '*';
 				array[c].diff = strlen(array[c].http);
@@ -1964,13 +1968,44 @@ restart_dns_err:
 				*cut = '\0';
 				array[c].diff = cut - array[c].http;
 			}
-			
+
 			if (n == 1) {
-				if (strstr(array[c].http, "openbsd.org") ||
-				    strstr(array[c].http, "OpenBSD.org"))
-					n = 0;
+				if (array[c].http[0] == '*') {
+					cut = strchr(array[c].http, '/');
+					if (cut == NULL) {
+						cut = array[c].http +
+						    (int)array[c].diff;
+					}
+					if (cut - array[c].http > 12 + 1 &&
+					    (
+					     !strncmp(cut - 12,
+					     ".openbsd.org", 12)
+					     
+					     ||
+					     
+					     !strncmp(cut - 12,
+					     ".OpenBSD.org", 12)
+					    )
+					   )
+						n = 0;
+				} else {
+					if (cut - array[c].http > 12 &&
+					    (
+					     !strcmp(cut - 12, ".openbsd.org")
+					     
+					     ||
+					     
+					     !strcmp(cut - 12, ".OpenBSD.org")
+					    )
+					   )
+						n = 0;
+				}
 			}
 		}
+
+
+
+
 		
 		if (n == 1) {
 			
@@ -1996,7 +2031,9 @@ restart_dns_err:
 		qsort(array, se + 1, sizeof(struct mirror_st), diff_cmp_g);
 
 		printf("\n\n");
-		printf("\t/* GENERATED CODE BEGINS HERE */\n\n\n");
+		for (j = (80 + 1 - 32) / 2; j > 0; --j)
+			printf(" ");
+		printf("/* GENERATED CODE BEGINS HERE */\n\n\n");
 		printf("\tconst char *ftp_list[%d] = {\n\n", se + 1);
 
 				
@@ -2018,7 +2055,7 @@ restart_dns_err:
 			if (n > 80) {
 				
 				/* center the printed mirrors. Err to right */
-				for (j = (80 + 1 - (n - i)) / 2; j > 0; --j)
+				for (j = (80 + 1 + i - n) / 2; j > 0; --j)
 					printf(" ");
 				for (j = first; j < c; ++j)
 					printf("\"%s\",", array[j].http);
@@ -2044,9 +2081,36 @@ restart_dns_err:
 		 * make non-openbsd.org mirrors: diff == 0
 		 */
 		for (c = 0; c <= se; ++c) {
-			if (strstr(array[c].http, "openbsd.org") == NULL &&
-			    strstr(array[c].http, "OpenBSD.org") == NULL)
-				array[c].diff = 0;
+			if (array[c].http[0] == '*') {
+				cut = strchr(array[c].http, '/');
+				if (cut == NULL) {
+					cut = array[c].http +
+					    (int)array[c].diff;
+				}
+				if (cut - array[c].http <= 12 + 1 ||
+				    (
+				     strncmp(cut - 12, ".openbsd.org", 12)
+				     
+				     &&
+				     
+				     strncmp(cut - 12, ".OpenBSD.org", 12)
+				    )
+				   )
+					array[c].diff = 0;
+			} else {
+				cut = array[c].http + (int)array[c].diff;
+
+				if (cut - array[c].http <= 12 ||
+				    (
+				     strcmp(cut - 12, ".openbsd.org")
+				     
+				     &&
+				     
+				     strcmp(cut - 12, ".OpenBSD.org")
+				    )
+				   )
+					array[c].diff = 0;
+			}
 		}
 
 		/* sort by longest length first, subsort http alphabetically */
@@ -2060,7 +2124,7 @@ restart_dns_err:
 		
 		se = c - 1;
 		
-		printf("      /* Trusted OpenBSD.org domain ");
+		printf("     /* Trusted OpenBSD.org subdomain ");
 		printf("mirrors for generating this section */\n\n");
 		printf("\tconst char *ftp_list_g[%d] = {\n\n", c);
 		
@@ -2085,7 +2149,7 @@ restart_dns_err:
 			if (n > 80) {
 				
 				/* center the printed mirrors. Err to right */
-				for (j = (80 + 1 - (n - i)) / 2; j > 0; --j)
+				for (j = (80 + 1 + i - n) / 2; j > 0; --j)
 					printf(" ");
 				for (j = first; j < c; ++j)
 					printf("\"%s\",", array[j].http);
@@ -2106,7 +2170,9 @@ restart_dns_err:
 		printf("\t};\n\n");
 		printf("\tconst uint16_t index_g = %d;\n\n\n", se + 1);
 
-		printf("\t/* GENERATED CODE ENDS HERE */\n\n\n\n");
+		for (j = (80 + 1 - 30) / 2; j > 0; --j)
+			printf(" ");
+		printf("/* GENERATED CODE ENDS HERE */\n\n\n\n");
 		printf("Replace section after line: %d, but ", entry_line);
 		printf("before line: %d with the code above.\n\n", exit_line);
 
