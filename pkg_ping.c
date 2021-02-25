@@ -319,6 +319,8 @@ manpage()
 	printf("\tsearch for release mirrors. if your OS is a release,\n");
 	printf("\tit will Override it and search for snapshot mirrors.)\n");
 
+	printf("[-n (search for mirrors with the previous release!)]\n");
+
 	printf("[-n (search for mirrors with the next release!)]\n");
 
 	printf("[-s timeout in Seconds (eg. -s 2.3)]\n");
@@ -777,7 +779,8 @@ main(int argc, char *argv[])
 	int8_t root_user = (getuid() == 0);
 	int8_t to_file = root_user;
 	int8_t num = 0, current = 0, secure = 0, verbose = 0;
-	int8_t generate = 0, override = 0, six = 0, next = 0, s_set = 0;
+	int8_t generate = 0, override = 0, six = 0;
+	int8_t previous = 0, next = 0, s_set = 0;
 	int8_t dns_cache = 1, usa = 1;
 	int16_t loop = 20;
 	long double S = 0;
@@ -847,7 +850,7 @@ main(int argc, char *argv[])
 	}
 
 
-	while ((c = getopt(argc, argv, "6dfghl:OnSs:uvV")) != -1) {
+	while ((c = getopt(argc, argv, "6dfghl:OpnSs:uvV")) != -1) {
 		switch (c) {
 		case '6':
 			six = 1;
@@ -886,7 +889,12 @@ main(int argc, char *argv[])
 		case 'O':
 			override = 1;
 			break;
+		case 'p':
+			next = 0;
+			previous = 1;
+			break;
 		case 'n':
+			previous = 0;
 			next = 1;
 			break;
 		case 'S':
@@ -947,6 +955,7 @@ main(int argc, char *argv[])
 			verbose = 1;
 		secure = 1;
 		dns_cache = 1;
+		previous = 0;
 		next = 0;
 		override = 0;
 		to_file = 0;
@@ -1225,7 +1234,12 @@ main(int argc, char *argv[])
 
 	c = ftp_out[STDIN_FILENO];
 
-	if (next == 1) {
+	if (previous == 1) {
+		if (verbose >= 2) {
+			printf("showing the previous ");
+			printf("release availability!\n\n");
+		}
+	} else if (next == 1) {
 		if (verbose >= 2)
 			printf("showing the next release availability!\n\n");
 	} else if (generate == 0) {
@@ -1314,6 +1328,19 @@ main(int argc, char *argv[])
 			
 			n = strlen(release) + 1;
 			i = snprintf(release, n, "%.1f", atof(release) + .1);
+			    
+			if (i >= n || i < 0) {
+				kill(ftp_pid, SIGINT);
+				printf("release: %s, ", release);
+				printf("snprintf, line: %d\n", __LINE__);
+				return 1;
+			}
+		}
+		
+		if (previous) {
+			
+			n = strlen(release) + 1;
+			i = snprintf(release, n, "%.1f", atof(release) - .1);
 			    
 			if (i >= n || i < 0) {
 				kill(ftp_pid, SIGINT);
@@ -2252,6 +2279,9 @@ no_good:
 		if (next == 1) {
 			printf("Perhaps the next release ");
 			printf("(%s) isn't present yet?\n", release);
+		} else if (previous == 1) {
+			printf("Perhaps the previous release ");
+			printf("(%s) isn't available?\n", release);
 		} else if (current == 0 && override == 0 && generate == 0) {
 			printf("Perhaps the %s release ", release);
 			printf("isn't present yet?\n");
