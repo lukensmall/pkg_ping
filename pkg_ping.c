@@ -1980,10 +1980,10 @@ restart_dns_err:
 		 */
 		n = 1;
 		for (c = 0; c <= se; ++c) {
-			cut = strstr(array[c].http += h, "/pub/OpenBSD");
-			
-			if (cut && array[c].http + strlen(array[c].http)
-			    != cut + 12)
+			j = strlen(array[c].http += h);
+			if (j <= 12 ||
+			    strcmp(cut = array[c].http + j - 12, "/pub/OpenBSD")
+			   )
 				cut = NULL;
 			
 			if (cut == NULL) {
