@@ -1981,14 +1981,10 @@ restart_dns_err:
 		n = 1;
 		for (c = 0; c <= se; ++c) {
 			j = strlen(array[c].http += h);
-			if (j <= 12 ||
-			    strcmp(cut = array[c].http + j - 12, "/pub/OpenBSD")
-			   )
-				cut = NULL;
-			
-			if (cut == NULL) {
+			if (j <= 12 || strcmp(cut = array[c].http + j - 12,
+			    "/pub/OpenBSD")) {
 				(array[c].http -= 1)[0] = '*';
-				array[c].diff = strlen(array[c].http);
+				array[c].diff = j + 1;
 			} else {
 				*cut = '\0';
 				array[c].diff = cut - array[c].http;
@@ -1997,10 +1993,9 @@ restart_dns_err:
 			if (n == 1) {
 				if (array[c].http[0] == '*') {
 					cut = strchr(array[c].http, '/');
-					if (cut == NULL) {
-						cut = array[c].http +
-						    (int)array[c].diff;
-					}
+					if (cut == NULL)
+						cut = array[c].http + j + 1;
+						
 					if (cut - array[c].http > 12 + 1 &&
 					    (
 					     !strncmp(cut - 12,
