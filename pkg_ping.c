@@ -719,11 +719,9 @@ file_d(const int write_pipe[], const int8_t secure, const int8_t verbose)
 }
 
 static void
-restart(int argc, char *argv[], int16_t loop, int8_t verbose)
+restart(int argc, char *argv[], const int16_t loop, const int8_t verbose)
 {
-	int i = 0;
-	
-	if (loop-- == 0) {
+	if (loop == 0) {
 		if (verbose >= 0)
 			printf("Looping exhausted: Try again.\n");
 		exit(2);
@@ -740,14 +738,13 @@ restart(int argc, char *argv[], int16_t loop, int8_t verbose)
 	if (arg_v == NULL)
 		errx(1, "calloc");
 		
-	for (i = 0; i < n; ++i)
-		arg_v[i] = argv[i];
+	memcpy(arg_v, argv, n * sizeof(char*));
 	
 	int len = 10;
 	arg_v[n] = calloc(len, sizeof(char));
 	if (arg_v[n] == NULL)
 		errx(1, "calloc");
-	int c = snprintf(arg_v[n], len, "-l%d", loop);
+	int c = snprintf(arg_v[n], len, "-l%d", loop - 1);
 	if (c >= len || c < 0)
 		errx(1, "snprintf, line: %d", __LINE__);
 		
@@ -757,7 +754,7 @@ restart(int argc, char *argv[], int16_t loop, int8_t verbose)
 	err(1, "execv failed, line: %d", __LINE__);
 }
 
-void easy_ftp_kill(int kq, struct kevent *ke, int ftp_pid,
+void easy_ftp_kill(const int kq, struct kevent *ke, const pid_t ftp_pid,
                    const struct timespec *timeout_kill)
 {
 	EV_SET(ke, ftp_pid, EVFILT_PROC, EV_ADD | EV_ONESHOT,
@@ -783,7 +780,7 @@ main(int argc, char *argv[])
 	/* 
 	 * I specified no junking here:
 	 * I use calloc() calls to allocate everything, so it doesn't
-	 * need junking there and there's nothing special being
+	 * need junking level 2 and there's nothing special being
 	 * stored, so it doesn't need to junk before free()
 	 */
 	malloc_options = "CFGjjU";
@@ -966,7 +963,6 @@ main(int argc, char *argv[])
 		if (verbose < 1)
 			verbose = 1;
 		secure = 1;
-		dns_cache = 1;
 		previous = 0;
 		next = 0;
 		override = 0;
@@ -1052,7 +1048,7 @@ main(int argc, char *argv[])
                         /* GENERATED CODE BEGINS HERE */
 
 
-	const char *ftp_list[54] = {
+	const char *ftp_list[55] = {
 
          "openbsd.mirror.netelligent.ca","mirrors.syringanetworks.net",
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
@@ -1069,12 +1065,13 @@ main(int argc, char *argv[])
  "mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.labkom.id","mirror.litnet.lt",
     "mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp",
      "mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu","ftp.icm.edu.pl",
-"mirror.one.com","ftp.cc.uoc.gr","ftp.spline.de","www.ftp.ne.jp","ftp.eenet.ee",
-      "ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl","ftp.fau.de","ftp.fsn.hu"
+        "mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de",
+   "www.ftp.ne.jp","ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl",
+                            "ftp.fau.de","ftp.fsn.hu"
 
 	};
 
-	const uint16_t index = 54;
+	const uint16_t index = 55;
 
 
 
@@ -1429,8 +1426,10 @@ main(int argc, char *argv[])
 	if (i == 0) {
 		
 		/* (verbose == 0 || verbose == 1) */
-		if ((verbose >> 1) == 0)
-			printf("\b");
+		if ((verbose >> 1) == 0) {
+			printf("\b \b");
+			fflush(stdout);
+		}
 	
 		easy_ftp_kill(kq, &ke, ftp_pid, &timeout_kill);
 		close(kq);
@@ -2039,8 +2038,7 @@ restart_dns_err:
 		qsort(array, se + 1, sizeof(struct mirror_st), diff_cmp_g);
 
 		printf("\n\n");
-		for (j = (80 + 1 - 32) / 2; j > 0; --j)
-			printf(" ");
+		printf("                        ");
 		printf("/* GENERATED CODE BEGINS HERE */\n\n\n");
 		printf("\tconst char *ftp_list[%d] = {\n\n", se + 1);
 
@@ -2160,9 +2158,7 @@ restart_dns_err:
 		
 		printf("\t};\n\n");
 		printf("\tconst uint16_t index_g = %d;\n\n\n", se + 1);
-
-		for (j = (80 + 1 - 30) / 2; j > 0; --j)
-			printf(" ");
+		printf("                         ");
 		printf("/* GENERATED CODE ENDS HERE */\n\n\n\n");
 		printf("Replace section after line: %d, but ", entry_line);
 		printf("before line: %d with the code above.\n\n", exit_line);
@@ -2248,7 +2244,7 @@ no_good:
 		} else if (previous == 1) {
 			printf("Perhaps the previous release ");
 			printf("(%s) isn't available?\n", release);
-		} else if (current == 0 && override == 0 && generate == 0) {
+		} else if (current == 0 && generate == 0) {
 			printf("Perhaps the %s release ", release);
 			printf("isn't present yet?\n");
 			printf("The OpenBSD team tests prereleases ");
@@ -2261,12 +2257,8 @@ no_good:
 		if (six) {
 			printf("Try losing the -6 option?\n\n");
 			
-			if (array[0].diff == s + 2 &&
-			    (
-			     array[array_length - 1].diff == s + 2 ||
-			     array[array_length - 1].diff == s + 3
-			    )
-			   ) {
+			if (array[0].diff >= s + 2 ||
+			   (array[0].diff == s + 1 && dns_cache == 0)) {
 				printf("I have a strong suspicicion that ");
 				printf("your dns system isn't set up ");
 				printf("for IPv6 at all!!!\n\n");
