@@ -105,26 +105,34 @@ free_array()
 static int
 usa_cmp(const void *a, const void *b)
 {
+	char *one_label = ((struct mirror_st *) a)->label;
+	char *two_label = ((struct mirror_st *) b)->label;
+
 	/* prioritize the USA mirrors first */
-	int8_t temp = (strstr(((struct mirror_st *) a)->label, "USA") != NULL);
-	if (temp != (strstr(((struct mirror_st *) b)->label, "USA") != NULL)) {
+	int8_t temp = (strstr(one_label, "USA") != NULL);
+	if (temp != (strstr(two_label, "USA") != NULL)) {
 		if (temp)
 			return -1;
 		return 1;
 	}
+	
+	if (temp)
+		return 0;
 	
 	/* prioritize Canada mirrors next */
-	temp = (strstr(((struct mirror_st *) a)->label, "Canada") != NULL);
-	if (temp !=
-	    (strstr(((struct mirror_st *) b)->label, "Canada") != NULL)) {
+	temp = (strstr(one_label, "Canada") != NULL);
+	if (temp != (strstr(two_label, "Canada") != NULL)) {
 		if (temp)
 			return -1;
 		return 1;
 	}
 	
-	/* prioritize Content Delivery Network "CDN" mirrors next */
-	temp = (strstr(((struct mirror_st *) a)->label, "CDN") != NULL);
-	if (temp != (strstr(((struct mirror_st *) b)->label, "CDN") != NULL)) {
+	if (temp)
+		return 0;
+
+	/* prioritize Content Delivery Network "CDN" mirrors last */
+	temp = (strstr(one_label, "CDN") != NULL);
+	if (temp != (strstr(two_label, "CDN") != NULL)) {
 		if (temp)
 			return -1;
 		return 1;
