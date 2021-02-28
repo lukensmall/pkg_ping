@@ -335,13 +335,13 @@ manpage()
 	printf(" for an 'ftplist' download error\n");
 	printf("\t(If left unspecified it will permit 20 restarts)]\n");
 
+	printf("[-n (search for mirrors with the next release!)]\n");
+
 	printf("[-O (if your OS is a snapshot, it will Override it and\n");
 	printf("\tsearch for release mirrors. if your OS is a release,\n");
 	printf("\tit will Override it and search for snapshot mirrors.)\n");
 
-	printf("[-n (search for mirrors with the previous release!)]\n");
-
-	printf("[-n (search for mirrors with the next release!)]\n");
+	printf("[-p (search for mirrors with the previous release!)]\n");
 
 	printf("[-s timeout in Seconds (eg. -s 2.3)]\n");
 
