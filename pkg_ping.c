@@ -105,9 +105,26 @@ free_array()
 static int
 usa_cmp(const void *a, const void *b)
 {
-	/* list the USA mirrors first */
+	/* prioritize the USA mirrors first */
 	int8_t temp = (strstr(((struct mirror_st *) a)->label, "USA") != NULL);
 	if (temp != (strstr(((struct mirror_st *) b)->label, "USA") != NULL)) {
+		if (temp)
+			return -1;
+		return 1;
+	}
+	
+	/* prioritize Canada mirrors next */
+	temp = (strstr(((struct mirror_st *) a)->label, "Canada") != NULL);
+	if (temp !=
+	    (strstr(((struct mirror_st *) b)->label, "Canada") != NULL)) {
+		if (temp)
+			return -1;
+		return 1;
+	}
+	
+	/* prioritize Content Delivery Network "CDN" mirrors next */
+	temp = (strstr(((struct mirror_st *) a)->label, "CDN") != NULL);
+	if (temp != (strstr(((struct mirror_st *) b)->label, "CDN") != NULL)) {
 		if (temp)
 			return -1;
 		return 1;
@@ -228,13 +245,10 @@ diff_cmp(const void *a, const void *b)
 	if (one_diff > two_diff)
 		return 1;
 
-	/* list the USA mirrors first */
-	int8_t temp = (strstr(((struct mirror_st *) a)->label, "USA") != NULL);
-	if (temp != (strstr(((struct mirror_st *) b)->label, "USA") != NULL)) {
-		if (temp)
-			return -1;
-		return 1;
-	}
+	/* prioritize mirrors near to USA first */
+	int8_t ret = usa_cmp(a, b);
+	if (ret != 0)
+		return ret;
 
 	/* reverse subsort label_cmp_minus_usa */
 	return label_cmp_minus_usa(b, a);
@@ -288,13 +302,11 @@ diff_cmp_g2(const void *a, const void *b)
 static int
 label_cmp(const void *a, const void *b)
 {
-	/* list the USA mirrors first */
-	int8_t temp = (strstr(((struct mirror_st *) a)->label, "USA") != NULL);
-	if (temp != (strstr(((struct mirror_st *) b)->label, "USA") != NULL)) {
-		if (temp)
-			return -1;
-		return 1;
-	}
+	/* prioritize mirrors near to USA first */
+	int8_t ret = usa_cmp(a, b);
+	if (ret != 0)
+		return ret;
+
 	return label_cmp_minus_usa(a, b);
 }
 
@@ -1605,26 +1617,26 @@ main(int argc, char *argv[])
 	}
 
 	/* 
-	 *   if verbose >= 2, make USA mirrors first, then subsort by label.
-	 *         otherwise, make USA mirrors first, then don't care.
+	 * if verbose >= 2, make mirrors near USA first, then subsort by label.
+	 *       otherwise, make mirrors near USA first, then don't care.
 	 * 
-	 * if searching through USA mirrors on verbose <= 0 it is more likely
+	 *  Searching through mirrors near USA on verbose < 1 is more likely
 	 * to find the faster mirrors to shrink 'timeout' earlier to make your
 	 *                    runtime as short as possible.
 	 */
 	if (usa == 0) {
-		if (verbose >= 2) {
+		if (verbose > 1) {
 			qsort(array, array_length, sizeof(struct mirror_st),
 			    label_cmp_minus_usa);
 		} /* else don't sort */
 	} else {
-		if (verbose >= 2) {
+		if (verbose > 1) {
 			qsort(array, array_length, sizeof(struct mirror_st),
 			    label_cmp);
-		} else {
+		} else if (verbose < 1) {
 			qsort(array, array_length, sizeof(struct mirror_st),
 			    usa_cmp);
-		}
+		} /* else don't sort */
 	}
 
 	if (six == 1) {
