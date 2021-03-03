@@ -879,7 +879,7 @@ main(int argc, char *argv[])
 	}
 
 
-	while ((c = getopt(argc, argv, "6dfghl:OpnSs:uvV")) != -1) {
+	while ((c = getopt(argc, argv, "6dfghl:nOpSs:uvV")) != -1) {
 		switch (c) {
 		case '6':
 			six = 1;
@@ -915,16 +915,16 @@ main(int argc, char *argv[])
 				loop = loop * 10 + optarg[c] - '0';
 			} while (optarg[++c] != '\0');
 			break;
+		case 'n':
+			previous = 0;
+			next = 1;
+			break;
 		case 'O':
 			override = 1;
 			break;
 		case 'p':
 			next = 0;
 			previous = 1;
-			break;
-		case 'n':
-			previous = 0;
-			next = 1;
 			break;
 		case 'S':
 			secure = 1;
@@ -1990,11 +1990,11 @@ restart_dns_err:
 
 		int16_t j = 0, first = 0, se0 = se;
 		
-		if (!generate)
-			goto generate_jump;
-
 		if (se < 0)
 			goto no_good;
+
+		if (!generate)
+			goto generate_jump;
 
 		/* 
 		 * load diff with what will be printed http lengths
@@ -2002,20 +2002,24 @@ restart_dns_err:
 		 */
 		n = 1;
 		for (c = 0; c <= se; ++c) {
-			j = strlen(array[c].http += h);
-			if (j <= 12 || strcmp(cut = array[c].http + j - 12,
-			    "/pub/OpenBSD")) {
+			
+			cut = array[c].http += h;
+			j = strlen(cut);
+			if (j <= 12 || strcmp(cut += j - 12, "/pub/OpenBSD")) {
 				(array[c].http -= 1)[0] = '*';
-				array[c].diff = ++j;
+				array[c].diff = j + 1;
 			} else {
 				*cut = '\0';
-				array[c].diff = (j -= 12);
+				array[c].diff = j - 12;
 			}
 
 			if (n == 1) {
 				cut = strchr(array[c].http, '/');
-				if (cut == NULL)
-					cut = array[c].http + j;
+				if (cut == NULL) {
+					/* Will likely never get here */
+					cut = array[c].http +
+					    (int)array[c].diff;
+				}
 					
 				if (cut - array[c].http > 12 &&
 				    (
@@ -2198,21 +2202,21 @@ generate_jump:
 
 		c = array_length - 1;
 
-		if (de == c)
+		if (c == de)
 			printf("\n\nDOWNLOAD ERROR MIRRORS:\n\n\n");
-		else if (te == c)
+		else if (c == te)
 			printf("\n\nTIMEOUT MIRRORS:\n\n\n");
 		else
 			printf("\n\nSUCCESSFUL MIRRORS:\n\n\n");
 
-		struct mirror_st *ac = array + c;
+		struct mirror_st *ac = array + ++c;
 		
-		for (; c >= 0; --c, --ac) {
+		while (array <= --ac) {
 
 			if (array_length >= 100)
-				printf("%3d", c + 1);
+				printf("%3d", c--);
 			else
-				printf("%2d", c + 1);
+				printf("%2d", c--);
 
 			printf(" : %s\n\t", ac->label);
 			
