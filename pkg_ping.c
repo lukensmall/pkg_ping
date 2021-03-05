@@ -94,7 +94,7 @@ extern char *malloc_options;
 static void
 free_array()
 {
-	while (array_length != 0) {
+	while (array_length > 0) {
 		free(array[--array_length].label);
 		free(array[  array_length].http);
 	}
@@ -1500,8 +1500,9 @@ main(int argc, char *argv[])
 				
 				memcpy(array[array_length].http, "https", 5);
 				
+				/* strlen("http") == 4 */
 				memcpy(5 + array[array_length].http,
-				    strlen("http") + line, pos - 5);
+				    4 + line, pos - 5);
 					
 			} else {
 				
@@ -1829,7 +1830,7 @@ restart_dns_err:
 		    NOTE_EXIT, 0, NULL);
 		if (kevent(kq, &ke, 1, NULL, 0, NULL) == -1) {
 			printf("%s ", strerror(errno));
-			kill(ftp_pid, SIGINT);
+			kill(ftp_pid, SIGKILL);
 			printf("kevent register fail, line: %d", __LINE__);
 			return 1;
 		}
@@ -1843,7 +1844,7 @@ restart_dns_err:
 		
 		if (i == -1) {
 			printf("%s ", strerror(errno));
-			kill(ftp_pid, SIGINT);
+			kill(ftp_pid, SIGKILL);
 			printf("kevent, line: %d", __LINE__);
 			return 1;
 		}
@@ -1855,7 +1856,7 @@ restart_dns_err:
 
 			/* 
 			 * give it time to gracefully abort, play
-			 * nice with the server, then reap event
+			 *  nice with the server and reap event
 			 */
 			i = kevent(kq, NULL, 0, &ke, 1, &timeout_kill);
 			if (i == -1) {
@@ -1932,6 +1933,12 @@ restart_dns_err:
 	free(line);
 	
 	if (verbose < 1) {
+		
+		/* 
+		 * I chose to use an insertion sort pass instead of doing
+		 * a qsort() to load the fastest mirror data into array[0].
+		 * the rest of the array data is not interesting here.
+		 */
 		struct mirror_st *ac = array + array_length - 1;
 		
 		long double fastest_diff = ac->diff;
