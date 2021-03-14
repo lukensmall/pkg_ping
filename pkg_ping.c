@@ -56,8 +56,7 @@
  * 	cc pkg_ping.c -march=native -mtune=native -O3 -pipe -o pkg_ping
  * 
  * 	You probably won't see an appreciable performance gain between
- * 	the getaddrinfo(3) and the ftp(1) calls which fetch data over the 
- * 	network.
+ * 	the getaddrinfo(3) and the ftp(1) which fetch data over the network.
  * 
  * 	program designed to be viewed with tabs which are 8 characters wide
  */
@@ -86,7 +85,7 @@ struct mirror_st {
 	long double diff;
 };
 
-int8_t h = 0;
+int8_t h = strlen("http://");
 int array_length = 0;
 struct mirror_st *array = NULL;
 extern char *malloc_options;
@@ -94,7 +93,7 @@ extern char *malloc_options;
 static void
 free_array()
 {
-	while (array_length > 0) {
+	while (array_length != 0) {
 		free(array[--array_length].label);
 		free(array[  array_length].http);
 	}
@@ -254,7 +253,7 @@ diff_cmp(const void *a, const void *b)
 		return 1;
 
 	/* prioritize mirrors near to USA first */
-	int8_t ret = usa_cmp(a, b);
+	int ret = usa_cmp(a, b);
 	if (ret != 0)
 		return ret;
 
@@ -311,7 +310,7 @@ static int
 label_cmp(const void *a, const void *b)
 {
 	/* prioritize mirrors near to USA first */
-	int8_t ret = usa_cmp(a, b);
+	int ret = usa_cmp(a, b);
 	if (ret != 0)
 		return ret;
 
@@ -472,12 +471,15 @@ dns_loop:
 	for (res = res0; res; res = res->ai_next) {
 
 		if (res->ai_family == AF_INET) {
-			if (six_available == 'f')
+			
+			sa4 = (struct sockaddr_in *) res->ai_addr;
+			sui4 = sa4->sin_addr.s_addr;
+			
+			if (six_available == 'f' && sui4 != 0)
 				six_available = '0';
 			if (six)
 				continue;
-			sa4 = (struct sockaddr_in *) res->ai_addr;
-			sui4 = sa4->sin_addr.s_addr;
+				
 			printf("       %hhu.%hhu.%hhu.%hhu\n",
 			    (uint8_t) sui4,
 			    (uint8_t)(sui4 >>  8),
@@ -1422,10 +1424,6 @@ main(int argc, char *argv[])
 	
 	atexit(free_array);
 
-
-	h = strlen("http://");
-
-
 	c = ftp_out[STDIN_FILENO];
 	
 	/* 
@@ -1543,13 +1541,14 @@ main(int argc, char *argv[])
 		 * safety check for label_cmp_minus_usa():
 		 * make sure there is a space after last comma
 		 * which would allow the function to make the
-		 * assumption that 2 spaces after the comma is
+		 * assumption that a ' ' is after the last ','
+		 * which will mean 2 spaces after the comma is
 		 * on the array. Otherwise, an abberrant
 		 * label could crash the program.
 		 * 
 		 * I could make the label function safer,
-		 * but it would eat up more computing resources
-		 * being redundantly and repeatedly checked.
+		 * but it would eat up more computing
+		 * resources being redundantly checked.
 		 */
 		if (verbose >= 1) {
 			line_t = strrchr(line, ',');
@@ -1614,7 +1613,6 @@ main(int argc, char *argv[])
 
 	if (secure == 1)
 		h = strlen("https://");
-
 	
 	pos_max += tag_len;
 
@@ -2221,13 +2219,13 @@ generate_jump:
 		while (array <= --ac) {
 
 			if (array_length >= 100)
-				printf("%3d", c--);
+				printf("%3d", c);
 			else
-				printf("%2d", c--);
+				printf("%2d", c);
 
 			printf(" : %s\n\t", ac->label);
 			
-			if (c <= se) {
+			if (--c <= se) {
 				printf("echo \"%s\" > /etc/installurl",
 				    ac->http);
 				printf(" : %.9Lf\n\n", ac->diff);
@@ -2275,25 +2273,17 @@ no_good:
 		} else if (previous == 1) {
 			printf("Perhaps the previous release ");
 			printf("(%s) isn't available?\n", release);
-		} else if (current == 0 && generate == 0) {
-			printf("Perhaps the %s release ", release);
-			printf("isn't present yet?\n");
-			printf("The OpenBSD team tests prereleases ");
-			printf("by marking them as release kernels before\n");
-			printf("the appropriate release mirrors are ");
-			printf("available to hash out any issues.\n");
-			printf("This is solved by using the -O option ");
-			printf("to retrieve snapshot mirrors.\n\n");
+		} else if (current == 0 && generate == 0 && override == 1) {
+			printf("You are probably seeking to use ");
+			printf("the -p flag instead of -O flag ");
+			printf("since the %s release ", release);
+			printf("doesn't seem to be available.\n");
 		}
 		if (six) {
-			printf("Try losing the -6 option?\n\n");
 			
-			if (array[0].diff >= s + 2 ||
-			   (array[0].diff == s + 1 && dns_cache == 0)) {
-				printf("I have a strong suspicicion that ");
-				printf("your dns system isn't set up ");
-				printf("for IPv6 at all!!!\n\n");
-			}
+			printf("If your dns system is not set up ");
+			printf("for IPv6 connections, then ");
+			printf("lose the -6 flag.\n\n");
 		}
 
 		if (s_set == 0) {
