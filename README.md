@@ -6,7 +6,7 @@ I didn't think about it before, but perhaps some of you may be put off by the so
 If you don't trust the array, you can run it with the -g flag and it will print out another hard-coded mirror source code section generated from
 openbsd.org domain mirrors from the OpenBSD project. I designed this feature for you to substitute my generated code section.
 
-Compiler optimizations for speed is not worth the extra second of compile time. Waiting for ftp calls and dns queries will take up the vast majority of the
+Compiler optimizations for speed is probably not worth the extra second of compile time. Waiting for ftp calls and dns queries will take up the vast majority of the
 run-time; everything else happens in the blink of an eye.
 
 pledge() is updated throughout. Because of how unveil() is designed, unveil() limits are created up front and
@@ -53,14 +53,15 @@ It uses several commandline options:
 
 -n searches for next release package folders! It adds .1 to your version and searches for the release.
 
--s will accept floating-point timeout like 1.5 seconds using strtold() and handrolled validation, eg. "-s 1.5", default 5.
+-s will accept floating-point timeout like 1.5 seconds using strtold() and handrolled validation, eg. "-s 1.5" . Default 5.
+   If -g is specified -s defaults to 10.
 
 -S (“Secure only”) option will convert the http mirrors to https mirrors. Otherwise, http mirrors will be chosen.
    http mirrors are likely faster than all https mirror selections, however they pass over the internet without encryption.
    Integrity is still preserved by not using -S, but it will not provide secrecy...maybe you don't want the internets to know you're downloading hot-babe! LOL!
 
 -u will make it avoid loading mirrors with "USA" in the label for encryption export compliance if you are searching from outside of the USA and Canada.
-I'm not sure if this eliminates all mirrors located in the USA. Use your best judgement.
+   I'm not sure if this eliminates all mirrors located in the USA. Use your best judgement.
 
 -v will show when it is fetching "ftplist" from one of the many hard coded mirrors, prints out the results 
    sorted in reverse order by time or if it is timed out, or a download error,
@@ -96,6 +97,8 @@ It will also restart if downloading 'ftplist' becomes unresponsive past a wait t
 
 cc pkg_ping.c -o pkg_ping
 
-eg. ./pkg_ping -vs1.5 -vvu
+cc pkg_ping.c -march=native -mtune=native -O3 -pipe -o pkg_ping
 
-eg. ./pkg_ping -vSvs 2
+./pkg_ping -vs1.5 -vvu
+
+./pkg_ping -vSvs 2
