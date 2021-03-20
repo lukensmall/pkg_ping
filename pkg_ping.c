@@ -1541,8 +1541,7 @@ main(int argc, char *argv[])
 		 * safety check for label_cmp_minus_usa():
 		 * make sure there is a space after last comma
 		 * which would allow the function to make the
-		 * assumption that a ' ' is after the last ','
-		 * which will mean 2 spaces after the comma is
+		 * assumption that 2 spaces after the comma is
 		 * on the array. Otherwise, an abberrant
 		 * label could crash the program.
 		 * 
