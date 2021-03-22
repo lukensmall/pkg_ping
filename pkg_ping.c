@@ -90,6 +90,10 @@ int array_length = 0;
 struct mirror_st *array = NULL;
 extern char *malloc_options;
 
+/* 
+ * It is safe to run this function multiple times without double-free.
+ * This is the only place in the program which decrements array_length.
+ */
 static void
 free_array()
 {
@@ -597,7 +601,7 @@ dns_exit1:
  * massive file which fills up the partition.
  */
 static int
-file_d(const int write_pipe[], const int8_t secure, const int8_t verbose)
+file_d(const int write_pipe, const int8_t secure, const int8_t verbose)
 {
 
 	if (pledge("stdio cpath wpath", NULL) == -1) {
@@ -619,8 +623,6 @@ file_d(const int write_pipe[], const int8_t secure, const int8_t verbose)
 	
 	struct kevent ke;
 	memset(&ke, 0, sizeof(ke));
-	
-	close(write_pipe[STDOUT_FILENO]);
 
 	
 	
@@ -631,7 +633,7 @@ file_d(const int write_pipe[], const int8_t secure, const int8_t verbose)
 	 * be sent down the pipe. I can allocate the perfect
 	 * amount of buffer space AFTER the pipe receives it.
 	 */
-	EV_SET(&ke, write_pipe[STDIN_FILENO], EVFILT_READ,
+	EV_SET(&ke, write_pipe, EVFILT_READ,
 	    EV_ADD | EV_ONESHOT, 0, 0, NULL);
 	if (kevent(kq, &ke, 1, &ke, 1, NULL) == -1) {
 		printf("%s ", strerror(errno));
@@ -682,8 +684,8 @@ file_d(const int write_pipe[], const int8_t secure, const int8_t verbose)
 		_exit(1);
 	}
 		
-	i = read(write_pipe[STDIN_FILENO], file_w, received);
-	close(write_pipe[STDIN_FILENO]);
+	i = read(write_pipe, file_w, received);
+	close(write_pipe);
 
 	if (i < 0) {
 		printf("%s ", strerror(errno));
@@ -743,16 +745,11 @@ file_d(const int write_pipe[], const int8_t secure, const int8_t verbose)
 static void
 restart(int argc, char *argv[], const int16_t loop, const int8_t verbose)
 {
-	if (loop == 0) {
-		if (verbose >= 0)
-			printf("Looping exhausted: Try again.\n");
-		exit(2);
-	}
+	if (loop == 0)
+		errx(2, "Looping exhausted: Try again.");
 	
 	if (verbose >= 0)
 		printf("restarting...\n");
-		
-	free_array();
 		
 	int n = argc - (argc > 1 && !strncmp(argv[argc - 1], "-l", 2));
 	
@@ -770,6 +767,8 @@ restart(int argc, char *argv[], const int16_t loop, const int8_t verbose)
 	if (c >= len || c < 0)
 		errx(1, "snprintf, line: %d", __LINE__);
 		
+		
+	free_array();
 		
 	execv(arg_v[0], arg_v);
 
@@ -826,7 +825,7 @@ main(int argc, char *argv[])
 	int         block_pipe[2] = { -1, -1 };
 	
 	struct timespec start = { 0, 0 }, end = { 0, 0 }, timeout = { 0, 0 };
-	char *line_t = NULL, *line0 = NULL, *line = NULL, *release = NULL;
+	char *line_temp = NULL, *line0 = NULL, *line = NULL, *release = NULL;
 	char *tag = NULL, *time = NULL;
 	size_t len = 0;
 	char v = '\0';
@@ -866,9 +865,9 @@ main(int argc, char *argv[])
 	}
 
 	for(i = 1; i < argc; ++i) {
-		line0 = line_t = argv[i] - 1;
-		while (*++line_t != '\0') {
-			if (line_t - line0 == 50)
+		line0 = line_temp = argv[i] - 1;
+		while (*++line_temp != '\0') {
+			if (line_temp - line0 == 50)
 				errx(1, "keep argument lengths under 50");
 		}
 	}
@@ -942,7 +941,7 @@ main(int argc, char *argv[])
 				if (optarg[c] == '.' && ++i == 1)
 					continue;
 
-				printf("-s value should have only numeric ");
+				printf("-s should only have numeric ");
 				printf("characters and a maximum ");
 				printf("of one decimal point\n");
 				return 1;
@@ -1041,7 +1040,9 @@ main(int argc, char *argv[])
 				err(1, "file_d fork, line: %d\n", __LINE__);
 			case 0:
 				close(dns_cache_d_socket[1]);
-				file_d(write_pipe, secure, verbose);
+				close(write_pipe[STDOUT_FILENO]);
+				file_d(write_pipe[STDIN_FILENO],
+				    secure, verbose);
 				errx(1, "file_d returned! line: %d\n",
 				    __LINE__);
 		}
@@ -1139,7 +1140,7 @@ main(int argc, char *argv[])
 		}
 		close(ftp_out[STDIN_FILENO]);
 
-		n = 300;
+		n = 200;
 		line = calloc(n, sizeof(char));
 		if (line == NULL) {
 			printf("calloc\n");
@@ -1179,7 +1180,8 @@ main(int argc, char *argv[])
 			if (i < 0)
 				printf("snprintf error ");
 			else
-				printf("'line' length >= %d, ", i);
+				printf("'line' %d >= %d, ", i, n);
+				
 			printf("line: %d\n", __LINE__);
 			_exit(1);
 		}
@@ -1257,8 +1259,8 @@ main(int argc, char *argv[])
 			i = n;
 			
 		if (i > 0) {
-			char *time0 = time;
 			time[i] = '\0';
+			char *time0 = time;
 			time = strdup(time0);
 			if (time == NULL) {
 				easy_ftp_kill(kq, &ke, ftp_pid, &timeout_kill);
@@ -1365,8 +1367,11 @@ main(int argc, char *argv[])
 			i = snprintf(release, n, "%.1f", atof(release) + .1);
 			    
 			if (i >= n || i < 0) {
+				if (i < 0)
+					printf("%s ", strerror(errno));
+				else
+					printf("release: %s, ", release);
 				easy_ftp_kill(kq, &ke, ftp_pid, &timeout_kill);
-				printf("release: %s, ", release);
 				printf("snprintf, line: %d\n", __LINE__);
 				return 1;
 			}
@@ -1378,8 +1383,11 @@ main(int argc, char *argv[])
 			i = snprintf(release, n, "%.1f", atof(release) - .1);
 			    
 			if (i >= n || i < 0) {
+				if (i < 0)
+					printf("%s ", strerror(errno));
+				else
+					printf("release: %s, ", release);
 				easy_ftp_kill(kq, &ke, ftp_pid, &timeout_kill);
-				printf("release: %s, ", release);
 				printf("snprintf, line: %d\n", __LINE__);
 				return 1;
 			}
@@ -1400,11 +1408,24 @@ main(int argc, char *argv[])
 			errx(1, "calloc");
 		}
 
-		if (current == 1)
-			sprintf(tag, "/snapshots/%s/SHA256", name->machine);
-		else
-			sprintf(tag, "/%s/%s/SHA256", release, name->machine);
+		if (current == 1) {
+			i = snprintf(tag, tag_len + 1,
+			    "/snapshots/%s/SHA256", name->machine);
+		} else {
+			i = snprintf(tag, tag_len + 1,
+			    "/%s/%s/SHA256", release, name->machine);
+		}
 
+		if (i >= tag_len + 1 || i < 0) {
+			if (i < 0)
+				printf("%s ", strerror(errno));
+			else
+				printf("tag: %s, ", tag);
+			easy_ftp_kill(kq, &ke, ftp_pid, &timeout_kill);
+			printf("snprintf, line: %d\n", __LINE__);
+			return 1;
+		}
+		
 		free(name);
 	}
 	
@@ -1454,6 +1475,7 @@ main(int argc, char *argv[])
 		free(line);
 		free(time);
 		free(release);
+		close(ftp_out[STDIN_FILENO]);
 		restart(argc, argv, loop, verbose);
 	}
 
@@ -1550,8 +1572,8 @@ main(int argc, char *argv[])
 		 * resources being redundantly checked.
 		 */
 		if (verbose >= 1) {
-			line_t = strrchr(line, ',');
-			if (line_t != NULL && line_t[1] != ' ') {
+			line_temp = strrchr(line, ',');
+			if (line_temp != NULL && line_temp[1] != ' ') {
 				easy_ftp_kill(kq, &ke, ftp_pid, &timeout_kill);
 				free(array[array_length].http);
 				printf("label malformation: %s ", line);
