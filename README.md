@@ -17,6 +17,8 @@ It automatically discovers whether you are running a release vs a current or bet
 It defaults to precaching your dns server by looking up a mirror's ip address(es)
 so there is no inconsistency caused by determining ftp download speed with inconsistent dns query times.
 
+I added an actual ping call to further optimize network traffic to each mirror to eliminate further ftp timing inconsistencies.
+
 It restarts for most initial ftp call error cases which can be fixed with a different random number.
 
 pkg_ping uses pledge and unveil for OpenBSD version 6.4 and later. I don't recommend running it altered without pledge() or unveil().
