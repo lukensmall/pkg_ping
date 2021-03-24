@@ -848,6 +848,12 @@ main(int argc, char *argv[])
 	if (unveil("/usr/bin/ftp", "x") == -1)
 		err(1, "unveil, line: %d", __LINE__);
 
+	if (unveil("/sbin/ping", "x") == -1)
+		err(1, "unveil, line: %d", __LINE__);
+
+	if (unveil("/sbin/ping6", "x") == -1)
+		err(1, "unveil, line: %d", __LINE__);
+
 	if (unveil(argv[0], "x") == -1)
 		err(1, "unveil, line: %d", __LINE__);
 
@@ -1723,16 +1729,16 @@ main(int argc, char *argv[])
 			printf("%d", i);
 			fflush(stdout);
 		}
-
-
-
+		
+		
+		
+		char *host = h + line;
+		
+		/* strchr always succeeds. 'tag' starts with '/' */
+		n = strchr(host, '/') - host;
+			
 		if (dns_cache) {
 		
-			char *host = h + line;
-			
-			/* strchr always succeeds. 'tag' starts with '/' */
-			n = strchr(host, '/') - host;
-
 			i = write(dns_cache_d_socket[1], host, n);
 			if (i < n)
 				goto restart_dns_err;
@@ -1792,7 +1798,120 @@ restart_dns_err:
 		}
 
 
+		/* 
+		 * ping()ing the host will likely optimize network path
+		 * traversal in much the same way that pre-caching the
+		 *     nameserver optimizes fetching IP addresses.
+		 */
+
+		char *ping_host = strndup(host, n);
+		if (ping_host == NULL)
+			errx(1, "strndup");
+
+		if (pipe(block_pipe) == -1)
+			err(1, "pipe, line: %d", __LINE__);
+
+		pid_t ping_pid = fork();
+		if (ping_pid == (pid_t) 0) {
+
+			if (root_user == 1) {
+			/* 
+			 * user _pkgfetch: probably a good thing to
+			 * 		   not be root running ping
+			 */
+				setuid(57);
+			}
+			
+			if (pledge("stdio exec", NULL) == -1) {
+				printf("%s ", strerror(errno));
+				printf("ftp 2 pledge, line: %d\n", __LINE__);
+				_exit(1);
+			}
+			
+			close(STDOUT_FILENO);
+			close(STDERR_FILENO);
+			
+			/*
+			 * this read() is just to ensure that the process
+			 *      is alive for the parent kevent call.
+			 */
+			close(block_pipe[STDOUT_FILENO]);
+			read(block_pipe[STDIN_FILENO], &v, 1);
+			close(block_pipe[STDIN_FILENO]);
+
+			if (six == 1) {
+				execl("/sbin/ping6", "ping6", 
+				"-c1", ping_host, NULL);
+			} else {
+				execl("/sbin/ping", "ping",
+				"-c1", ping_host, NULL);
+			}
+
+			dprintf(std_err, "%s ", strerror(errno));
+			dprintf(std_err, "ping execl() failed, ");
+			dprintf(std_err, "line: %d\n", __LINE__);
+			fflush(NULL);
+			_exit(1);
+		}
+		if (ping_pid == -1)
+			err(1, "ping fork, line: %d", __LINE__);
+
+
+		close(block_pipe[STDIN_FILENO]);
+
+		EV_SET(&ke, ping_pid, EVFILT_PROC, EV_ADD | EV_ONESHOT,
+		    NOTE_EXIT, 0, NULL);
+		if (kevent(kq, &ke, 1, NULL, 0, NULL) == -1) {
+			printf("%s ", strerror(errno));
+			kill(ping_pid, SIGKILL);
+			printf("kevent register fail, line: %d", __LINE__);
+			return 1;
+		}
 		
+		close(block_pipe[STDOUT_FILENO]);
+
+
+		i = kevent(kq, NULL, 0, &ke, 1, &timeout);
+
+		if (i == -1) {
+			printf("%s ", strerror(errno));
+			kill(ping_pid, SIGKILL);
+			printf("kevent, line: %d", __LINE__);
+			return 1;
+		}
+		
+		/* timeout occurred before ping() exit was received */
+		if (i == 0) {
+			
+			kill(ping_pid, SIGINT);
+
+			/* 
+			 * give it time to gracefully abort, play
+			 *  nice with the server and reap event
+			 */
+			i = kevent(kq, NULL, 0, &ke, 1, &timeout_kill);
+			if (i == -1) {
+				printf("%s ", strerror(errno));
+				printf("kevent, line: %d", __LINE__);
+				return 1;
+			}
+			if (i == 0) {
+				
+				kill(ping_pid, SIGKILL);
+				if (kevent(kq, NULL, 0, &ke, 1, NULL) == -1) {
+					printf("%s ", strerror(errno));
+					printf("kevent, line: %d", __LINE__);
+					return 1;
+				}
+			}
+		}
+		waitpid(ping_pid, NULL, 0);
+		
+		free(ping_host);
+
+
+
+
 
 		if (pipe(block_pipe) == -1)
 			err(1, "pipe, line: %d", __LINE__);
@@ -1820,7 +1939,7 @@ restart_dns_err:
 				close(STDERR_FILENO);
 
 			/*
-			 *   this read() is just to assure that the process
+			 *     this read() is to ensure that the process
 			 *        is alive for the parent kevent call.
 			 *   It standardizes the timing of the ftp calling
 			 *   process, and it is written as an efficient way 
