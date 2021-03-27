@@ -1914,7 +1914,7 @@ restart_dns_err:
 				printf("timed out\n");
 
 			
-		} else 	if (verbose >= 3)
+		} else if (verbose >= 3)
 			printf("done\n");
 
 		waitpid(ping_pid, NULL, 0);
