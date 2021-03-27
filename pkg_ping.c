@@ -90,18 +90,18 @@ int array_length = 0;
 struct mirror_st *array = NULL;
 extern char *malloc_options;
 
-/* 
- * It is safe to run this function multiple times without double-free.
- * This is the only place in the program which decrements array_length.
- */
 static void
 free_array()
 {
-	while (array_length != 0) {
-		free(array[--array_length].label);
-		free(array[  array_length].http);
+	struct mirror_st *ac = array + array_length;
+	
+	while (array <= --ac) {
+		free(ac->label);
+		free(ac->http);
 	}
 	free(array);
+	
+	array_length = 0;
 	array = NULL;
 }
 
@@ -622,9 +622,6 @@ file_d(const int write_pipe, const int8_t secure, const int8_t verbose)
 	FILE *pkg_write = NULL;
 	
 	struct kevent ke;
-	memset(&ke, 0, sizeof(ke));
-
-	
 	
 	/* 
 	 * It probably seems like overkill to use a kqueue for
@@ -657,7 +654,7 @@ file_d(const int write_pipe, const int8_t secure, const int8_t verbose)
 		_exit(1);
 	}
 	
-	if (verbose >= 1)
+	if (verbose > 0)
 		printf("\n");
 
 	/* unlink() to prevent possible symlinks by...root? */
@@ -690,17 +687,12 @@ file_d(const int write_pipe, const int8_t secure, const int8_t verbose)
 	if (i < 0) {
 		printf("%s ", strerror(errno));
 		printf("read error occurred, line: %d\n", __LINE__);
-		free(file_w);
-		fclose(pkg_write);
-		_exit(1);
+		goto file_cleanup;
 	}
 
 	if (i < received) {
-		printf("didn't fully read from pipe, ");
-		printf("line: %d\n", __LINE__);
-		free(file_w);
-		fclose(pkg_write);
-		_exit(1);
+		printf("didn't fully read from pipe, line: %d\n", __LINE__);
+		goto file_cleanup;
 	}
 	
 	memcpy(file_w + received, "\n", 1 + 1);
@@ -709,17 +701,13 @@ file_d(const int write_pipe, const int8_t secure, const int8_t verbose)
 		if (strncmp(file_w, "https://", 8) != 0) {
 			printf("file_w does't begin with ");
 			printf("\"https://\", line: %d\n", __LINE__);
-			free(file_w);
-			fclose(pkg_write);
-			_exit(1);
+			goto file_cleanup;
 		}
 	} else {
 		if (strncmp(file_w, "http://", 7) != 0) {
 			printf("file_w does't begin with ");
 			printf("\"http://\", line: %d\n", __LINE__);
-			free(file_w);
-			fclose(pkg_write);
-			_exit(1);
+			goto file_cleanup;
 		}
 	}
 
@@ -727,9 +715,7 @@ file_d(const int write_pipe, const int8_t secure, const int8_t verbose)
 	if (i < received + 1) {
 		printf("%s ", strerror(errno));
 		printf("write error occurred, line: %d\n", __LINE__);
-		free(file_w);
-		fclose(pkg_write);
-		_exit(1);
+		goto file_cleanup;
 	}
 	
 	fclose(pkg_write);
@@ -740,6 +726,11 @@ file_d(const int write_pipe, const int8_t secure, const int8_t verbose)
 	free(file_w);
 
 	_exit(0);
+	
+file_cleanup:
+	free(file_w);
+	fclose(pkg_write);
+	_exit(1);
 }
 
 static void
@@ -1139,11 +1130,6 @@ main(int argc, char *argv[])
 			setuid(57);
 		}
 		
-		if (pledge("stdio exec", NULL) == -1) {
-			printf("%s ", strerror(errno));
-			printf("ftp 1 pledge, line: %d\n", __LINE__);
-			_exit(1);
-		}
 		close(ftp_out[STDIN_FILENO]);
 
 		n = 200;
@@ -1153,7 +1139,7 @@ main(int argc, char *argv[])
 			_exit(1);
 		}
 
-		if (generate) {				
+		if (generate) {
 			
 			i = arc4random_uniform(index_g);
 		
@@ -1799,17 +1785,14 @@ restart_dns_err:
 
 
 		/* 
-		 * ping()ing the host will likely optimize network path
-		 * traversal in much the same way that pre-caching the
-		 *     nameserver optimizes fetching IP addresses.
+		 * ping()ing the mirror will likely optimize network path
+		 *  traversal in much the same way that pre-caching the
+		 *       nameserver optimizes fetching IP addresses
 		 */
 
 		char *ping_host = strndup(host, n);
 		if (ping_host == NULL)
 			errx(1, "strndup");
-
-		if (pipe(block_pipe) == -1)
-			err(1, "pipe, line: %d", __LINE__);
 
 		pid_t ping_pid = fork();
 		if (ping_pid == (pid_t) 0) {
@@ -1821,20 +1804,6 @@ restart_dns_err:
 			 */
 				setuid(57);
 			}
-			
-			if (pledge("stdio exec", NULL) == -1) {
-				printf("%s ", strerror(errno));
-				printf("ftp 2 pledge, line: %d\n", __LINE__);
-				_exit(1);
-			}
-			
-			/*
-			 * this read() is just to ensure that the process
-			 *      is alive for the parent kevent call.
-			 */
-			close(block_pipe[STDOUT_FILENO]);
-			read(block_pipe[STDIN_FILENO], &v, 1);
-			close(block_pipe[STDIN_FILENO]);
 			
 			if (verbose >= 3) {
 				printf("ping...");
@@ -1851,7 +1820,7 @@ restart_dns_err:
 				execl("/sbin/ping", "ping",
 				"-c1", ping_host, NULL);
 			}
-
+			
 			dprintf(std_err, "%s ", strerror(errno));
 			dprintf(std_err, "ping execl() failed, ");
 			dprintf(std_err, "line: %d\n", __LINE__);
@@ -1861,29 +1830,12 @@ restart_dns_err:
 		if (ping_pid == -1)
 			err(1, "ping fork, line: %d", __LINE__);
 
+		free(ping_host);
 
-		close(block_pipe[STDIN_FILENO]);
-
-		EV_SET(&ke, ping_pid, EVFILT_PROC, EV_ADD | EV_ONESHOT,
-		    NOTE_EXIT, 0, NULL);
-		if (kevent(kq, &ke, 1, NULL, 0, NULL) == -1) {
-			printf("%s ", strerror(errno));
-			kill(ping_pid, SIGKILL);
-			printf("kevent register fail, line: %d", __LINE__);
-			return 1;
-		}
-		
-		close(block_pipe[STDOUT_FILENO]);
-
-
-		i = kevent(kq, NULL, 0, &ke, 1, &timeout);
-
-		if (i == -1) {
-			printf("%s ", strerror(errno));
-			kill(ping_pid, SIGKILL);
-			printf("kevent, line: %d", __LINE__);
-			return 1;
-		}
+		EV_SET(&ke, ping_pid, EVFILT_PROC, EV_ADD |
+		    EV_ONESHOT, NOTE_EXIT, 0, NULL);
+		    
+		i = kevent(kq, &ke, 1, &ke, 1, &timeout);
 		
 		/* timeout occurred before ping() exit was received */
 		if (i == 0) {
@@ -1913,14 +1865,11 @@ restart_dns_err:
 			if (verbose >= 3)
 				printf("timed out\n");
 
-			
 		} else if (verbose >= 3)
 			printf("done\n");
 
 		waitpid(ping_pid, NULL, 0);
 		
-		free(ping_host);
-
 
 
 		if (pipe(block_pipe) == -1)
@@ -1937,13 +1886,7 @@ restart_dns_err:
 			 */
 				setuid(57);
 			}
-			
-			if (pledge("stdio exec", NULL) == -1) {
-				printf("%s ", strerror(errno));
-				printf("ftp 2 pledge, line: %d\n", __LINE__);
-				_exit(1);
-			}
-			
+						
 			close(STDOUT_FILENO);
 			if (verbose <= 2)
 				close(STDERR_FILENO);
@@ -1974,8 +1917,8 @@ restart_dns_err:
 
 		close(block_pipe[STDIN_FILENO]);
 
-		EV_SET(&ke, ftp_pid, EVFILT_PROC, EV_ADD | EV_ONESHOT,
-		    NOTE_EXIT, 0, NULL);
+		EV_SET(&ke, ftp_pid, EVFILT_PROC, EV_ADD |
+		    EV_ONESHOT, NOTE_EXIT, 0, NULL);
 		if (kevent(kq, &ke, 1, NULL, 0, NULL) == -1) {
 			printf("%s ", strerror(errno));
 			kill(ftp_pid, SIGKILL);
@@ -2080,25 +2023,23 @@ restart_dns_err:
 	close(std_err);
 	free(line);
 	
-	if (verbose < 1) {
+	struct mirror_st *ac = NULL;
+	
+	if (verbose <= 0) {
 		
 		/* 
-		 * I chose to use an insertion sort pass instead of doing
-		 * a qsort() to load the fastest mirror data into array[0].
-		 * the rest of the array data is not interesting here.
+		 * I chose to use a more efficient insertion sort
+		 * pass instead of doing a qsort() to load the
+		 * fastest mirror data into array[0] since the
+		 * rest of the data in the array is not interesting.
 		 */
-		struct mirror_st *ac = array + array_length - 1;
 		
-		long double fastest_diff = ac->diff;
-		struct mirror_st *fastest = ac;
+		struct mirror_st *fastest = ac = array + array_length - 1;
 
-		while (array <= --ac) {
-			if (ac->diff < fastest_diff) {
-				fastest_diff = ac->diff;
+		while (array <= --ac)
+			if (ac->diff < fastest->diff)
 				fastest = ac;
-			}
-		}			
-			
+		
 		if (array != fastest) {
 			
 			free(array->label);
@@ -2119,24 +2060,27 @@ restart_dns_err:
 			    diff_cmp);
 		}
 
-		int ds = -1, de = -1,   ts = -1, te = -1,   se = -1;
+		int16_t  de = -1, ds = -1,   te = -1, ts = -1,   se = -1;
 		
 		for (c = array_length - 1; c >= 0; --c) {
-			if (array[c].diff < s) {
+			
+			long double diff_temp = array[c].diff;
+			
+			if (diff_temp < s) {
 				se = c;
 				break;
 			}
 			
-			if (array[c].diff == s) {
-				if (te == -1)
-					ts = te = c;
-				else
-					ts = c;
-			} else {
+			if (diff_temp > s) {
 				if (de == -1)
-					ds = de = c;
+					de = ds = c;
 				else
 					ds = c;
+			} else {
+				if (te == -1)
+					te = ts = c;
+				else
+					ts = c;
 			}
 		}
 
@@ -2156,27 +2100,26 @@ restart_dns_err:
 		 *          then process http for printing
 		 */
 		n = 1;
-		for (c = 0; c <= se; ++c) {
+		ac = array + se + 1;
+		while (array <= --ac) {
 			
-			cut = array[c].http += h;
+			cut = ac->http += h;
 			j = strlen(cut);
 			if (j <= 12 || strcmp(cut += j - 12, "/pub/OpenBSD")) {
-				(array[c].http -= 1)[0] = '*';
-				array[c].diff = j + 1;
+				(ac->http -= 1)[0] = '*';
+				ac->diff = j + 1;
 			} else {
 				*cut = '\0';
-				array[c].diff = j - 12;
+				ac->diff = j - 12;
 			}
 
 			if (n == 1) {
-				cut = strchr(array[c].http, '/');
-				if (cut == NULL) {
-					/* Will likely never get here */
-					cut = array[c].http +
-					    (int)array[c].diff;
-				}
+				cut = strchr(ac->http, '/');
+				
+				if (cut == NULL)
+					cut = ac->http + (int)ac->diff;
 					
-				if (cut - array[c].http > 12 &&
+				if (cut - ac->http > 12 &&
 				    (
 				     !strncmp(cut - 12,
 					 ".openbsd.org", 12)
@@ -2198,11 +2141,12 @@ restart_dns_err:
 			printf("Couldn't find any openbsd.org mirrors.\n");
 			printf("Try again with a larger timeout!\n");
 			
-			for (i = 0; i <= se0; ++i) {
-				if (array[i].http[0] == '*')
-					array[i].http -= h - 1;
+			ac = array + se0 + 1;
+			while (array <= --ac) {
+				if (ac->http[0] == '*')
+					ac->http -= h - 1;
 				else
-					array[i].http -= h;
+					ac->http -= h;
 			}
 			
 			free(time);
@@ -2342,13 +2286,14 @@ restart_dns_err:
 		printf("Replace section after line: %d, but ", entry_line);
 		printf("before line: %d with the code above.\n\n", exit_line);
 
-		for (i = 0; i <= se0; ++i) {
-			if (array[i].http[0] == '*')
-				array[i].http -= h - 1;
+		ac = array + se0 + 1;
+		while (array <= --ac) {
+			if (ac->http[0] == '*')
+				ac->http -= h - 1;
 			else
-				array[i].http -= h;
+				ac->http -= h;
 		}
-		
+				
 		free(time);
 
 		return 0;
@@ -2364,7 +2309,7 @@ generate_jump:
 		else
 			printf("\n\nSUCCESSFUL MIRRORS:\n\n\n");
 
-		struct mirror_st *ac = array + ++c;
+		ac = array + ++c;
 		
 		while (array <= --ac) {
 
