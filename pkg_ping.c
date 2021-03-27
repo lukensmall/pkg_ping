@@ -1828,9 +1828,6 @@ restart_dns_err:
 				_exit(1);
 			}
 			
-			close(STDOUT_FILENO);
-			close(STDERR_FILENO);
-			
 			/*
 			 * this read() is just to ensure that the process
 			 *      is alive for the parent kevent call.
@@ -1838,7 +1835,15 @@ restart_dns_err:
 			close(block_pipe[STDOUT_FILENO]);
 			read(block_pipe[STDIN_FILENO], &v, 1);
 			close(block_pipe[STDIN_FILENO]);
+			
+			if (verbose >= 3) {
+				printf("ping...");
+				fflush(stdout);
+			}
 
+			close(STDOUT_FILENO);
+			close(STDERR_FILENO);
+			
 			if (six == 1) {
 				execl("/sbin/ping6", "ping6", 
 				"-c1", ping_host, NULL);
@@ -1904,12 +1909,17 @@ restart_dns_err:
 					return 1;
 				}
 			}
-		}
+			
+			if (verbose >= 3)
+				printf("timed out\n");
+
+			
+		} else 	if (verbose >= 3)
+			printf("done\n");
+
 		waitpid(ping_pid, NULL, 0);
 		
 		free(ping_host);
-
-
 
 
 
