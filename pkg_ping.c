@@ -881,7 +881,7 @@ main(int argc, char *argv[])
 	}
 
 
-	while ((c = getopt(argc, argv, "6dfghl:nOpSs:uvV")) != -1) {
+	while ((c = getopt(argc, argv, "6dfghl:nOpPSs:uvV")) != -1) {
 		switch (c) {
 		case '6':
 			six = 1;
