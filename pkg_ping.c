@@ -299,7 +299,8 @@ diff_cmp_g2(const void *a, const void *b)
 	 * both diffs will be equal here and most of
 	 *      the time will be equal to zero.
 	 *        if they are zero, the http
-	 *       comparison isn't interesting.
+	 *       comparison isn't interesting,
+	 *          as they will be ignored
 	 */
 	if (one_diff != 0) {
 		return strcmp(
@@ -338,13 +339,15 @@ manpage()
 	printf(" for an 'ftplist' download error\n");
 	printf("\t(If left unspecified it will permit 20 restarts)]\n");
 
-	printf("[-n (search for mirrors with the next release!)]\n");
+	printf("[-n (search for mirrors with the Next release!)]\n");
 
-	printf("[-O (if your OS is a snapshot, it will Override it and\n");
-	printf("\tsearch for release mirrors. if your OS is a release,\n");
+	printf("[-O (if you're running a snapshot, it will Override it and\n");
+	printf("\tsearch for release mirrors. if you're running a release,\n");
 	printf("\tit will Override it and search for snapshot mirrors.)\n");
 
-	printf("[-p (search for mirrors with the previous release!)]\n");
+	printf("[-p (search for mirrors with the Previous release!)]\n");
+
+	printf("[-P (do not perform Pings before testing the mirror.)]\n");
 
 	printf("[-s timeout in Seconds (eg. -s 2.3)]\n");
 
@@ -802,9 +805,9 @@ main(int argc, char *argv[])
 	int8_t num = 0, current = 0, secure = 0, verbose = 0;
 	int8_t generate = 0, override = 0, six = 0;
 	int8_t previous = 0, next = 0, s_set = 0;
-	int8_t dns_cache = 1, usa = 1;
+	int8_t dns_cache = 1, usa = 1, ping = 1;
 	int16_t loop = 20;
-	long double S = 0;
+	long double S = 0, P = 0;
 	pid_t ftp_pid = 0, write_pid = 0, dns_cache_d_pid = 0;
 	int kq = 0, i = 0, pos = 0, c = 0, n = 0;
 	int array_max = 100, tag_len = 0;
@@ -815,7 +818,8 @@ main(int argc, char *argv[])
 	int            ftp_out[2] = { -1, -1 };
 	int         block_pipe[2] = { -1, -1 };
 	
-	struct timespec start = { 0, 0 }, end = { 0, 0 }, timeout = { 0, 0 };
+	struct timespec start = { 0, 0 }, end = { 0, 0 };
+	struct timespec timeout = { 0, 0 }, timeout_ping = { 0, 0 };
 	char *line_temp = NULL, *line0 = NULL, *line = NULL, *release = NULL;
 	char *tag = NULL, *time = NULL;
 	size_t len = 0;
@@ -924,6 +928,9 @@ main(int argc, char *argv[])
 			next = 0;
 			previous = 1;
 			break;
+		case 'P':
+			ping = 0;
+			break;
 		case 'S':
 			secure = 1;
 			break;
@@ -980,10 +987,11 @@ main(int argc, char *argv[])
 	if (generate) {
 		if (verbose < 1)
 			verbose = 1;
-		secure = 1;
-		previous = 0;
 		next = 0;
+		previous = 0;
+		ping = 0;
 		override = 0;
+		secure = 1;
 		to_file = 0;
 		if (pledge("stdio exec proc dns id", NULL) == -1)
 			err(1, "pledge, line: %d", __LINE__);
@@ -1224,6 +1232,18 @@ main(int argc, char *argv[])
 	}
 	
 	S = s;
+	
+	if (ping == 1) {
+		if (S < 1)
+			P = S;
+		else
+			P = 1;
+			
+		timeout_ping.tv_sec = (time_t) P;
+		timeout_ping.tv_nsec =
+		    (long) ((P - (long double) timeout_ping.tv_sec) *
+		    (long double) 1000000000);
+	}
 	
 	if (time == NULL) {
 		n = 20;
@@ -1783,92 +1803,116 @@ restart_dns_err:
 			}
 		}
 
+		if (ping == 0)
+			goto ping_skip;
 
-		/* 
-		 * ping()ing the mirror will likely optimize network path
-		 *  traversal in much the same way that pre-caching the
-		 *       nameserver optimizes fetching IP addresses
-		 */
-
+		 
 		char *ping_host = strndup(host, n);
 		if (ping_host == NULL)
 			errx(1, "strndup");
-
-		pid_t ping_pid = fork();
-		if (ping_pid == (pid_t) 0) {
-
-			if (root_user == 1) {
-			/* 
-			 * user _pkgfetch: probably a good thing to
-			 * 		   not be root running ping
-			 */
-				setuid(57);
-			}
-			
-			if (verbose >= 3) {
-				printf("ping...");
-				fflush(stdout);
-			}
-
-			close(STDOUT_FILENO);
-			close(STDERR_FILENO);
-			
-			if (six == 1) {
-				execl("/sbin/ping6", "ping6", 
-				"-c1", ping_host, NULL);
-			} else {
-				execl("/sbin/ping", "ping",
-				"-c1", ping_host, NULL);
-			}
-			
-			dprintf(std_err, "%s ", strerror(errno));
-			dprintf(std_err, "ping execl() failed, ");
-			dprintf(std_err, "line: %d\n", __LINE__);
-			fflush(NULL);
-			_exit(1);
-		}
-		if (ping_pid == -1)
-			err(1, "ping fork, line: %d", __LINE__);
-
-		free(ping_host);
-
-		EV_SET(&ke, ping_pid, EVFILT_PROC, EV_ADD |
-		    EV_ONESHOT, NOTE_EXIT, 0, NULL);
-		    
-		i = kevent(kq, &ke, 1, &ke, 1, &timeout);
 		
-		/* timeout occurred before ping() exit was received */
-		if (i == 0) {
-			
-			kill(ping_pid, SIGINT);
+		for (n = 1; n <= 2; ++n) {
+
 
 			/* 
-			 * give it time to gracefully abort, play
-			 *  nice with the server and reap event
+			 * ping()ing the mirror will likely optimize network
+			 * path traversal in much the same way that pre-caching
+			 * the nameserver optimizes fetching IP addresses
 			 */
-			i = kevent(kq, NULL, 0, &ke, 1, &timeout_kill);
-			if (i == -1) {
+
+			pid_t ping_pid = fork();
+			if (ping_pid == (pid_t) 0) {
+
+				if (root_user == 1) {
+				/* 
+				 * user _pkgfetch: probably a good thing to
+				 * 		   not be root running ping
+				 */
+					setuid(57);
+				}
+				
+				if (verbose >= 3) {
+					printf("ping %d of 2...", n);
+					fflush(stdout);
+				}
+
+				close(STDOUT_FILENO);
+				close(STDERR_FILENO);
+				
+				if (six == 1) {
+					execl("/sbin/ping6", "ping6", 
+					"-c1", ping_host, NULL);
+				} else {
+					execl("/sbin/ping", "ping",
+					"-c1", ping_host, NULL);
+				}
+				
+				dprintf(std_err, "%s ", strerror(errno));
+				dprintf(std_err, "ping execl() failed, ");
+				dprintf(std_err, "line: %d\n", __LINE__);
+				fflush(NULL);
+				_exit(1);
+			}
+			if (ping_pid == -1)
+				err(1, "ping fork, line: %d", __LINE__);
+
+			EV_SET(&ke, ping_pid, EVFILT_PROC, EV_ADD |
+			    EV_ONESHOT, NOTE_EXIT, 0, NULL);
+			    
+			i = kevent(kq, &ke, 1, &ke, 1, &timeout_ping);
+			if (i == -1 && errno != ESRCH) {
 				printf("%s ", strerror(errno));
 				printf("kevent, line: %d", __LINE__);
 				return 1;
 			}
+			
+			/* timeout occurred before ping() exit was received */
 			if (i == 0) {
 				
-				kill(ping_pid, SIGKILL);
-				if (kevent(kq, NULL, 0, &ke, 1, NULL) == -1) {
+				kill(ping_pid, SIGINT);
+
+				/* 
+				 * give it time to gracefully abort, play
+				 *  nice with the server and reap event
+				 */
+				i = kevent(kq, NULL, 0, &ke, 1, &timeout_kill);
+				if (i == -1) {
 					printf("%s ", strerror(errno));
 					printf("kevent, line: %d", __LINE__);
 					return 1;
 				}
+				if (i == 0) {
+					
+					kill(ping_pid, SIGKILL);
+					
+					i = kevent(kq, NULL, 0, &ke, 1, NULL);
+					if (i == -1) {
+						printf("%s ", strerror(errno));
+						printf("kevent, ");
+						printf("line: %d", __LINE__);
+						return 1;
+					}
+				}
+				
+				if (verbose >= 3)
+					printf("timed out\n");
+					
+				waitpid(ping_pid, NULL, 0);
+				
+				break;
+
 			}
 			
 			if (verbose >= 3)
-				printf("timed out\n");
+				printf("done\n");
 
-		} else if (verbose >= 3)
-			printf("done\n");
-
-		waitpid(ping_pid, NULL, 0);
+			waitpid(ping_pid, NULL, 0);
+			
+		}
+		
+		free(ping_host);
+		
+ping_skip:
 		
 
 
@@ -2000,6 +2044,17 @@ restart_dns_err:
 			timeout.tv_nsec =
 			    (long) ((S - (long double) timeout.tv_sec) * 
 			    (long double) 1000000000);
+			    
+			if (ping == 1 && S < 1) {
+				P = S;
+				
+				timeout_ping.tv_sec = (time_t) P;
+				timeout_ping.tv_nsec =
+				    (long) ((P -
+				    (long double) timeout_ping.tv_sec)
+				  * (long double) 1000000000);
+			}
+			    
 		} else if (array[c].diff > s)
 			array[c].diff = s;
 	}
@@ -2031,14 +2086,15 @@ restart_dns_err:
 		 * I chose to use a more efficient insertion sort
 		 * pass instead of doing a qsort() to load the
 		 * fastest mirror data into array[0] since the
-		 * rest of the data in the array is not interesting.
+		 * rest of the data in the array is not used.
 		 */
 		
 		struct mirror_st *fastest = ac = array + array_length - 1;
 
-		while (array <= --ac)
+		while (array <= --ac) {
 			if (ac->diff < fastest->diff)
 				fastest = ac;
+		}
 		
 		if (array != fastest) {
 			
@@ -2062,16 +2118,15 @@ restart_dns_err:
 
 		int16_t  de = -1, ds = -1,   te = -1, ts = -1,   se = -1;
 		
-		for (c = array_length - 1; c >= 0; --c) {
+		c = array_length;
+		while (c-- != 0) {
 			
-			long double diff_temp = array[c].diff;
-			
-			if (diff_temp < s) {
+			if (array[c].diff < s) {
 				se = c;
 				break;
 			}
 			
-			if (diff_temp > s) {
+			if (array[c].diff > s) {
 				if (de == -1)
 					de = ds = c;
 				else
@@ -2105,15 +2160,16 @@ restart_dns_err:
 			
 			cut = ac->http += h;
 			j = strlen(cut);
-			if (j <= 12 || strcmp(cut += j - 12, "/pub/OpenBSD")) {
+			if (j <= 12 || strcmp(cut += j -= 12, "/pub/OpenBSD")) {
 				(ac->http -= 1)[0] = '*';
-				ac->diff = j + 1;
+				ac->diff = j + 13;
 			} else {
 				*cut = '\0';
-				ac->diff = j - 12;
+				ac->diff = j;
 			}
 
 			if (n == 1) {
+				
 				cut = strchr(ac->http, '/');
 				
 				if (cut == NULL)
@@ -2121,13 +2177,11 @@ restart_dns_err:
 					
 				if (cut - ac->http > 12 &&
 				    (
-				     !strncmp(cut - 12,
-					 ".openbsd.org", 12)
+				     !strncmp(cut - 12, ".openbsd.org", 12)
 				     
 				     ||
 				     
-				     !strncmp(cut - 12,
-					 ".OpenBSD.org", 12)
+				     !strncmp(cut - 12, ".OpenBSD.org", 12)
 				    )
 				   )
 					n = 0;
@@ -2208,8 +2262,9 @@ restart_dns_err:
 
 		/* 
 		 * make non-openbsd.org mirrors: diff == 0
+		 *   and stop them from being displayed
 		 */
-		for (c = 0; c <= se; ++c) {
+		for (c = 0; c <= se0; ++c) {
 			cut = strchr(array[c].http, '/');
 			if (cut == NULL)
 				cut = array[c].http + (int)array[c].diff;
@@ -2221,24 +2276,21 @@ restart_dns_err:
 			     
 			     strncmp(cut - 12, ".OpenBSD.org", 12)
 			    )
-			   )
+			   ) {
 				array[c].diff = 0;
+				--se;
+			}
 		}
 
-		/* sort by longest length first, subsort http alphabetically */
-		qsort(array, se + 1, sizeof(struct mirror_st), diff_cmp_g2);
-
-		/* stop non-openbsd.org mirrors from being displayed */
-		for (c = 0; c <= se; ++c) {
-			if (array[c].diff == 0)
-				break;
-		}
-		
-		se = c - 1;
+		/* sort by longest length first,
+		 * if diff > 0 then
+		 * subsort http alphabetically
+		 */
+		qsort(array, se0 + 1, sizeof(struct mirror_st), diff_cmp_g2);
 		
 		printf("     /* Trusted OpenBSD.org subdomain ");
 		printf("mirrors for generating this section */\n\n");
-		printf("\tconst char *ftp_list_g[%d] = {\n\n", c);
+		printf("\tconst char *ftp_list_g[%d] = {\n\n", se + 1);
 		
 		
 		first = 0;
