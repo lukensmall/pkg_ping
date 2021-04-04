@@ -89,6 +89,9 @@ static int8_t h = strlen("http://");
 static int array_length = 0;
 static struct mirror_st *array = NULL;
 
+/* .1 seconds for an ftp SIGINT to turn into a SIGKILL */
+static const struct timespec timeout_kill = { 0, 100000000 };
+
 extern char *malloc_options;
 
 static void
@@ -442,7 +445,7 @@ dns_loop:
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	c = getaddrinfo(dns_line, dns_line0, &hints, &res0);
-	if (c) {
+	if (c != 0) {
 		if (verbose == 4)
 			printf("%s\n", gai_strerror(c));
 		i = write(dns_socket, "f", 1);
@@ -454,8 +457,8 @@ dns_loop:
 		goto dns_loop;
 	}
 
-	if (verbose < 4 && !six) {
-		for (res = res0; res; res = res->ai_next) {
+	if (verbose < 4 && six == 0) {
+		for (res = res0; res != NULL; res = res->ai_next) {
 			if (res->ai_family == AF_INET ||
 			    res->ai_family == AF_INET6)
 				break;
@@ -466,7 +469,8 @@ dns_loop:
 			i = write(dns_socket, "1", 1);
 
 		if (i != 1) {
-			printf("%s ", strerror(errno));
+			if (i < 0)
+				printf("%s ", strerror(errno));
 			printf("write error line: %d\n", __LINE__);
 			goto dns_exit1;
 		}
@@ -476,7 +480,7 @@ dns_loop:
 
 	six_available = 'f';
 
-	for (res = res0; res; res = res->ai_next) {
+	for (res = res0; res != NULL; res = res->ai_next) {
 
 		if (res->ai_family == AF_INET) {
 
@@ -485,7 +489,7 @@ dns_loop:
 
 			if (six_available == 'f' && sui4 != 0)
 				six_available = '0';
-			if (six)
+			if (six == 1)
 				continue;
 
 			printf("       %hhu.%hhu.%hhu.%hhu\n",
@@ -583,7 +587,8 @@ dns_loop:
 	i = write(dns_socket, &six_available, 1);
 
 	if (i != 1) {
-		printf("%s ", strerror(errno));
+		if (i == -1)
+			printf("%s ", strerror(errno));
 		printf("write error line: %d\n", __LINE__);
 		goto dns_exit1;
 	}
@@ -759,8 +764,14 @@ restart (int argc, char *argv[], const int16_t loop, const int8_t verbose)
 	if (arg_v[n] == NULL)
 		errx(1, "calloc");
 	int8_t c = snprintf(arg_v[n], len, "-l%d", loop - 1);
-	if (c >= len || c < 0)
-		errx(1, "snprintf, line: %d", __LINE__);
+	if (c >= len || c < 0) {
+		if (c < 0)
+			printf("%s", strerror(errno));
+		else
+			printf("arg_v[n]: %s,", arg_v[n]);
+		printf(" snprintf, line: %d\n", __LINE__);
+		exit(1);
+	}
 
 
 	free_array();
@@ -771,11 +782,10 @@ restart (int argc, char *argv[], const int16_t loop, const int8_t verbose)
 }
 
 static void
-easy_ftp_kill(const int kq, struct kevent *ke, const pid_t ftp_pid,
-	              const struct timespec *timeout_kill)
+easy_ftp_kill(const int kq, struct kevent *ke, const pid_t ftp_pid)
 {
-	EV_SET(ke, ftp_pid, EVFILT_PROC, EV_ADD | EV_ONESHOT,
-	    NOTE_EXIT, 0, NULL);
+	EV_SET(ke, ftp_pid, EVFILT_PROC, EV_ADD |
+	    EV_ONESHOT, NOTE_EXIT, 0, NULL);
 
 	/* kevent registration returns -1, if ftp_pid is already dead */
 	if (kevent(kq, ke, 1, NULL, 0, NULL) != -1) {
@@ -786,12 +796,17 @@ easy_ftp_kill(const int kq, struct kevent *ke, const pid_t ftp_pid,
 		 * give it time to gracefully abort, and play nice
 		 * with the server before killing it with prejudice
 		 */
-		if (kevent(kq, NULL, 0, ke, 1, timeout_kill) == 0)
+		if (kevent(kq, NULL, 0, ke, 1, &timeout_kill) == 0)
 			kill(ftp_pid, SIGKILL);
-	} else if (errno != ESRCH) {
+			
+    	} else if (errno != ESRCH) {
 		printf("%s ", strerror(errno));
 		printf("kevent, line: %d\n", __LINE__);
+		/* Don't exit. Already dying. */
+		return;
     	}
+    	
+ 	waitpid(ftp_pid, NULL, WNOHANG);
 }
 
 int
@@ -839,9 +854,6 @@ main(int argc, char *argv[])
 	/* 10 seconds and 0 nanoseconds to download ftplist */
 	struct timespec timeout0 = { 10, 0 };
 
-	/* .05 seconds for an ftp SIGINT to turn into a SIGKILL */
-	const struct timespec timeout_kill = { 0, 50000000 };
-
 	if (pledge("stdio exec proc cpath wpath dns id unveil", NULL) == -1)
 		err(1, "pledge, line: %d", __LINE__);
 
@@ -858,7 +870,7 @@ main(int argc, char *argv[])
 		err(1, "unveil, line: %d", __LINE__);
 
 
-	if (to_file) {
+	if (to_file == 1) {
 
 		if (unveil("/etc/installurl", "cw") == -1)
 			err(1, "unveil, line: %d", __LINE__);
@@ -870,6 +882,10 @@ main(int argc, char *argv[])
 			err(1, "pledge, line: %d", __LINE__);
 	}
 
+	/* 
+	 * I could do strlen(), but this keeps it under
+	 * control in the case that argv[c] is a very long.
+	 */
 	for(c = 1; c < argc; ++c) {
 		line0 = line_temp = argv[c] - 1;
 		while (*++line_temp != '\0') {
@@ -943,6 +959,9 @@ main(int argc, char *argv[])
 			if (!strcmp(optarg, "."))
 				errx(1, "-s should not be: \".\"");
 
+			if (strlen(optarg) >= 15)
+				errx(1, "keep -s under 15 characters");
+			
 			c = i = 0;
 			do {
 				if (optarg[c] >= '0' && optarg[c] <= '9')
@@ -989,7 +1008,7 @@ main(int argc, char *argv[])
 		errx(1, "non-option ARGV-element: %s", argv[optind]);
 	}
 
-	if (generate) {
+	if (generate == 1) {
 		if (verbose < 1)
 			verbose = 1;
 		next = 0;
@@ -1007,7 +1026,7 @@ main(int argc, char *argv[])
 	}
 
 	if (s > 1000)
-		errx(1, "try an -s less than or equal to 1000");
+		errx(1, "try an -s less than, equal to 1000");
 	if (s < (long double)0.015625)
 		errx(1, "try an -s greater than or equal to 0.015625 (1/64)");
 
@@ -1150,7 +1169,7 @@ main(int argc, char *argv[])
 			_exit(1);
 		}
 
-		if (generate) {
+		if (generate == 1) {
 
 			i = arc4random_uniform(index_g);
 
@@ -1181,12 +1200,11 @@ main(int argc, char *argv[])
 
 		if (i >= n || i < 0) {
 			if (i < 0)
-				printf("%s snprintf ", strerror(errno));
+				printf("%s", strerror(errno));
 			else
-				printf("snprintf 'line' %d >= %d, ", i, n);
-
-			printf("line: %d\n", __LINE__);
-			_exit(1);
+				printf("'line': %s,", line);
+			printf(" snprintf, line: %d\n", __LINE__);
+			return 1;
 		}
 
 		if (verbose >= 2)
@@ -1230,7 +1248,8 @@ main(int argc, char *argv[])
 	if (s > S) {
 		timeout0.tv_sec = (time_t) s;
 		timeout0.tv_nsec =
-		    (long) ((s - (long double) timeout0.tv_sec) *
+		    (long) ((s -
+		    (long double) timeout0.tv_sec) *
 		    (long double) 1000000000);
 	}
 
@@ -1253,33 +1272,39 @@ main(int argc, char *argv[])
 		n = 20;
 		time = calloc(n, sizeof(char));
 		if (time == NULL) {
-			easy_ftp_kill(kq, &ke, ftp_pid, &timeout_kill);
+			easy_ftp_kill(kq, &ke, ftp_pid);
 			errx(1, "calloc");
 		}
 		i = snprintf(time, n, "%Lf", s);
 		if (i >= n || i < 0) {
-			easy_ftp_kill(kq, &ke, ftp_pid, &timeout_kill);
-			errx(1, "snprintf, line: %d", __LINE__);
+			if (i < 0)
+				printf("%s", strerror(errno));
+			else
+				printf("time: %s,", time);
+			printf(" snprintf, line: %d\n", __LINE__);
+			easy_ftp_kill(kq, &ke, ftp_pid);
+			return 1;
 		}
 	} else
 		s_set = 1;
 
-	/* eliminate extra zeroes after decimal point in 'time' */
+	/* trim extra zeroes after decimal point in 'time' */
 	if (strchr(time, '.') != NULL) {
 		i = 0;
 		n = strlen(time);
 		while (time[--n] == '0')
 			i = n;
 
+		/* if they are all zeroes after '.' then remove '.' */
 		if (time[n] == '.')
 			i = n;
 
-		if (i > 0) {
+		if (i != 0) {
 			time[i] = '\0';
 			char *time0 = time;
 			time = strdup(time0);
 			if (time == NULL) {
-				easy_ftp_kill(kq, &ke, ftp_pid, &timeout_kill);
+				easy_ftp_kill(kq, &ke, ftp_pid);
 				errx(1, "strdup");
 			}
 			free(time0);
@@ -1301,22 +1326,22 @@ main(int argc, char *argv[])
 		/* retrieve length of results of "sysctl kern.version" */
 		if (sysctl(mib, 2, NULL, &len, NULL, 0) == -1) {
 			printf("%s ", strerror(errno));
-			easy_ftp_kill(kq, &ke, ftp_pid, &timeout_kill);
 			printf("sysctl, line: %d", __LINE__);
+			easy_ftp_kill(kq, &ke, ftp_pid);
 			return 1;
 		}
 
 		line = calloc(len, sizeof(char));
 		if (line == NULL) {
-			easy_ftp_kill(kq, &ke, ftp_pid, &timeout_kill);
+			easy_ftp_kill(kq, &ke, ftp_pid);
 			errx(1, "calloc");
 		}
 
 		/* read results of "sysctl kern.version" into 'line' */
 		if (sysctl(mib, 2, line, &len, NULL, 0) == -1) {
 			printf("%s ", strerror(errno));
-			easy_ftp_kill(kq, &ke, ftp_pid, &timeout_kill);
 			printf("sysctl, line: %d", __LINE__);
+			easy_ftp_kill(kq, &ke, ftp_pid);
 			return 1;
 		}
 
@@ -1341,7 +1366,7 @@ main(int argc, char *argv[])
 
 		tag = strdup("/timestamp");
 		if (tag == NULL) {
-			easy_ftp_kill(kq, &ke, ftp_pid, &timeout_kill);
+			easy_ftp_kill(kq, &ke, ftp_pid);
 			errx(1, "strdup");
 		}
 
@@ -1352,19 +1377,19 @@ main(int argc, char *argv[])
 		struct utsname *name = calloc(1, sizeof(struct utsname));
 
 		if (name == NULL) {
-			easy_ftp_kill(kq, &ke, ftp_pid, &timeout_kill);
+			easy_ftp_kill(kq, &ke, ftp_pid);
 			errx(1, "calloc");
 		}
 
 
 		if (uname(name) == -1) {
 			printf("%s ", strerror(errno));
-			easy_ftp_kill(kq, &ke, ftp_pid, &timeout_kill);
 			printf("uname, line: %d", __LINE__);
+			easy_ftp_kill(kq, &ke, ftp_pid);
 			return 1;
 		}
 
-		if (next && !strcmp(name->release, "9.9")) {
+		if (next == 1 && !strcmp(name->release, "9.9")) {
 			release = strdup("10.0");
 			i = 0;
 		} else {
@@ -1373,38 +1398,38 @@ main(int argc, char *argv[])
 		}
 
 		if (release == NULL) {
-			easy_ftp_kill(kq, &ke, ftp_pid, &timeout_kill);
+			easy_ftp_kill(kq, &ke, ftp_pid);
 			errx(1, "strdup");
 		}
 
-		if (next && i) {
+		if (next == 1 && i == 1) {
 
 			n = strlen(release) + 1;
 			i = snprintf(release, n, "%.1f", atof(release) + .1);
 
 			if (i >= n || i < 0) {
 				if (i < 0)
-					printf("%s ", strerror(errno));
+					printf("%s", strerror(errno));
 				else
-					printf("release: %s, ", release);
-				easy_ftp_kill(kq, &ke, ftp_pid, &timeout_kill);
-				printf("snprintf, line: %d\n", __LINE__);
+					printf("release: %s,", release);
+				printf(" snprintf, line: %d\n", __LINE__);
+				easy_ftp_kill(kq, &ke, ftp_pid);
 				return 1;
 			}
 		}
 
-		if (previous) {
+		if (previous == 1) {
 
 			n = strlen(release) + 1;
 			i = snprintf(release, n, "%.1f", atof(release) - .1);
 
 			if (i >= n || i < 0) {
 				if (i < 0)
-					printf("%s ", strerror(errno));
+					printf("%s", strerror(errno));
 				else
-					printf("release: %s, ", release);
-				easy_ftp_kill(kq, &ke, ftp_pid, &timeout_kill);
-				printf("snprintf, line: %d\n", __LINE__);
+					printf("release: %s,", release);
+				printf(" snprintf, line: %d\n", __LINE__);
+				easy_ftp_kill(kq, &ke, ftp_pid);
 				return 1;
 			}
 		}
@@ -1420,7 +1445,7 @@ main(int argc, char *argv[])
 
 		tag = calloc(tag_len + 1, sizeof(char));
 		if (tag == NULL) {
-			easy_ftp_kill(kq, &ke, ftp_pid, &timeout_kill);
+			easy_ftp_kill(kq, &ke, ftp_pid);
 			errx(1, "calloc");
 		}
 
@@ -1434,11 +1459,11 @@ main(int argc, char *argv[])
 
 		if (i >= tag_len + 1 || i < 0) {
 			if (i < 0)
-				printf("%s ", strerror(errno));
+				printf("%s", strerror(errno));
 			else
-				printf("tag: %s, ", tag);
-			easy_ftp_kill(kq, &ke, ftp_pid, &timeout_kill);
-			printf("snprintf, line: %d\n", __LINE__);
+				printf("tag: %s,", tag);
+			printf(" snprintf, line: %d\n", __LINE__);
+			easy_ftp_kill(kq, &ke, ftp_pid);
 			return 1;
 		}
 
@@ -1449,13 +1474,13 @@ main(int argc, char *argv[])
 	/* if the index for line[] can exceed 254, it will error out */
 	line = calloc(255, sizeof(char));
 	if (line == NULL) {
-		easy_ftp_kill(kq, &ke, ftp_pid, &timeout_kill);
+		easy_ftp_kill(kq, &ke, ftp_pid);
 		errx(1, "calloc");
 	}
 
 	array = calloc(array_max, sizeof(struct mirror_st));
 	if (array == NULL) {
-		easy_ftp_kill(kq, &ke, ftp_pid, &timeout_kill);
+		easy_ftp_kill(kq, &ke, ftp_pid);
 		errx(1, "calloc");
 	}
 
@@ -1472,9 +1497,9 @@ main(int argc, char *argv[])
 	i = kevent(kq, &ke, 1, &ke, 1, &timeout0);
 	if (i == -1) {
 		printf("%s ", strerror(errno));
-		easy_ftp_kill(kq, &ke, ftp_pid, &timeout_kill);
 		printf("kevent, timeout0 may be too large. ");
 		printf("line: %d\n", __LINE__);
+		easy_ftp_kill(kq, &ke, ftp_pid);
 		return 1;
 	}
 
@@ -1486,7 +1511,7 @@ main(int argc, char *argv[])
 			fflush(stdout);
 		}
 
-		easy_ftp_kill(kq, &ke, ftp_pid, &timeout_kill);
+		easy_ftp_kill(kq, &ke, ftp_pid);
 		close(kq);
 		free(line);
 		free(time);
@@ -1497,10 +1522,10 @@ main(int argc, char *argv[])
 
 	while (read(c, &v, 1) == 1) {
 		if (pos == 254) {
-			easy_ftp_kill(kq, &ke, ftp_pid, &timeout_kill);
 			line[pos] = '\0';
 			printf("'line': %s\n", line);
 			printf("pos got too big! line: %d\n", __LINE__);
+			easy_ftp_kill(kq, &ke, ftp_pid);
 			return 1;
 		}
 
@@ -1514,13 +1539,13 @@ main(int argc, char *argv[])
 
 			/* safety check */
 			if (strncmp(line, "http://", 7)) {
-				easy_ftp_kill(kq, &ke, ftp_pid, &timeout_kill);
 				printf("'line': %s\n", line);
 				printf("bad http format, line: %d\n", __LINE__);
+				easy_ftp_kill(kq, &ke, ftp_pid);
 				return 1;
 			}
 
-			if (secure) {
+			if (secure == 1) {
 
 				if (pos_max < ++pos)
 					pos_max = pos;
@@ -1529,8 +1554,7 @@ main(int argc, char *argv[])
 				    calloc(pos, sizeof(char));
 
 				if (array[array_length].http == NULL) {
-					easy_ftp_kill(kq, &ke, ftp_pid,
-					    &timeout_kill);
+					easy_ftp_kill(kq, &ke, ftp_pid);
 					errx(1, "calloc");
 				}
 
@@ -1548,8 +1572,7 @@ main(int argc, char *argv[])
 				array[array_length].http = strdup(line);
 
 				if (array[array_length].http == NULL) {
-					easy_ftp_kill(kq, &ke, ftp_pid,
-					    &timeout_kill);
+					easy_ftp_kill(kq, &ke, ftp_pid);
 					errx(1, "strdup");
 				}
 			}
@@ -1590,27 +1613,26 @@ main(int argc, char *argv[])
 		if (verbose >= 1) {
 			line_temp = strrchr(line, ',');
 			if (line_temp != NULL && line_temp[1] != ' ') {
-				easy_ftp_kill(kq, &ke, ftp_pid, &timeout_kill);
 				free(array[array_length].http);
 				printf("label malformation: %s ", line);
 				printf("line: %d\n", __LINE__);
+				easy_ftp_kill(kq, &ke, ftp_pid);
 				return 1;
 			}
 		}
 
 		array[array_length].label = strdup(line);
 		if (array[array_length].label == NULL) {
-			easy_ftp_kill(kq, &ke, ftp_pid, &timeout_kill);
 			free(array[array_length].http);
+			easy_ftp_kill(kq, &ke, ftp_pid);
 			errx(1, "strdup");
 		}
 
 
 		if (++array_length == array_max) {
 
-			/* upperbound of int16_t */
-			if (array_length > 0x7fFF) {
-				easy_ftp_kill(kq, &ke, ftp_pid, &timeout_kill);
+			if (array_length > 500) {
+				easy_ftp_kill(kq, &ke, ftp_pid);
 				errx(1, "array_length got insanely large");
 			}
 			array_max += 50;
@@ -1618,7 +1640,7 @@ main(int argc, char *argv[])
 			    sizeof(struct mirror_st));
 
 			if (array == NULL) {
-				easy_ftp_kill(kq, &ke, ftp_pid, &timeout_kill);
+				easy_ftp_kill(kq, &ke, ftp_pid);
 				errx(1, "recallocarray");
 			}
 		}
@@ -1636,12 +1658,11 @@ main(int argc, char *argv[])
 		fflush(stdout);
 	}
 
-	/* upperbound of int16_t */
-	if (array_length > 0x7fFF)
+	if (array_length > 500)
 		errx(1, "array_length got insanely large");
 
 	/*
-	 *             'ftplist' download error:
+	 *            'ftplist' download error:
 	 * It's caused by no internet, bad dns resolution;
 	 *   Or from a faulty mirror or its bad dns info
 	 */
@@ -1675,7 +1696,7 @@ main(int argc, char *argv[])
 	 *       otherwise, make mirrors near USA first, then don't care.
 	 *
 	 *  Searching through mirrors near USA on verbose < 1 is more likely
-	 * to find the faster mirrors to shrink 'timeout' earlier to make your
+	 * to find the faster mirrors to shrink 'timeout' earlier to make the
 	 *                    runtime as short as possible.
 	 */
 	if (usa == 0) {
@@ -1707,7 +1728,8 @@ main(int argc, char *argv[])
 
 	timeout.tv_sec = (time_t) s;
 	timeout.tv_nsec =
-	    (long) ((s - (long double) timeout.tv_sec) *
+	    (long) ((s -
+	    (long double) timeout.tv_sec) *
 	    (long double) 1000000000);
 
 
@@ -1757,7 +1779,7 @@ main(int argc, char *argv[])
 		/* strchr always succeeds. 'tag' starts with '/' */
 		n = strchr(host, '/') - host;
 
-		if (dns_cache) {
+		if (dns_cache == 1) {
 
 			i = write(dns_cache_d_socket[1], host, n);
 			if (i < n)
@@ -1803,7 +1825,7 @@ restart_dns_err:
 				restart(argc, argv, loop, verbose);
 			}
 
-			if (six && v == '0') {
+			if (six == 1 && v == '0') {
 				if (verbose >= 2)
 					printf("IPv6 DNS record not found.\n");
 				array[c].diff = s + 2;
@@ -1920,7 +1942,7 @@ restart_dns_err:
 			if (verbose >= 3)
 				printf("done\n");
 
-			waitpid(ping_pid, NULL, 0);
+			waitpid(ping_pid, NULL, WNOHANG);
 
 		}
 
@@ -2042,7 +2064,7 @@ ping_skip:
 		}
 
 		array[c].diff =
-		    (long double) (end.tv_sec  - start.tv_sec) +
+		    (long double) (end.tv_sec  - start.tv_sec ) +
 		    (long double) (end.tv_nsec - start.tv_nsec) /
 		    (long double) 1000000000;
 
@@ -2056,15 +2078,13 @@ ping_skip:
 			S = array[c].diff;
 			timeout.tv_sec = (time_t) S;
 			timeout.tv_nsec =
-			    (long) ((S - (long double) timeout.tv_sec) *
+			    (long) ((S -
+			    (long double) timeout.tv_sec) *
 			    (long double) 1000000000);
 
 			if (ping == 1 && S < 1) {
-				timeout_ping.tv_sec = (time_t) S;
-				timeout_ping.tv_nsec =
-				    (long) ((S -
-				    (long double) timeout_ping.tv_sec) *
-				    (long double) 1000000000);
+				memcpy(&timeout_ping, &timeout,
+				    sizeof(struct timespec));
 			}
 
 		} else if (array[c].diff > s)
@@ -2073,7 +2093,7 @@ ping_skip:
 
 	close(kq);
 
-	if (dns_cache) {
+	if (dns_cache == 1) {
 		close(dns_cache_d_socket[1]);
 		waitpid(dns_cache_d_pid, NULL, 0);
 	}
@@ -2159,7 +2179,7 @@ ping_skip:
 		if (se == -1)
 			goto no_good;
 
-		if (!generate)
+		if (generate == 0)
 			goto generate_jump;
 
 		/*
@@ -2233,7 +2253,22 @@ ping_skip:
 
 
 		// n = 0;
-		for (c = 0; c <= se; ++c) {
+		for (c = 0; c < se; ++c) {
+
+			/*
+			 *    3 is the size of the printed: "",
+			 */
+
+			if (((int)array[c].diff) + 3 > 80)
+				printf("\"%s\",\n", array[first++].http);
+			else
+				break;
+		}
+		
+		if (c == se)
+			goto gen_skip1;
+		
+		for (; c <= se; ++c) {
 
 			/*
 			 *    3 is the size of the printed: "",
@@ -2252,10 +2287,10 @@ ping_skip:
 				/* center the printed mirrors. Err to right */
 				for (j = (80 + 1 - (n - i)) / 2; j > 0; --j)
 					printf(" ");
-				for (j = first; j < c; ++j)
-					printf("\"%s\",", array[j].http);
+				do {
+					printf("\"%s\",", array[first].http);
+				} while (++first < c);
 				printf("\n");
-				first = c;
 				n = i;
 
 			}
@@ -2266,6 +2301,7 @@ ping_skip:
 			printf(" ");
 		for (j = first; j < se; ++j)
 			printf("\"%s\",", array[j].http);
+gen_skip1:
 		printf("\"%s\"\n\n", array[se].http);
 
 		printf("\t};\n\n");
@@ -2305,10 +2341,25 @@ ping_skip:
 		printf("\tconst char *ftp_list_g[%d] = {\n\n", se + 1);
 
 
+		n = 0;
 		first = 0;
 
-		n = 0;
-		for (c = 0; c <= se; ++c) {
+		for (c = 0; c < se; ++c) {
+
+			/*
+			 *    3 is the size of the printed: "",
+			 */
+
+			if (((int)array[c].diff) + 3 > 80)
+				printf("\"%s\",\n", array[first++].http);
+			else
+				break;
+		}
+		
+		if (c == se)
+			goto gen_skip2;
+		
+		for (; c <= se; ++c) {
 
 			/*
 			 *    3 is the size of the printed: "",
@@ -2327,10 +2378,10 @@ ping_skip:
 				/* center the printed mirrors. Err to right */
 				for (j = (80 + 1 - (n - i)) / 2; j > 0; --j)
 					printf(" ");
-				for (j = first; j < c; ++j)
-					printf("\"%s\",", array[j].http);
+				do {
+					printf("\"%s\",", array[first].http);
+				} while (++first < c);
 				printf("\n");
-				first = c;
 				n = i;
 
 			}
@@ -2341,6 +2392,7 @@ ping_skip:
 			printf(" ");
 		for (j = first; j < se; ++j)
 			printf("\"%s\",", array[j].http);
+gen_skip2:
 		printf("\"%s\"\n\n", array[se].http);
 
 		printf("\t};\n\n");
@@ -2392,7 +2444,7 @@ generate_jump:
 			}
 
 			cut = strchr(ac->http + h, '/');
-			if (cut)
+			if (cut != NULL)
 				*cut = '\0';
 
 			printf("%s : ", ac->http + h);
@@ -2438,7 +2490,7 @@ no_good:
 			printf("since the %s release ", release);
 			printf("doesn't seem to be available.\n");
 		}
-		if (six) {
+		if (six == 1) {
 
 			printf("If your dns system is not set up ");
 			printf("for IPv6 connections, then ");
@@ -2461,7 +2513,7 @@ no_good:
 	free(time);
 	free(release);
 
-	if (to_file) {
+	if (to_file == 1) {
 
 		n = strlen(array[0].http);
 
