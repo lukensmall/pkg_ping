@@ -743,10 +743,10 @@ restart (int argc, char *argv[], const int16_t loop, const int8_t verbose)
 	if (loop == 0)
 		errx(2, "Looping exhausted: Try again.");
 
-	if (verbose >= 0)
+	if (verbose != -1)
 		printf("restarting...\n");
 
-	int n = argc - (argc > 1 && !strncmp(argv[argc - 1], "-l", 2));
+	int8_t n = argc - (argc > 1 && !strncmp(argv[argc - 1], "-l", 2));
 
 	char **arg_v = calloc(n + 1 + 1, sizeof(char *));
 	if (arg_v == NULL)
@@ -754,11 +754,11 @@ restart (int argc, char *argv[], const int16_t loop, const int8_t verbose)
 
 	memcpy(arg_v, argv, n * sizeof(char*));
 
-	int len = 10;
+	int8_t len = 10;
 	arg_v[n] = calloc(len, sizeof(char));
 	if (arg_v[n] == NULL)
 		errx(1, "calloc");
-	int c = snprintf(arg_v[n], len, "-l%d", loop - 1);
+	int8_t c = snprintf(arg_v[n], len, "-l%d", loop - 1);
 	if (c >= len || c < 0)
 		errx(1, "snprintf, line: %d", __LINE__);
 
@@ -812,7 +812,7 @@ main(int argc, char *argv[])
 	int8_t previous = 0, next = 0, s_set = 0;
 	int8_t dns_cache = 1, usa = 1, ping = 1;
 	int16_t loop = 20;
-	long double S = 0, P = 0;
+	long double S = 0;
 	pid_t ftp_pid = 0, write_pid = 0, dns_cache_d_pid = 0;
 	int kq = 0, i = 0, pos = 0, c = 0, n = 0;
 	int array_max = 100, tag_len = 0;
@@ -1031,12 +1031,12 @@ main(int argc, char *argv[])
 			case 0:
 				close(dns_cache_d_socket[1]);
 				dns_cache_d(dns_cache_d_socket[0], secure,
-				    six, verbose);
+				                    six, verbose);
 				errx(1, "dns_cache_d returned! line: %d\n",
 				    __LINE__);
+			default:
+				close(dns_cache_d_socket[0]);
 		}
-
-		close(dns_cache_d_socket[0]);
 	}
 
 	if (to_file == 1) {
@@ -1052,12 +1052,12 @@ main(int argc, char *argv[])
 				close(dns_cache_d_socket[1]);
 				close(write_pipe[STDOUT_FILENO]);
 				file_d(write_pipe[STDIN_FILENO],
-				    secure, verbose);
+				           secure, verbose);
 				errx(1, "file_d returned! line: %d\n",
 				    __LINE__);
+			default:
+				close(write_pipe[STDIN_FILENO]);
 		}
-
-		close(write_pipe[STDIN_FILENO]);
 	}
 
 
@@ -1081,7 +1081,7 @@ main(int argc, char *argv[])
                         /* GENERATED CODE BEGINS HERE */
 
 
-	const char *ftp_list[55] = {
+	const char *ftp_list[54] = {
 
          "openbsd.mirror.netelligent.ca","mirrors.syringanetworks.net",
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
@@ -1091,34 +1091,32 @@ main(int argc, char *argv[])
     "*artfiles.org/openbsd","mirror.bytemark.co.uk","mirror.planetunix.net",
      "www.mirrorservice.org","ftp4.usa.openbsd.org","mirror.aarnet.edu.au",
       "mirror.exonetric.net","mirror.serverion.com","openbsd.c3sl.ufpr.br",
-       "ftp.usa.openbsd.org","ftp2.eu.openbsd.org","mirror.leaseweb.com",
-        "mirrors.gigenet.com","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
-         "mirror.fsmg.org.nz","mirror.ungleich.ch","mirrors.dotsrc.org",
-          "openbsd.ipacct.com","ftp.hostserver.de","ftp.man.poznan.pl",
- "mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.labkom.id","mirror.litnet.lt",
-    "mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp",
-     "mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu","ftp.icm.edu.pl",
-        "mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de",
-   "www.ftp.ne.jp","ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl",
-                            "ftp.fau.de","ftp.fsn.hu"
+       "ftp.usa.openbsd.org","mirror.leaseweb.com","mirrors.gigenet.com",
+         "ftp.eu.openbsd.org","ftp.fr.openbsd.org","mirror.fsmg.org.nz",
+         "mirror.ungleich.ch","mirrors.dotsrc.org","openbsd.ipacct.com",
+"ftp.hostserver.de","ftp.man.poznan.pl","mirrors.sonic.net","mirrors.ucr.ac.cr",
+   "mirror.labkom.id","mirror.litnet.lt","mirror.yandex.ru","cdn.openbsd.org",
+    "ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.esc7.net","mirror.vdms.com",
+      "mirrors.mit.edu","ftp.icm.edu.pl","mirror.one.com","ftp.cc.uoc.gr",
+ "ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp","ftp.eenet.ee","ftp.nluug.nl",
+              "ftp.riken.jp","ftp.bit.nl","ftp.fau.de","ftp.fsn.hu"
 
 	};
 
-	const uint16_t index = 55;
+	const uint16_t index = 54;
 
 
 
      /* Trusted OpenBSD.org subdomain mirrors for generating this section */
 
-	const char *ftp_list_g[8] = {
+	const char *ftp_list_g[7] = {
 
    "cloudflare.cdn.openbsd.org","ftp4.usa.openbsd.org","ftp.usa.openbsd.org",
-        "ftp2.eu.openbsd.org","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
-                       "cdn.openbsd.org","ftp.OpenBSD.org"
+  "ftp.eu.openbsd.org","ftp.fr.openbsd.org","cdn.openbsd.org","ftp.OpenBSD.org"
 
 	};
 
-	const uint16_t index_g = 8;
+	const uint16_t index_g = 7;
 
 
                          /* GENERATED CODE ENDS HERE */
@@ -1183,9 +1181,9 @@ main(int argc, char *argv[])
 
 		if (i >= n || i < 0) {
 			if (i < 0)
-				printf("snprintf %s ", strerror(errno));
+				printf("%s snprintf ", strerror(errno));
 			else
-				printf("'line' %d >= %d, ", i, n);
+				printf("snprintf 'line' %d >= %d, ", i, n);
 
 			printf("line: %d\n", __LINE__);
 			_exit(1);
@@ -1236,19 +1234,20 @@ main(int argc, char *argv[])
 		    (long double) 1000000000);
 	}
 
-	S = s;
-
 	if (ping == 1) {
-		if (S < 1)
-			P = S;
+		if (s < 1)
+			S = s;
 		else
-			P = 1;
+			S = 1;
 
-		timeout_ping.tv_sec = (time_t) P;
+		timeout_ping.tv_sec = (time_t) S;
 		timeout_ping.tv_nsec =
-		    (long) ((P - (long double) timeout_ping.tv_sec) *
+		    (long) ((S -
+		    (long double) timeout_ping.tv_sec) *
 		    (long double) 1000000000);
 	}
+
+	S = s;
 
 	if (time == NULL) {
 		n = 20;
@@ -2061,13 +2060,11 @@ ping_skip:
 			    (long double) 1000000000);
 
 			if (ping == 1 && S < 1) {
-				P = S;
-
-				timeout_ping.tv_sec = (time_t) P;
+				timeout_ping.tv_sec = (time_t) S;
 				timeout_ping.tv_nsec =
-				    (long) ((P -
-				    (long double) timeout_ping.tv_sec)
-				  * (long double) 1000000000);
+				    (long) ((S -
+				    (long double) timeout_ping.tv_sec) *
+				    (long double) 1000000000);
 			}
 
 		} else if (array[c].diff > s)
