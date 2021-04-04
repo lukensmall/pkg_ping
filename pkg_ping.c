@@ -89,7 +89,7 @@ static int8_t h = strlen("http://");
 static int array_length = 0;
 static struct mirror_st *array = NULL;
 
-/* .1 seconds for an ftp SIGINT to turn into a SIGKILL */
+/* .1 second for an ftp SIGINT to turn into a SIGKILL */
 static const struct timespec timeout_kill = { 0, 100000000 };
 
 extern char *malloc_options;
@@ -97,6 +97,9 @@ extern char *malloc_options;
 static void
 free_array()
 {
+	/* Don't need a buncha useless junking while cleaning up */
+	malloc_options = "CFGjjU";
+	
 	struct mirror_st *ac = array + array_length;
 
 	while (array <= --ac) {
@@ -399,7 +402,7 @@ dns_cache_d(const int dns_socket, const int8_t secure,
 
 	char *dns_line = NULL;
 
-	const char *dns_line0 = (secure == 1) ? "https" : "http";
+	const char *dns_line0 = (secure) ? "https" : "http";
 
 	const char hexadec[16] = { '0','1','2','3',
 				   '4','5','6','7',
@@ -469,7 +472,7 @@ dns_loop:
 			i = write(dns_socket, "1", 1);
 
 		if (i != 1) {
-			if (i < 0)
+			if (i == -1)
 				printf("%s ", strerror(errno));
 			printf("write error line: %d\n", __LINE__);
 			goto dns_exit1;
@@ -489,7 +492,7 @@ dns_loop:
 
 			if (six_available == 'f' && sui4 != 0)
 				six_available = '0';
-			if (six == 1)
+			if (six)
 				continue;
 
 			printf("       %hhu.%hhu.%hhu.%hhu\n",
@@ -706,7 +709,7 @@ file_d(const int write_pipe, const int8_t secure, const int8_t verbose)
 
 	memcpy(file_w + received, "\n", 1 + 1);
 
-	if (secure == 1) {
+	if (secure) {
 		if (strncmp(file_w, "https://", 8) != 0) {
 			printf("file_w does't begin with ");
 			printf("\"https://\", line: %d\n", __LINE__);
@@ -812,13 +815,7 @@ easy_ftp_kill(const int kq, struct kevent *ke, const pid_t ftp_pid)
 int
 main(int argc, char *argv[])
 {
-	/*
-	 * I specified no junking here:
-	 * I use calloc() calls to allocate everything, so it doesn't
-	 * need junking level 2 and there's nothing special being
-	 * stored, so it doesn't need to junk before free()
-	 */
-	malloc_options = "CFGjjU";
+	malloc_options = "CFGJJU";
 
 	int8_t root_user = (getuid() == 0);
 	int8_t to_file = root_user;
@@ -870,7 +867,7 @@ main(int argc, char *argv[])
 		err(1, "unveil, line: %d", __LINE__);
 
 
-	if (to_file == 1) {
+	if (to_file) {
 
 		if (unveil("/etc/installurl", "cw") == -1)
 			err(1, "unveil, line: %d", __LINE__);
@@ -1008,7 +1005,7 @@ main(int argc, char *argv[])
 		errx(1, "non-option ARGV-element: %s", argv[optind]);
 	}
 
-	if (generate == 1) {
+	if (generate) {
 		if (verbose < 1)
 			verbose = 1;
 		next = 0;
@@ -1036,7 +1033,7 @@ main(int argc, char *argv[])
 		verbose = 3;
 
 
-	if (dns_cache == 1) {
+	if (dns_cache) {
 
 		if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC,
 		    PF_UNSPEC, dns_cache_d_socket) == -1)
@@ -1058,7 +1055,7 @@ main(int argc, char *argv[])
 		}
 	}
 
-	if (to_file == 1) {
+	if (to_file) {
 
 		if (pipe2(write_pipe, O_CLOEXEC) == -1)
 			err(1, "pipe2, line: %d", __LINE__);
@@ -1080,7 +1077,7 @@ main(int argc, char *argv[])
 	}
 
 
-	if (root_user == 1) {
+	if (root_user) {
 		if (pledge("stdio exec proc id", NULL) == -1)
 			err(1, "pledge, line: %d", __LINE__);
 	} else {
@@ -1151,7 +1148,7 @@ main(int argc, char *argv[])
 	ftp_pid = fork();
 	if (ftp_pid == (pid_t) 0) {
 
-		if (root_user == 1) {
+		if (root_user) {
 		/*
 		 * user _pkgfetch: ftp will regain read pledge
 		 *    just to chroot to /var/empty leaving
@@ -1169,7 +1166,7 @@ main(int argc, char *argv[])
 			_exit(1);
 		}
 
-		if (generate == 1) {
+		if (generate) {
 
 			i = arc4random_uniform(index_g);
 
@@ -1253,7 +1250,7 @@ main(int argc, char *argv[])
 		    (long double) 1000000000);
 	}
 
-	if (ping == 1) {
+	if (ping) {
 		if (s < 1)
 			S = s;
 		else
@@ -1312,12 +1309,12 @@ main(int argc, char *argv[])
 	}
 
 
-	if (previous == 1) {
+	if (previous) {
 		if (verbose >= 2) {
 			printf("showing the previous ");
 			printf("release availability!\n\n");
 		}
-	} else if (next == 1) {
+	} else if (next) {
 		if (verbose >= 2)
 			printf("showing the next release availability!\n\n");
 	} else if (generate == 0) {
@@ -1351,18 +1348,18 @@ main(int argc, char *argv[])
 
 		free(line);
 
-		if (override == 1)
+		if (override)
 			current = !current;
 
 		if (verbose >= 2) {
-			if (current == 1)
+			if (current)
 				printf("showing snapshot mirrors\n\n");
 			else
 				printf("showing release mirrors\n\n");
 		}
 	}
 
-	if (generate == 1) {
+	if (generate) {
 
 		tag = strdup("/timestamp");
 		if (tag == NULL) {
@@ -1389,7 +1386,7 @@ main(int argc, char *argv[])
 			return 1;
 		}
 
-		if (next == 1 && !strcmp(name->release, "9.9")) {
+		if (next && !strcmp(name->release, "9.9")) {
 			release = strdup("10.0");
 			i = 0;
 		} else {
@@ -1402,7 +1399,7 @@ main(int argc, char *argv[])
 			errx(1, "strdup");
 		}
 
-		if (next == 1 && i == 1) {
+		if (next && i) {
 
 			n = strlen(release) + 1;
 			i = snprintf(release, n, "%.1f", atof(release) + .1);
@@ -1418,7 +1415,7 @@ main(int argc, char *argv[])
 			}
 		}
 
-		if (previous == 1) {
+		if (previous) {
 
 			n = strlen(release) + 1;
 			i = snprintf(release, n, "%.1f", atof(release) - .1);
@@ -1435,7 +1432,7 @@ main(int argc, char *argv[])
 		}
 
 
-		if (current == 1) {
+		if (current) {
 			tag_len = strlen("/snapshots/") +
 			    strlen(name->machine) + strlen("/SHA256");
 		} else {
@@ -1449,7 +1446,7 @@ main(int argc, char *argv[])
 			errx(1, "calloc");
 		}
 
-		if (current == 1) {
+		if (current) {
 			i = snprintf(tag, tag_len + 1,
 			    "/snapshots/%s/SHA256", name->machine);
 		} else {
@@ -1545,7 +1542,7 @@ main(int argc, char *argv[])
 				return 1;
 			}
 
-			if (secure == 1) {
+			if (secure) {
 
 				if (pos_max < ++pos)
 					pos_max = pos;
@@ -1679,7 +1676,7 @@ main(int argc, char *argv[])
 		restart(argc, argv, loop, verbose);
 	}
 
-	if (secure == 1)
+	if (secure)
 		h = strlen("https://");
 
 	pos_max += tag_len;
@@ -1714,7 +1711,7 @@ main(int argc, char *argv[])
 		} /* else don't sort */
 	}
 
-	if (six == 1) {
+	if (six) {
 		if (verbose >= 3)
 			line0 = "-vim6o-";
 		else
@@ -1779,7 +1776,7 @@ main(int argc, char *argv[])
 		/* strchr always succeeds. 'tag' starts with '/' */
 		n = strchr(host, '/') - host;
 
-		if (dns_cache == 1) {
+		if (dns_cache) {
 
 			i = write(dns_cache_d_socket[1], host, n);
 			if (i < n)
@@ -1825,7 +1822,7 @@ restart_dns_err:
 				restart(argc, argv, loop, verbose);
 			}
 
-			if (six == 1 && v == '0') {
+			if (six && v == '0') {
 				if (verbose >= 2)
 					printf("IPv6 DNS record not found.\n");
 				array[c].diff = s + 2;
@@ -1859,7 +1856,7 @@ restart_dns_err:
 			pid_t ping_pid = fork();
 			if (ping_pid == (pid_t) 0) {
 
-				if (root_user == 1) {
+				if (root_user) {
 				/*
 				 * user _pkgfetch: probably a good thing to
 				 * 		   not be root running ping
@@ -1875,7 +1872,7 @@ restart_dns_err:
 				close(STDOUT_FILENO);
 				close(STDERR_FILENO);
 
-				if (six == 1) {
+				if (six) {
 					execl("/sbin/ping6", "ping6",
 					"-c1", ping_host, NULL);
 				} else {
@@ -1958,7 +1955,7 @@ ping_skip:
 		ftp_pid = fork();
 		if (ftp_pid == (pid_t) 0) {
 
-			if (root_user == 1) {
+			if (root_user) {
 			/*
 			 * user _pkgfetch: ftp will regain read pledge
 			 *    just to chroot to /var/empty leaving
@@ -2082,7 +2079,7 @@ ping_skip:
 			    (long double) timeout.tv_sec) *
 			    (long double) 1000000000);
 
-			if (ping == 1 && S < 1) {
+			if (ping && S < 1) {
 				memcpy(&timeout_ping, &timeout,
 				    sizeof(struct timespec));
 			}
@@ -2093,7 +2090,7 @@ ping_skip:
 
 	close(kq);
 
-	if (dns_cache == 1) {
+	if (dns_cache) {
 		close(dns_cache_d_socket[1]);
 		waitpid(dns_cache_d_pid, NULL, 0);
 	}
@@ -2200,7 +2197,7 @@ ping_skip:
 				ac->diff = j;
 			}
 
-			if (n == 1) {
+			if (n) {
 
 				cut = strchr(ac->http, '/');
 
@@ -2222,7 +2219,7 @@ ping_skip:
 
 
 
-		if (n == 1) {
+		if (n) {
 
 			printf("Couldn't find any openbsd.org mirrors.\n");
 			printf("Try again with a larger timeout!\n");
@@ -2478,19 +2475,19 @@ no_good:
 
 		printf("No successful mirrors found.\n\n");
 
-		if (next == 1) {
+		if (next) {
 			printf("Perhaps the next release ");
 			printf("(%s) isn't present yet?\n", release);
-		} else if (previous == 1) {
+		} else if (previous) {
 			printf("Perhaps the previous release ");
 			printf("(%s) isn't available?\n", release);
-		} else if (current == 0 && generate == 0 && override == 1) {
+		} else if (current == 0 && generate == 0 && override) {
 			printf("You are probably seeking to use ");
 			printf("the -p flag instead of -O flag ");
 			printf("since the %s release ", release);
 			printf("doesn't seem to be available.\n");
 		}
-		if (six == 1) {
+		if (six) {
 
 			printf("If your dns system is not set up ");
 			printf("for IPv6 connections, then ");
@@ -2513,7 +2510,7 @@ no_good:
 	free(time);
 	free(release);
 
-	if (to_file == 1) {
+	if (to_file) {
 
 		n = strlen(array[0].http);
 
