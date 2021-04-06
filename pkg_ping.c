@@ -160,10 +160,10 @@ label_cmp_minus_usa(const void *a, const void *b)
 
 	/*
 	 * compare the labels alphabetically by proper decreasing
-	 * hierarchy which are in reverse order between commas.
+	 *  hierarchy which are in reverse order between commas.
 	 */
 
-	 /* start with the last comma */
+	/* start with the last comma */
 
 	char *red = strrchr(one_label, ',');
 	if (red == NULL) {
@@ -2441,7 +2441,7 @@ generate_jump:
 			}
 
 			cut = strchr(ac->http + h, '/');
-			if (cut != NULL)
+			if (cut)
 				*cut = '\0';
 
 			printf("%s : ", ac->http + h);
