@@ -2258,7 +2258,7 @@ ping_skip:
 			else
 				break;
 		}
-		
+
 		if (c == se)
 			goto gen_skip1;
 		
@@ -2349,7 +2349,7 @@ gen_skip1:
 			else
 				break;
 		}
-		
+
 		if (c == se)
 			goto gen_skip2;
 		
@@ -2483,6 +2483,10 @@ no_good:
 			printf("the -p flag instead of -O flag ");
 			printf("since the %s release ", release);
 			printf("doesn't seem to be available.\n");
+		} else if (current == 0 && generate == 0) {
+			printf("You are probably running a snapshot, but it ");
+			printf("is indicating that you are running a release.");
+			printf(" You shuld use the -O flag.\n");
 		}
 		if (six) {
 
