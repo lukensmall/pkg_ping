@@ -2486,7 +2486,7 @@ no_good:
 		} else if (current == 0 && generate == 0) {
 			printf("You are probably running a snapshot, but it ");
 			printf("is indicating that you are running a release.");
-			printf(" You shuld use the -O flag.\n");
+			printf(" You should use the -O flag.\n");
 		}
 		if (six) {
 
