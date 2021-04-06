@@ -296,26 +296,23 @@ diff_cmp_g2(const void *a, const void *b)
 	long double one_diff = ((struct mirror_st *) a)->diff;
 	long double two_diff = ((struct mirror_st *) b)->diff;
 
+	/*
+	 * most will fall under this comparison
+	 *      of non-openbsd.org mirrors
+	 */
+	if (one_diff == two_diff && one_diff == 0)
+		return 0;
+		
 	/* sort the biggest diff values first */
 	if (one_diff > two_diff)
 		return -1;
 	if (one_diff < two_diff)
 		return 1;
 
-	/*
-	 * both diffs will be equal here and most of
-	 *      the time will be equal to zero.
-	 *        if they are zero, the http
-	 *       comparison isn't interesting,
-	 *          as they will be ignored
-	 */
-	if (one_diff != 0) {
-		return strcmp(
-			      ((struct mirror_st *) a)->http,
-			      ((struct mirror_st *) b)->http
-			     );
-	}
-	return 0;
+	return strcmp(
+		      ((struct mirror_st *) a)->http,
+		      ((struct mirror_st *) b)->http
+		     );
 }
 
 static int
