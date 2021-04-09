@@ -384,6 +384,11 @@ dns_cache_d(const int dns_socket, const int8_t secure,
 
 	struct addrinfo hints;
 	memset(&hints, 0, sizeof(hints));
+	
+	hints.ai_flags = AI_FQDN;
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+
 
 	struct sockaddr_in *sa4 = NULL;
 	uint32_t sui4 = 0;
@@ -411,10 +416,7 @@ dns_cache_d(const int dns_socket, const int8_t secure,
 		_exit(1);
 	}
 
-	if (0) {
 dns_loop:
-		memset(&hints, 0, sizeof(struct addrinfo));
-	}
 
 	i = read(dns_socket, dns_line, 255 + 1);
 	if (i == 0) {
@@ -439,9 +441,6 @@ dns_loop:
 		printf("DNS caching: %s\n", dns_line);
 
 
-	hints.ai_flags = AI_FQDN;
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
 	if (getaddrinfo(dns_line, dns_line0, &hints, &res0)) {
 		
 		c = getaddrinfo(dns_line, dns_line0_alt, &hints, &res0);
