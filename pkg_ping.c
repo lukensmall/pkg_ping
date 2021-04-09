@@ -40,9 +40,6 @@
  * 	     -e 's:</a>$::' \
  * 	         -e 's:  <strong>\([^<]*\)<.*:\1:p' \
  * 	         -e 's:^\(       [hfr].*\):\1:p'
- *
- *
- * 	   (I still don't know what all of that means)
  */
 
 /*
@@ -56,7 +53,7 @@
  * 	cc pkg_ping.c -march=native -mtune=native -O3 -pipe -o pkg_ping
  *
  * 	You probably won't see an appreciable performance gain between
- * 	the getaddrinfo(3) and the ftp(1) which fetch data over the network.
+ * 	the getaddrinfo(3) and ftp(1) calls which fetch data over the network.
  *
  * 	program designed to be viewed with tabs which are 8 characters wide
  */
@@ -399,7 +396,8 @@ dns_cache_d(const int dns_socket, const int8_t secure,
 
 	char *dns_line = NULL;
 
-	const char *dns_line0 = (secure) ? "https" : "http";
+	const char *dns_line0     = (secure) ? "https" : "http";
+	const char *dns_line0_alt = (secure) ?  "443"  :  "80";
 
 	const char hexadec[16] = { '0','1','2','3',
 				   '4','5','6','7',
@@ -444,17 +442,21 @@ dns_loop:
 	hints.ai_flags = AI_FQDN;
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
-	c = getaddrinfo(dns_line, dns_line0, &hints, &res0);
-	if (c != 0) {
-		if (verbose == 4)
-			printf("%s\n", gai_strerror(c));
-		i = write(dns_socket, "f", 1);
-		if (i < 1) {
-			printf("%s ", strerror(errno));
-			printf("write error line: %d\n", __LINE__);
-			goto dns_exit1;
+	if (getaddrinfo(dns_line, dns_line0, &hints, &res0)) {
+		
+		c = getaddrinfo(dns_line, dns_line0_alt, &hints, &res0);
+		
+		if (c != 0) {
+			if (verbose == 4)
+				printf("%s\n", gai_strerror(c));
+			i = write(dns_socket, "f", 1);
+			if (i < 1) {
+				printf("%s ", strerror(errno));
+				printf("write error line: %d\n", __LINE__);
+				goto dns_exit1;
+			}
+			goto dns_loop;
 		}
-		goto dns_loop;
 	}
 
 	if (verbose < 4 && six == 0) {
@@ -463,6 +465,7 @@ dns_loop:
 			    res->ai_family == AF_INET6)
 				break;
 		}
+		
 		if (res == NULL)
 			i = write(dns_socket, "f", 1);
 		else
@@ -489,6 +492,7 @@ dns_loop:
 
 			if (six_available == 'f' && sui4 != 0)
 				six_available = '0';
+				
 			if (six)
 				continue;
 
@@ -751,7 +755,7 @@ restart (int argc, char *argv[], const int16_t loop, const int8_t verbose)
 	if (verbose != -1)
 		printf("restarting...\n");
 
-	int8_t n = argc - (argc > 1 && !strncmp(argv[argc - 1], "-l", 2));
+	int8_t n = argc - (argc > 1 && strncmp(argv[argc - 1], "-l", 2) == 0);
 
 	char **arg_v = calloc(n + 1 + 1, sizeof(char *));
 	if (arg_v == NULL)
@@ -890,7 +894,7 @@ main(int argc, char *argv[])
 
 
 	if (argc >= 30) {
-		i = !strncmp(argv[argc - 1], "-l", 2);
+		i = strncmp(argv[argc - 1], "-l", 2) == 0;
 		if (argc - i >= 30)
 			errx(1, "keep argument count under 30");
 	}
@@ -950,7 +954,7 @@ main(int argc, char *argv[])
 			secure = 1;
 			break;
 		case 's':
-			if (!strcmp(optarg, "."))
+			if (strcmp(optarg, ".") == 0)
 				errx(1, "-s should not be: \".\"");
 
 			if (strlen(optarg) >= 15)
@@ -1383,7 +1387,7 @@ main(int argc, char *argv[])
 			return 1;
 		}
 
-		if (next && !strcmp(name->release, "9.9")) {
+		if (next && strcmp(name->release, "9.9") == 0) {
 			release = strdup("10.0");
 			i = 0;
 		} else {
@@ -2203,11 +2207,11 @@ ping_skip:
 
 				if (cut - ac->http > 12 &&
 				    (
-				     !strncmp(cut - 12, ".openbsd.org", 12)
+				     strncmp(cut - 12, ".openbsd.org", 12) == 0
 
 				     ||
 
-				     !strncmp(cut - 12, ".OpenBSD.org", 12)
+				     strncmp(cut - 12, ".OpenBSD.org", 12) == 0
 				    )
 				   )
 					n = 0;
@@ -2486,7 +2490,7 @@ no_good:
 		} else if (current == 0 && generate == 0) {
 			printf("You are probably running a snapshot, but it ");
 			printf("is indicating that you are running a release.");
-			printf(" You should use the -O flag.\n");
+			printf(" You should use the -O flag in that case.\n");
 		}
 		if (six) {
 
