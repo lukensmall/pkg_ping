@@ -82,14 +82,15 @@ struct mirror_st {
 	long double diff;
 };
 
-static int8_t h = strlen("http://");
-static int array_length = 0;
-static struct mirror_st *array = NULL;
+extern char *malloc_options;
+
+/* strlen("http://") == 7 */
+int8_t h = 7;
+int array_length = 0;
+struct mirror_st *array = NULL;
 
 /* .1 second for an ftp SIGINT to turn into a SIGKILL */
-static const struct timespec timeout_kill = { 0, 100000000 };
-
-extern char *malloc_options;
+const struct timespec timeout_kill = { 0, 100000000 };
 
 static void
 free_array()
@@ -336,9 +337,8 @@ manpage()
 
 	printf("[-h (print this Help message and exit)]\n");
 
-	printf("[-l (ell) quantity of Loop attempts");
-	printf(" for an 'ftplist' download error\n");
-	printf("\t(If left unspecified it will permit 20 restarts)]\n");
+	printf("[-l (ell) quantity of attempts the program will restart\n");
+	printf("\tin a Loop for recoverable errors (default 20)]\n");
 
 	printf("[-n (search for mirrors with the Next release!)]\n");
 
@@ -350,7 +350,8 @@ manpage()
 
 	printf("[-P (do not perform Pings before testing the mirror.)]\n");
 
-	printf("[-s timeout in Seconds (eg. -s 2.3)]\n");
+	printf("[-s timeout in Seconds (eg. -s 2.3) (default 10 if -g\n");
+	printf("\tis specified. Otherwise default 5)]\n");
 
 	printf("[-S (converts http mirrors into Secure https mirrors\n");
 	printf("\thttp mirrors still preserve file integrity!)]\n");
@@ -368,7 +369,7 @@ manpage()
 
 }
 
-static _Noreturn void
+static  __attribute__((noreturn)) void
 dns_cache_d(const int dns_socket, const int8_t secure,
 	     const int8_t six, const int8_t verbose)
 {
@@ -382,13 +383,21 @@ dns_cache_d(const int dns_socket, const int8_t secure,
 
 	struct addrinfo *res0 = NULL, *res = NULL;
 
-	struct addrinfo hints;
-	memset(&hints, 0, sizeof(hints));
-	
-	hints.ai_flags = AI_FQDN;
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-
+/*
+from: /usr/src/include/netdb.h
+struct addrinfo {
+        int ai_flags;
+        int ai_family;
+        int ai_socktype;
+        int ai_protocol;
+        socklen_t ai_addrlen;
+        struct sockaddr *ai_addr;
+        char *ai_canonname;
+        struct addrinfo *ai_next;
+};
+*/
+	const struct addrinfo hints =
+	    { AI_FQDN, AF_UNSPEC, SOCK_STREAM, 0, 0, NULL, NULL, NULL };
 
 	struct sockaddr_in *sa4 = NULL;
 	uint32_t sui4 = 0;
@@ -412,8 +421,7 @@ dns_cache_d(const int dns_socket, const int8_t secure,
 	dns_line = calloc(255 + 1, sizeof(char));
 	if (dns_line == NULL) {
 		printf("calloc\n");
-		close(dns_socket);
-		_exit(1);
+		goto dns_exit1;
 	}
 
 dns_loop:
@@ -459,14 +467,14 @@ dns_loop:
 	}
 
 	if (verbose < 4 && six == 0) {
-		for (res = res0; res != NULL; res = res->ai_next) {
+		for (res = res0; res; res = res->ai_next) {
 			if (res->ai_family == AF_INET ||
 			    res->ai_family == AF_INET6)
 				break;
 		}
 		
 		if (res == NULL)
-			i = write(dns_socket, "f", 1);
+			i = write(dns_socket, "u", 1);
 		else
 			i = write(dns_socket, "1", 1);
 
@@ -480,16 +488,16 @@ dns_loop:
 		goto dns_loop;
 	}
 
-	six_available = 'f';
+	six_available = 'u';
 
-	for (res = res0; res != NULL; res = res->ai_next) {
+	for (res = res0; res; res = res->ai_next) {
 
 		if (res->ai_family == AF_INET) {
 
 			sa4 = (struct sockaddr_in *) res->ai_addr;
 			sui4 = sa4->sin_addr.s_addr;
 
-			if (six_available == 'f' && sui4 != 0)
+			if (six_available == 'u' && sui4)
 				six_available = '0';
 				
 			if (six)
@@ -518,7 +526,10 @@ dns_loop:
 		c = max = 0;
 		i_max = -1;
 
-		/* load largest >1 gap beginning into i_max */
+		/*
+		 * load largest >1 gap beginning into i_max
+		 *    and the length of the gap into max
+		 */
 		for (i = 0; i < 16; i += 2) {
 
 			/* suc6[i] || suc6[i + 1] */
@@ -540,11 +551,11 @@ dns_loop:
 		}
 
 		/*
-		 *                  ">> 4" == "/ 16"
-		 *              "max << 1" == "2 * max"
-		 *            "& 15" == "& 0x0f" == "% 16"
-		 *  'i' is even so I can use "i|1" instead of "i+1",
-		 * which may be more efficient. I think it's prettier
+		 *                    ">> 4" == "/ 16"
+		 *                "max << 1" == "2 * max"
+		 *              "& 15" == "& 0x0f" == "% 16"
+		 *    'i' is even so I can use "i|1" instead of "i+1"
+		 * which may be more efficient. I think it's prettier too
 		 */
 		for (i = 0; i < 16; i += 2) {
 
@@ -612,7 +623,7 @@ dns_exit1:
  * other things, prevent /etc/installurl from becoming a
  * massive file which fills up the partition.
  */
-static _Noreturn void
+static  __attribute__((noreturn)) void
 file_d(const int write_pipe, const int8_t secure, const int8_t verbose)
 {
 
@@ -653,6 +664,7 @@ file_d(const int write_pipe, const int8_t secure, const int8_t verbose)
 	}
 	close(kq);
 
+	/* ke.data is of type __int64_t */
 	__int64_t received = ke.data;
 
 	/* parent exited before sending data */
@@ -745,7 +757,7 @@ file_cleanup:
 	_exit(1);
 }
 
-static _Noreturn void
+static  __attribute__((noreturn)) void
 restart (int argc, char *argv[], const int16_t loop, const int8_t verbose)
 {
 	if (loop == 0)
@@ -841,9 +853,18 @@ main(int argc, char *argv[])
 	char *tag = NULL, *time = NULL;
 	size_t len = 0;
 	char v = '\0';
-
-	struct kevent ke;
-	memset(&ke, 0, sizeof(ke));
+/*
+from: /usr/src/sys/sys/event.h
+struct kevent {
+        __uintptr_t     ident;
+        short           filter;
+        unsigned short  flags;
+        unsigned int    fflags;
+        __int64_t       data;
+        void            *udata;
+};
+*/
+	struct kevent ke = { 0, 0, 0, 0, 0, NULL };
 
 	/* 5 second default mirror timeout */
 	long double s = 5;
@@ -920,16 +941,16 @@ main(int argc, char *argv[])
 			return 0;
 		case 'l':
 			if (strlen(optarg) >= 5) {
-				printf("-l should be less ");
-				printf("than 5 digits long.\n");
+				printf("keep -l argument under ");
+				printf("5 characters long.\n");
 				return 1;
 			}
 
 			c = loop = 0;
 			do {
 				if (optarg[c] < '0' || optarg[c] > '9') {
-					printf("-l should only have ");
-					printf("numeric characters\n");
+					printf("-l argument only accepts ");
+					printf(" numeric characters\n");
 					return 1;
 				}
 				loop = loop * 10 + optarg[c] - '0';
@@ -953,11 +974,15 @@ main(int argc, char *argv[])
 			secure = 1;
 			break;
 		case 's':
+		
 			if (strcmp(optarg, ".") == 0)
-				errx(1, "-s should not be: \".\"");
+				errx(1, "-s argument should not be: \".\"");
 
-			if (strlen(optarg) >= 15)
-				errx(1, "keep -s under 15 characters");
+			if (strlen(optarg) >= 15) {
+				printf("keep -s argument under ");
+				printf("15 characters long\n");
+				return 1;
+			}
 			
 			c = i = 0;
 			do {
@@ -966,16 +991,21 @@ main(int argc, char *argv[])
 				if (optarg[c] == '.' && ++i == 1)
 					continue;
 
-				printf("-s should only have numeric ");
+				printf("-s argument should only have numeric ");
 				printf("characters and a maximum ");
 				printf("of one decimal point\n");
 				return 1;
+
 			} while (optarg[++c] != '\0');
 
 			errno = 0;
-			s = strtold(optarg, NULL);
-			if (errno)
-				err(1, "-s %s is an invalid value", optarg);
+			s = strtold(optarg, &line_temp);
+			
+			if (errno || optarg == line_temp) {
+				printf("\"%s\" is an invalid ", optarg);
+				printf("argument for -s\n");
+				return 1;
+			}
 
 			free(time);
 			time = strdup(optarg);
@@ -1827,12 +1857,14 @@ restart_dns_err:
 					printf("IPv6 DNS record not found.\n");
 				array[c].diff = s + 2;
 				continue;
-			}
-			if (v == 'f') {
+			} else if (v == 'f') {
 				if (verbose >= 2)
 					printf("DNS record not found.\n");
 				array[c].diff = s + 3;
 				continue;
+			} else if (v == 'u') {
+				if (verbose >= 2)
+					printf("unknown record type.\n");
 			}
 		}
 
