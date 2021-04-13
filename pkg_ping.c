@@ -758,7 +758,7 @@ file_cleanup:
 }
 
 static  __attribute__((noreturn)) void
-restart (int argc, char *argv[], const int16_t loop, const int8_t verbose)
+restart (int argc, char *argv[], const int loop, const int8_t verbose)
 {
 	if (loop == 0)
 		errx(2, "Looping exhausted: Try again.");
@@ -835,7 +835,7 @@ main(int argc, char *argv[])
 	int8_t generate = 0, override = 0, six = 0;
 	int8_t previous = 0, next = 0, s_set = 0;
 	int8_t dns_cache = 1, usa = 1, ping = 1;
-	int16_t loop = 20;
+	int loop = 20;
 	long double S = 0;
 	pid_t ftp_pid = 0, write_pid = 0, dns_cache_d_pid = 0;
 	int kq = 0, i = 0, pos = 0, c = 0, n = 0;
@@ -1127,7 +1127,7 @@ struct kevent {
                         /* GENERATED CODE BEGINS HERE */
 
 
-	const char *ftp_list[54] = {
+	const char *ftp_list[53] = {
 
          "openbsd.mirror.netelligent.ca","mirrors.syringanetworks.net",
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
@@ -1137,32 +1137,33 @@ struct kevent {
     "*artfiles.org/openbsd","mirror.bytemark.co.uk","mirror.planetunix.net",
      "www.mirrorservice.org","ftp4.usa.openbsd.org","mirror.aarnet.edu.au",
       "mirror.exonetric.net","mirror.serverion.com","openbsd.c3sl.ufpr.br",
-       "ftp.usa.openbsd.org","mirror.leaseweb.com","mirrors.gigenet.com",
-         "ftp.eu.openbsd.org","ftp.fr.openbsd.org","mirror.fsmg.org.nz",
-         "mirror.ungleich.ch","mirrors.dotsrc.org","openbsd.ipacct.com",
-"ftp.hostserver.de","ftp.man.poznan.pl","mirrors.sonic.net","mirrors.ucr.ac.cr",
-   "mirror.labkom.id","mirror.litnet.lt","mirror.yandex.ru","cdn.openbsd.org",
-    "ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.esc7.net","mirror.vdms.com",
-      "mirrors.mit.edu","ftp.icm.edu.pl","mirror.one.com","ftp.cc.uoc.gr",
- "ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp","ftp.eenet.ee","ftp.nluug.nl",
-              "ftp.riken.jp","ftp.bit.nl","ftp.fau.de","ftp.fsn.hu"
+       "ftp.usa.openbsd.org","ftp2.eu.openbsd.org","mirror.leaseweb.com",
+        "mirrors.gigenet.com","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
+         "mirror.fsmg.org.nz","mirrors.dotsrc.org","openbsd.ipacct.com",
+ "ftp.hostserver.de","ftp.man.poznan.pl","mirrors.sonic.net","mirror.labkom.id",
+   "mirror.litnet.lt","mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org",
+    "ftp.jaist.ac.jp","mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu",
+       "ftp.icm.edu.pl","mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie",
+  "ftp.spline.de","www.ftp.ne.jp","ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp",
+                     "ftp.bit.nl","ftp.fau.de","ftp.fsn.hu"
 
 	};
 
-	const uint16_t index = 54;
+	const int index = 53;
 
 
 
      /* Trusted OpenBSD.org subdomain mirrors for generating this section */
 
-	const char *ftp_list_g[7] = {
+	const char *ftp_list_g[8] = {
 
    "cloudflare.cdn.openbsd.org","ftp4.usa.openbsd.org","ftp.usa.openbsd.org",
-  "ftp.eu.openbsd.org","ftp.fr.openbsd.org","cdn.openbsd.org","ftp.OpenBSD.org"
+        "ftp2.eu.openbsd.org","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
+                       "cdn.openbsd.org","ftp.OpenBSD.org"
 
 	};
 
-	const uint16_t index_g = 7;
+	const int index_g = 8;
 
 
                          /* GENERATED CODE ENDS HERE */
@@ -2177,7 +2178,7 @@ ping_skip:
 			    diff_cmp);
 		}
 
-		int16_t  de = -1, ds = -1,   te = -1, ts = -1,   se = -1;
+		int  de = -1, ds = -1,   te = -1, ts = -1,   se = -1;
 
 		c = array_length;
 		while (c-- != 0) {
@@ -2203,7 +2204,7 @@ ping_skip:
 
 		char *cut = NULL;
 
-		int16_t j = 0, first = 0, se0 = se;
+		int j = 0, first = 0, se0 = se;
 
 		if (se == -1)
 			goto no_good;
@@ -2334,7 +2335,7 @@ gen_skip1:
 		printf("\"%s\"\n\n", array[se].http);
 
 		printf("\t};\n\n");
-		printf("\tconst uint16_t index = %d;\n\n\n\n", se + 1);
+		printf("\tconst int index = %d;\n\n\n\n", se + 1);
 
 
 		/*
@@ -2425,7 +2426,7 @@ gen_skip2:
 		printf("\"%s\"\n\n", array[se].http);
 
 		printf("\t};\n\n");
-		printf("\tconst uint16_t index_g = %d;\n\n\n", se + 1);
+		printf("\tconst int index_g = %d;\n\n\n", se + 1);
 		printf("                         ");
 		printf("/* GENERATED CODE ENDS HERE */\n\n\n\n");
 		printf("Replace section after line: %d, but ", entry_line);
