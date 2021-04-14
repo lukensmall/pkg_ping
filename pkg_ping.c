@@ -369,7 +369,7 @@ manpage()
 
 }
 
-static  __attribute__((noreturn)) void
+static __attribute__((noreturn)) void
 dns_cache_d(const int dns_socket, const int8_t secure,
 	     const int8_t six, const int8_t verbose)
 {
@@ -408,8 +408,6 @@ struct addrinfo {
 	int8_t max = 0, i_temp = 0, i_max = 0;
 	char six_available = '0';
 
-	char *dns_line = NULL;
-
 	const char *dns_line0     = (secure) ? "https" : "http";
 	const char *dns_line0_alt = (secure) ?  "443"  :  "80";
 
@@ -418,7 +416,7 @@ struct addrinfo {
 				   '8','9','a','b',
 				   'c','d','e','f' };
 
-	dns_line = calloc(255 + 1, sizeof(char));
+	char *dns_line = calloc(255 + 1, sizeof(char));
 	if (dns_line == NULL) {
 		printf("calloc\n");
 		goto dns_exit1;
@@ -623,7 +621,7 @@ dns_exit1:
  * other things, prevent /etc/installurl from becoming a
  * massive file which fills up the partition.
  */
-static  __attribute__((noreturn)) void
+static __attribute__((noreturn)) void
 file_d(const int write_pipe, const int8_t secure, const int8_t verbose)
 {
 
@@ -757,7 +755,7 @@ file_cleanup:
 	_exit(1);
 }
 
-static  __attribute__((noreturn)) void
+static __attribute__((noreturn)) void
 restart (int argc, char *argv[], const int loop, const int8_t verbose)
 {
 	if (loop == 0)
@@ -2181,9 +2179,9 @@ ping_skip:
 		int  de = -1, ds = -1,   te = -1, ts = -1,   se = -1;
 
 		c = array_length;
-		while (c-- != 0) {
+		do {
 
-			if (array[c].diff < s) {
+			if (array[--c].diff < s) {
 				se = c;
 				break;
 			}
@@ -2199,7 +2197,8 @@ ping_skip:
 				else
 					ts = c;
 			}
-		}
+
+		} while (c);
 
 
 		char *cut = NULL;
@@ -2510,7 +2509,7 @@ no_good:
 
 		if (next) {
 			printf("Perhaps the next release ");
-			printf("(%s) isn't present yet?\n", release);
+			printf("(%s) isn't available?\n", release);
 		} else if (previous) {
 			printf("Perhaps the previous release ");
 			printf("(%s) isn't available?\n", release);
