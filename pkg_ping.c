@@ -2281,7 +2281,7 @@ ping_skip:
 		printf("\tconst char *ftp_list[%d] = {\n\n", se + 1);
 
 
-		// n = 0;
+		/* n = 0; */
 		for (c = 0; c < se; ++c) {
 
 			/*
