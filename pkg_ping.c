@@ -263,7 +263,7 @@ diff_cmp(const void *a, const void *b)
 
 	/* prioritize mirrors near to USA first */
 	int ret = usa_cmp(a, b);
-	if (ret != 0)
+	if (ret)
 		return ret;
 
 	/* reverse subsort label_cmp_minus_usa */
@@ -318,7 +318,7 @@ label_cmp(const void *a, const void *b)
 {
 	/* prioritize mirrors near to USA first */
 	int ret = usa_cmp(a, b);
-	if (ret != 0)
+	if (ret)
 		return ret;
 
 	return label_cmp_minus_usa(a, b);
@@ -451,7 +451,7 @@ dns_loop:
 		
 		c = getaddrinfo(dns_line, dns_line0_alt, &hints, &res0);
 		
-		if (c != 0) {
+		if (c) {
 			if (verbose == 4)
 				printf("%s\n", gai_strerror(c));
 			i = write(dns_socket, "f", 1);
@@ -720,13 +720,13 @@ file_d(const int write_pipe, const int8_t secure, const int8_t verbose)
 	memcpy(file_w + received, "\n", 1 + 1);
 
 	if (secure) {
-		if (strncmp(file_w, "https://", 8) != 0) {
+		if (strncmp(file_w, "https://", 8)) {
 			printf("file_w does't begin with ");
 			printf("\"https://\", line: %d\n", __LINE__);
 			goto file_cleanup;
 		}
 	} else {
-		if (strncmp(file_w, "http://", 7) != 0) {
+		if (strncmp(file_w, "http://", 7)) {
 			printf("file_w does't begin with ");
 			printf("\"http://\", line: %d\n", __LINE__);
 			goto file_cleanup;
@@ -764,7 +764,7 @@ restart (int argc, char *argv[], const int loop, const int8_t verbose)
 	if (verbose != -1)
 		printf("restarting...\n");
 
-	int8_t n = argc - (argc > 1 && strncmp(argv[argc - 1], "-l", 2) == 0);
+	int8_t n = argc - (argc > 1 && !strncmp(argv[argc - 1], "-l", 2));
 
 	char **arg_v = calloc(n + 1 + 1, sizeof(char *));
 	if (arg_v == NULL)
@@ -809,7 +809,7 @@ easy_ftp_kill(const int kq, struct kevent *ke, const pid_t ftp_pid)
 		 * give it time to gracefully abort, and play nice
 		 * with the server before killing it with prejudice
 		 */
-		if (kevent(kq, NULL, 0, ke, 1, &timeout_kill) == 0)
+		if (!kevent(kq, NULL, 0, ke, 1, &timeout_kill))
 			kill(ftp_pid, SIGKILL);
 			
     	} else if (errno != ESRCH) {
@@ -827,7 +827,7 @@ main(int argc, char *argv[])
 {
 	malloc_options = "CFGJJU";
 
-	int8_t root_user = (getuid() == 0);
+	int8_t root_user = !getuid();
 	int8_t to_file = root_user;
 	int8_t num = 0, current = 0, secure = 0, verbose = 0;
 	int8_t generate = 0, override = 0, six = 0;
@@ -912,7 +912,7 @@ struct kevent {
 
 
 	if (argc >= 30) {
-		i = strncmp(argv[argc - 1], "-l", 2) == 0;
+		i = !strncmp(argv[argc - 1], "-l", 2);
 		if (argc - i >= 30)
 			errx(1, "keep argument count under 30");
 	}
@@ -973,7 +973,7 @@ struct kevent {
 			break;
 		case 's':
 		
-			if (strcmp(optarg, ".") == 0)
+			if (!strcmp(optarg, "."))
 				errx(1, "-s argument should not be: \".\"");
 
 			if (strlen(optarg) >= 15) {
@@ -1325,7 +1325,7 @@ struct kevent {
 		if (time[n] == '.')
 			i = n;
 
-		if (i != 0) {
+		if (i) {
 			time[i] = '\0';
 			char *time0 = time;
 			time = strdup(time0);
@@ -1415,7 +1415,7 @@ struct kevent {
 			return 1;
 		}
 
-		if (next && strcmp(name->release, "9.9") == 0) {
+		if (next && !strcmp(name->release, "9.9")) {
 			release = strdup("10.0");
 			i = 0;
 		} else {
@@ -1692,7 +1692,7 @@ struct kevent {
 	 * It's caused by no internet, bad dns resolution;
 	 *   Or from a faulty mirror or its bad dns info
 	 */
-	if (n != 0 || array_length == 0) {
+	if (n || array_length == 0) {
 
 
 		if (verbose >= 0)
@@ -1792,7 +1792,7 @@ struct kevent {
 				do {
 					printf("\b");
 					n /= 10;
-				} while (n != 0);
+				} while (n);
 			}
 			printf("%d", i);
 			fflush(stdout);
@@ -1842,7 +1842,7 @@ restart_dns_err:
 					do {
 						printf("\b \b");
 						n /= 10;
-					} while (n != 0);
+					} while (n);
 				}
 
 				close(kq);
@@ -1924,11 +1924,8 @@ restart_dns_err:
 			    EV_ONESHOT, NOTE_EXIT, 0, NULL);
 
 			i = kevent(kq, &ke, 1, &ke, 1, &timeout_ping);
-			if (i == -1 && errno != ESRCH) {
-				printf("%s ", strerror(errno));
-				printf("kevent, line: %d", __LINE__);
-				return 1;
-			}
+			if (i == -1 && errno != ESRCH)
+				err(1, "kevent, line: %d", __LINE__);
 
 			/* timeout occurred before ping() exit was received */
 			if (i == 0) {
@@ -1940,11 +1937,8 @@ restart_dns_err:
 				 *  nice with the server and reap event
 				 */
 				i = kevent(kq, NULL, 0, &ke, 1, &timeout_kill);
-				if (i == -1) {
-					printf("%s ", strerror(errno));
-					printf("kevent, line: %d", __LINE__);
-					return 1;
-				}
+				if (i == -1)
+					err(1, "kevent, line: %d", __LINE__);
 				if (i == 0) {
 
 					kill(ping_pid, SIGKILL);
@@ -2058,21 +2052,16 @@ ping_skip:
 			 *  nice with the server and reap event
 			 */
 			i = kevent(kq, NULL, 0, &ke, 1, &timeout_kill);
-			if (i == -1) {
-				printf("%s ", strerror(errno));
-				printf("kevent, line: %d", __LINE__);
-				return 1;
-			}
+			if (i == -1)
+				err(1, "kevent, line: %d", __LINE__);
+					
 			if (i == 0) {
 
 				kill(ftp_pid, SIGKILL);
 				if (verbose >= 2)
 					printf("killed\n");
-				if (kevent(kq, NULL, 0, &ke, 1, NULL) == -1) {
-					printf("%s ", strerror(errno));
-					printf("kevent, line: %d", __LINE__);
-					return 1;
-				}
+				if (kevent(kq, NULL, 0, &ke, 1, NULL) == -1)
+					err(1, "kevent, line: %d", __LINE__);
 			}
 
 			waitpid(ftp_pid, NULL, 0);
@@ -2084,7 +2073,7 @@ ping_skip:
 		}
 		waitpid(ftp_pid, &n, 0);
 
-		if (n != 0) {
+		if (n) {
 			array[c].diff = s + 1;
 			if (verbose >= 2)
 				printf("Download Error\n");
@@ -2238,11 +2227,11 @@ ping_skip:
 
 				if (cut - ac->http > 12 &&
 				    (
-				     strncmp(cut - 12, ".openbsd.org", 12) == 0
+				     !strncmp(cut - 12, ".openbsd.org", 12)
 
 				     ||
 
-				     strncmp(cut - 12, ".OpenBSD.org", 12) == 0
+				     !strncmp(cut - 12, ".OpenBSD.org", 12)
 				    )
 				   )
 					n = 0;
@@ -2524,7 +2513,6 @@ no_good:
 			printf(" You should use the -O flag in that case.\n");
 		}
 		if (six) {
-
 			printf("If your dns system is not set up ");
 			printf("for IPv6 connections, then ");
 			printf("lose the -6 flag.\n\n");
@@ -2554,17 +2542,14 @@ no_good:
 
 		if (i < n) {
 			printf("not all of mirror sent to write_pid\n");
-
 			restart(argc, argv, loop, verbose);
 		}
 
 		waitpid(write_pid, &n, 0);
 
-		if (n != 0) {
+		if (n) {
 			printf("write_pid error.\n");
-
 			restart(argc, argv, loop, verbose);
-
 		}
 
 	}  else if (verbose >= 0) {
