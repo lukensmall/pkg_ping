@@ -39,7 +39,7 @@ It uses several commandline options:
 -g generates the massive https list from which to retrieve and parse "ftplist", which you no doubt, noticed when
    you look at the source code. It downloads an 11 byte timestamp which is in all mirrors, whereas not all mirrors
    might have snapshots of your architecture or version. It presets options such as minimum verboseness of -v, 
-   -f, and finally: -S because the mirror list needs to be securely downloaded. This flag will also override -O and -n.
+   -f, -P, and finally: -S because the mirror list needs to be securely downloaded. This flag will also override -O, -p and -n.
 
 -h will print the "help" options.
 
@@ -54,6 +54,8 @@ It uses several commandline options:
    Useful when you are running a pre-release snapshot without available release mirrors or...are just curious?
 
 -p searches for previous release package folders! It subtracts .1 to your version and searches for the release.
+
+-P skips where it ping()s a mirror a couple times in rapid succession to optimize the network for a download.
 
 -n searches for next release package folders! It adds .1 to your version and searches for the release.
 
