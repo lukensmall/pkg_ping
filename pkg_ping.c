@@ -1125,29 +1125,31 @@ struct kevent {
                         /* GENERATED CODE BEGINS HERE */
 
 
-	const char *ftp_list[53] = {
+	const char *ftp_list[59] = {
 
          "openbsd.mirror.netelligent.ca","mirrors.syringanetworks.net",
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
            "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
            "ftp.rnl.tecnico.ulisboa.pt","mirror.csclub.uwaterloo.ca",
-   "mirror.hs-esslingen.de","mirrors.pidginhost.com","openbsd.cs.toronto.edu",
-    "*artfiles.org/openbsd","mirror.bytemark.co.uk","mirror.planetunix.net",
-     "www.mirrorservice.org","ftp4.usa.openbsd.org","mirror.aarnet.edu.au",
-      "mirror.exonetric.net","mirror.serverion.com","openbsd.c3sl.ufpr.br",
-       "ftp.usa.openbsd.org","ftp2.eu.openbsd.org","mirror.leaseweb.com",
-        "mirrors.gigenet.com","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
-         "mirror.fsmg.org.nz","mirrors.dotsrc.org","openbsd.ipacct.com",
- "ftp.hostserver.de","ftp.man.poznan.pl","mirrors.sonic.net","mirror.labkom.id",
-   "mirror.litnet.lt","mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org",
-    "ftp.jaist.ac.jp","mirror.esc7.net","mirror.vdms.com","mirrors.mit.edu",
-       "ftp.icm.edu.pl","mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie",
-  "ftp.spline.de","www.ftp.ne.jp","ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp",
-                     "ftp.bit.nl","ftp.fau.de","ftp.fsn.hu"
+  "mirrors.gethosted.online","mirror.hs-esslingen.de","mirrors.pidginhost.com",
+    "openbsd.cs.toronto.edu","*artfiles.org/openbsd","ftpmirror.infania.net",
+    "mirror.bytemark.co.uk","mirror.planetunix.net","www.mirrorservice.org",
+      "ftp4.usa.openbsd.org","mirror.aarnet.edu.au","mirror.exonetric.net",
+      "mirror.serverion.com","openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org",
+       "ftp2.eu.openbsd.org","mirror.leaseweb.com","mirrors.gigenet.com",
+         "ftp.eu.openbsd.org","ftp.fr.openbsd.org","ftp.lysator.liu.se",
+         "mirror.fsmg.org.nz","mirror.ungleich.ch","openbsd.ipacct.com",
+"ftp.hostserver.de","ftp.man.poznan.pl","mirrors.sonic.net","mirrors.ucr.ac.cr",
+   "mirror.labkom.id","mirror.litnet.lt","mirror.yandex.ru","cdn.openbsd.org",
+    "ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.esc7.net","mirror.ihost.md",
+     "mirror.ox.ac.uk","mirror.vdms.com","mirrors.mit.edu","ftp.icm.edu.pl",
+        "mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de",
+   "www.ftp.ne.jp","ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl",
+                            "ftp.fau.de","ftp.fsn.hu"
 
 	};
 
-	const int index = 53;
+	const int index = 59;
 
 
 
