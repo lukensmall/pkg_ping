@@ -2212,7 +2212,11 @@ ping_skip:
 
 			cut = ac->http += h;
 			j = strlen(cut);
-			if (j <= 12 || strcmp(cut += j -= 12, "/pub/OpenBSD")) {
+
+			if (j <= 12) {
+				(ac->http -= 1)[0] = '*';
+                                ac->diff = j + 1;
+			} else if (strcmp(cut += j -= 12, "/pub/OpenBSD")) {
 				(ac->http -= 1)[0] = '*';
 				ac->diff = j + 13;
 			} else {
