@@ -95,6 +95,9 @@ const struct timespec timeout_kill = { 0, 100000000 };
 static void
 free_array()
 {
+	if (array == NULL)
+		return;
+	
 	/* Don't need useless junking while cleaning up */
 	malloc_options = "CFGjjU";
 	
