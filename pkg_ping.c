@@ -76,18 +76,18 @@
 #include <time.h>
 #include <unistd.h>
 
-struct mirror_st {
+typedef struct {
 	char *label;
 	char *http;
 	long double diff;
-};
+} MIRROR;
 
 extern char *malloc_options;
 
 /* strlen("http://") == 7 */
 int8_t h = 7;
 int array_length = 0;
-struct mirror_st *array = NULL;
+MIRROR *array = NULL;
 
 /* .1 second for an ftp SIGINT to turn into a SIGKILL */
 const struct timespec timeout_kill = { 0, 100000000 };
@@ -95,10 +95,10 @@ const struct timespec timeout_kill = { 0, 100000000 };
 static void
 free_array()
 {
-	/* Don't need a buncha useless junking while cleaning up */
+	/* Don't need useless junking while cleaning up */
 	malloc_options = "CFGjjU";
 	
-	struct mirror_st *ac = array + array_length;
+	MIRROR *ac = array + array_length;
 
 	while (array <= --ac) {
 		free(ac->label);
@@ -113,8 +113,8 @@ free_array()
 static int
 usa_cmp(const void *a, const void *b)
 {
-	char *one_label = ((struct mirror_st *) a)->label;
-	char *two_label = ((struct mirror_st *) b)->label;
+	char *one_label = ((MIRROR *) a)->label;
+	char *two_label = ((MIRROR *) b)->label;
 
 	/* prioritize the USA mirrors first */
 	int8_t temp = (strstr(one_label, "USA") != NULL);
@@ -152,8 +152,8 @@ static int
 label_cmp_minus_usa(const void *a, const void *b)
 {
 
-	char *one_label = ((struct mirror_st *) a)->label;
-	char *two_label = ((struct mirror_st *) b)->label;
+	char *one_label = ((MIRROR *) a)->label;
+	char *two_label = ((MIRROR *) b)->label;
 	int8_t i = 3;
 
 	/*
@@ -228,8 +228,8 @@ blue_jump:
 		 * likely isn't worth it because of its rarity.
 		 */
 		return strcmp(
-			      ((struct mirror_st *) a)->http + h,
-			      ((struct mirror_st *) b)->http + h
+			      ((MIRROR *) a)->http + h,
+			      ((MIRROR *) b)->http + h
 			     );
 	}
 	return ret;
@@ -238,8 +238,8 @@ blue_jump:
 static int
 diff_cmp_minus_usa(const void *a, const void *b)
 {
-	long double one_diff = ((struct mirror_st *) a)->diff;
-	long double two_diff = ((struct mirror_st *) b)->diff;
+	long double one_diff = ((MIRROR *) a)->diff;
+	long double two_diff = ((MIRROR *) b)->diff;
 
 	if (one_diff < two_diff)
 		return -1;
@@ -253,8 +253,8 @@ diff_cmp_minus_usa(const void *a, const void *b)
 static int
 diff_cmp(const void *a, const void *b)
 {
-	long double one_diff = ((struct mirror_st *) a)->diff;
-	long double two_diff = ((struct mirror_st *) b)->diff;
+	long double one_diff = ((MIRROR *) a)->diff;
+	long double two_diff = ((MIRROR *) b)->diff;
 
 	if (one_diff < two_diff)
 		return -1;
@@ -273,8 +273,8 @@ diff_cmp(const void *a, const void *b)
 static int
 diff_cmp_g(const void *a, const void *b)
 {
-	long double one_diff = ((struct mirror_st *) a)->diff;
-	long double two_diff = ((struct mirror_st *) b)->diff;
+	long double one_diff = ((MIRROR *) a)->diff;
+	long double two_diff = ((MIRROR *) b)->diff;
 
 	/* sort the biggest diff values first */
 	if (one_diff > two_diff)
@@ -283,16 +283,16 @@ diff_cmp_g(const void *a, const void *b)
 		return 1;
 
 	return strcmp(
-		      ((struct mirror_st *) a)->http,
-		      ((struct mirror_st *) b)->http
+		      ((MIRROR *) a)->http,
+		      ((MIRROR *) b)->http
 		     );
 }
 
 static int
 diff_cmp_g2(const void *a, const void *b)
 {
-	long double one_diff = ((struct mirror_st *) a)->diff;
-	long double two_diff = ((struct mirror_st *) b)->diff;
+	long double one_diff = ((MIRROR *) a)->diff;
+	long double two_diff = ((MIRROR *) b)->diff;
 
 	/*
 	 * most will fall under this comparison
@@ -308,8 +308,8 @@ diff_cmp_g2(const void *a, const void *b)
 		return 1;
 
 	return strcmp(
-		      ((struct mirror_st *) a)->http,
-		      ((struct mirror_st *) b)->http
+		      ((MIRROR *) a)->http,
+		      ((MIRROR *) b)->http
 		     );
 }
 
@@ -1125,45 +1125,44 @@ struct kevent {
                         /* GENERATED CODE BEGINS HERE */
 
 
-	const char *ftp_list[59] = {
+	const char *ftp_list[60] = {
 
          "openbsd.mirror.netelligent.ca","mirrors.syringanetworks.net",
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
-           "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
-           "ftp.rnl.tecnico.ulisboa.pt","mirror.csclub.uwaterloo.ca",
-  "mirrors.gethosted.online","mirror.hs-esslingen.de","mirrors.pidginhost.com",
-    "openbsd.cs.toronto.edu","*artfiles.org/openbsd","ftpmirror.infania.net",
-    "mirror.bytemark.co.uk","mirror.planetunix.net","www.mirrorservice.org",
-      "ftp4.usa.openbsd.org","mirror.aarnet.edu.au","mirror.exonetric.net",
-      "mirror.serverion.com","openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org",
-       "ftp2.eu.openbsd.org","mirror.leaseweb.com","mirrors.gigenet.com",
-         "ftp.eu.openbsd.org","ftp.fr.openbsd.org","ftp.lysator.liu.se",
-         "mirror.fsmg.org.nz","mirror.ungleich.ch","openbsd.ipacct.com",
+           "ftp.halifax.rwth-aachen.de","ftp.rnl.tecnico.ulisboa.pt",
+            "mirror.csclub.uwaterloo.ca","mirrors.gethosted.online",
+   "mirror.hs-esslingen.de","mirrors.pidginhost.com","openbsd.cs.toronto.edu",
+    "*artfiles.org/openbsd","ftpmirror.infania.net","mirror.bytemark.co.uk",
+     "mirror.planetunix.net","www.mirrorservice.org","ftp4.usa.openbsd.org",
+      "mirror.aarnet.edu.au","mirror.exonetric.net","mirror.serverion.com",
+       "openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
+        "mirror.leaseweb.com","mirrors.gigenet.com","ftp.eu.openbsd.org",
+         "ftp.fr.openbsd.org","ftp.lysator.liu.se","mirror.fsmg.org.nz",
+         "mirror.ungleich.ch","mirrors.dotsrc.org","openbsd.ipacct.com",
 "ftp.hostserver.de","ftp.man.poznan.pl","mirrors.sonic.net","mirrors.ucr.ac.cr",
    "mirror.labkom.id","mirror.litnet.lt","mirror.yandex.ru","cdn.openbsd.org",
     "ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.esc7.net","mirror.ihost.md",
      "mirror.ox.ac.uk","mirror.vdms.com","mirrors.mit.edu","ftp.icm.edu.pl",
         "mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de",
    "www.ftp.ne.jp","ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl",
-                            "ftp.fau.de","ftp.fsn.hu"
+                     "ftp.fau.de","ftp.fsn.hu","openbsd.hk"
 
 	};
 
-	const int index = 59;
+	const int index = 60;
 
 
 
      /* Trusted OpenBSD.org subdomain mirrors for generating this section */
 
-	const char *ftp_list_g[8] = {
+	const char *ftp_list_g[7] = {
 
-   "cloudflare.cdn.openbsd.org","ftp4.usa.openbsd.org","ftp.usa.openbsd.org",
-        "ftp2.eu.openbsd.org","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
-                       "cdn.openbsd.org","ftp.OpenBSD.org"
+       "ftp4.usa.openbsd.org","ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
+  "ftp.eu.openbsd.org","ftp.fr.openbsd.org","cdn.openbsd.org","ftp.OpenBSD.org"
 
 	};
 
-	const int index_g = 8;
+	const int index_g = 7;
 
 
                          /* GENERATED CODE ENDS HERE */
@@ -1506,7 +1505,7 @@ struct kevent {
 		errx(1, "calloc");
 	}
 
-	array = calloc(array_max, sizeof(struct mirror_st));
+	array = calloc(array_max, sizeof(MIRROR));
 	if (array == NULL) {
 		easy_ftp_kill(kq, &ke, ftp_pid);
 		errx(1, "calloc");
@@ -1665,7 +1664,7 @@ struct kevent {
 			}
 			array_max += 50;
 			array = recallocarray(array, array_length, array_max,
-			    sizeof(struct mirror_st));
+			    sizeof(MIRROR));
 
 			if (array == NULL) {
 				easy_ftp_kill(kq, &ke, ftp_pid);
@@ -1729,17 +1728,15 @@ struct kevent {
 	 */
 	if (usa == 0) {
 		if (verbose > 1) {
-			qsort(array, array_length, sizeof(struct mirror_st),
+			qsort(array, array_length, sizeof(MIRROR),
 			    label_cmp_minus_usa);
 		} /* else don't sort */
 	} else {
-		if (verbose > 1) {
-			qsort(array, array_length, sizeof(struct mirror_st),
-			    label_cmp);
-		} else if (verbose < 1) {
-			qsort(array, array_length, sizeof(struct mirror_st),
-			    usa_cmp);
-		} /* else don't sort */
+		if (verbose > 1)
+			qsort(array, array_length, sizeof(MIRROR), label_cmp);
+		else if (verbose < 1)
+			qsort(array, array_length, sizeof(MIRROR), usa_cmp);
+		/* else don't sort */
 	}
 
 	if (six) {
@@ -2129,7 +2126,7 @@ ping_skip:
 	close(std_err);
 	free(line);
 
-	struct mirror_st *ac = NULL;
+	MIRROR *ac = NULL;
 
 	if (verbose <= 0) {
 
@@ -2140,7 +2137,7 @@ ping_skip:
 		 * rest of the data in the array is not used.
 		 */
 
-		struct mirror_st *fastest = ac = array + array_length - 1;
+		MIRROR *fastest = ac = array + array_length - 1;
 
 		while (array <= --ac) {
 			if (ac->diff < fastest->diff)
@@ -2152,7 +2149,7 @@ ping_skip:
 			free(array->label);
 			free(array->http);
 
-			memcpy(array, fastest, sizeof(struct mirror_st));
+			memcpy(array, fastest, sizeof(MIRROR));
 
 			fastest->label = NULL;
 			fastest->http = NULL;
@@ -2160,12 +2157,10 @@ ping_skip:
 
 	} else {
 		if (usa == 0) {
-			qsort(array, array_length, sizeof(struct mirror_st),
+			qsort(array, array_length, sizeof(MIRROR),
 			    diff_cmp_minus_usa);
-		} else {
-			qsort(array, array_length, sizeof(struct mirror_st),
-			    diff_cmp);
-		}
+		} else
+			qsort(array, array_length, sizeof(MIRROR), diff_cmp);
 
 		int  de = -1, ds = -1,   te = -1, ts = -1,   se = -1;
 
@@ -2268,7 +2263,7 @@ ping_skip:
 		 * sort by longest length first, subsort http alphabetically
 		 *           It makes it kinda look like a flower.
 		 */
-		qsort(array, se + 1, sizeof(struct mirror_st), diff_cmp_g);
+		qsort(array, se + 1, sizeof(MIRROR), diff_cmp_g);
 
 		printf("\n\n");
 		printf("                        ");
@@ -2358,7 +2353,7 @@ gen_skip1:
 		 * if diff > 0 then
 		 * subsort http alphabetically
 		 */
-		qsort(array, se0 + 1, sizeof(struct mirror_st), diff_cmp_g2);
+		qsort(array, se0 + 1, sizeof(MIRROR), diff_cmp_g2);
 
 		printf("     /* Trusted OpenBSD.org subdomain ");
 		printf("mirrors for generating this section */\n\n");
