@@ -498,6 +498,11 @@ dns_loop:
 			sa4 = (struct sockaddr_in *) res->ai_addr;
 			sui4 = sa4->sin_addr.s_addr;
 
+			/* 
+			 * I have an unbound blocklist where I
+			 * force unwanted domains to resolve to
+			 * 0.0.0.0 which translates to sui4 == 0
+			 */
 			if (six_available == 'u' && sui4)
 				six_available = '0';
 				
@@ -819,7 +824,6 @@ easy_ftp_kill(const int kq, struct kevent *ke, const pid_t ftp_pid)
 		printf("%s ", strerror(errno));
 		printf("kevent, line: %d\n", __LINE__);
 		/* Don't exit. Already dying. */
-		return;
     	}
     	
  	waitpid(ftp_pid, NULL, WNOHANG);
@@ -1039,12 +1043,8 @@ struct kevent {
 	if (generate) {
 		if (verbose < 1)
 			verbose = 1;
-		next = 0;
-		previous = 0;
-		ping = 0;
-		override = 0;
 		secure = 1;
-		to_file = 0;
+		next = previous = ping = override = to_file = 0;
 		if (pledge("stdio exec proc dns id", NULL) == -1)
 			err(1, "pledge, line: %d", __LINE__);
 
@@ -1081,9 +1081,8 @@ struct kevent {
 				                    six, verbose);
 				errx(1, "dns_cache_d returned! line: %d\n",
 				    __LINE__);
-			default:
-				close(dns_cache_d_socket[0]);
 		}
+		close(dns_cache_d_socket[0]);
 	}
 
 	if (to_file) {
@@ -1102,9 +1101,8 @@ struct kevent {
 				           secure, verbose);
 				errx(1, "file_d returned! line: %d\n",
 				    __LINE__);
-			default:
-				close(write_pipe[STDIN_FILENO]);
 		}
+		close(write_pipe[STDIN_FILENO]);
 	}
 
 
@@ -1130,16 +1128,16 @@ struct kevent {
 
 	const char *ftp_list[60] = {
 
-         "openbsd.mirror.netelligent.ca","mirrors.syringanetworks.net",
-          "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
+          "mirrors.syringanetworks.net","openbsd.mirror.constant.com",
+           "plug-mirror.rcac.purdue.edu","cloudflare.cdn.openbsd.org",
            "ftp.halifax.rwth-aachen.de","ftp.rnl.tecnico.ulisboa.pt",
             "mirror.csclub.uwaterloo.ca","mirrors.gethosted.online",
    "mirror.hs-esslingen.de","mirrors.pidginhost.com","openbsd.cs.toronto.edu",
     "*artfiles.org/openbsd","ftpmirror.infania.net","mirror.bytemark.co.uk",
      "mirror.planetunix.net","www.mirrorservice.org","ftp4.usa.openbsd.org",
-      "mirror.aarnet.edu.au","mirror.exonetric.net","mirror.serverion.com",
-       "openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
-        "mirror.leaseweb.com","mirrors.gigenet.com","ftp.eu.openbsd.org",
+      "mirror.aarnet.edu.au","mirror.exonetric.net","openbsd.c3sl.ufpr.br",
+       "ftp.usa.openbsd.org","ftp2.eu.openbsd.org","mirror.leaseweb.com",
+        "mirror.telepoint.bg","mirrors.gigenet.com","ftp.eu.openbsd.org",
          "ftp.fr.openbsd.org","ftp.lysator.liu.se","mirror.fsmg.org.nz",
          "mirror.ungleich.ch","mirrors.dotsrc.org","openbsd.ipacct.com",
 "ftp.hostserver.de","ftp.man.poznan.pl","mirrors.sonic.net","mirrors.ucr.ac.cr",
@@ -1158,14 +1156,15 @@ struct kevent {
 
      /* Trusted OpenBSD.org subdomain mirrors for generating this section */
 
-	const char *ftp_list_g[7] = {
+	const char *ftp_list_g[8] = {
 
-       "ftp4.usa.openbsd.org","ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
-  "ftp.eu.openbsd.org","ftp.fr.openbsd.org","cdn.openbsd.org","ftp.OpenBSD.org"
+   "cloudflare.cdn.openbsd.org","ftp4.usa.openbsd.org","ftp.usa.openbsd.org",
+        "ftp2.eu.openbsd.org","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
+                       "cdn.openbsd.org","ftp.OpenBSD.org"
 
 	};
 
-	const int index_g = 7;
+	const int index_g = 8;
 
 
                          /* GENERATED CODE ENDS HERE */
