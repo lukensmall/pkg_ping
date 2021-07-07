@@ -907,7 +907,7 @@ struct kevent {
 
 	/* 
 	 * I could do strlen(), but this keeps it under
-	 * control in the case that argv[c] is a very long.
+	 * control in the case that argv[c] is very long.
 	 */
 	for(c = 1; c < argc; ++c) {
 		line0 = line_temp = argv[c] - 1;
