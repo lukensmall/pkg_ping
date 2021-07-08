@@ -1524,7 +1524,14 @@ struct kevent {
 	EV_SET(&ke, c, EVFILT_READ,
 	    EV_ADD | EV_ONESHOT, 0, 0, NULL);
 	i = kevent(kq, &ke, 1, &ke, 1, &timeout0);
-	if (i == -1) {
+
+	/* (verbose == 0 || verbose == 1) */
+	if ((verbose >> 1) == 0) {
+		printf("\b \b");
+		fflush(stdout);
+	}
+	
+	if (i == -1 && errno != ESRCH) {
 		printf("%s ", strerror(errno));
 		printf("kevent, timeout0 may be too large. ");
 		printf("line: %d\n", __LINE__);
@@ -1532,13 +1539,7 @@ struct kevent {
 		return 1;
 	}
 
-	if (i == 0) {
-
-		/* (verbose == 0 || verbose == 1) */
-		if ((verbose >> 1) == 0) {
-			printf("\b \b");
-			fflush(stdout);
-		}
+	if (i != 1) {
 
 		easy_ftp_kill(kq, &ke, ftp_pid);
 		close(kq);
@@ -1619,6 +1620,11 @@ struct kevent {
 			continue;
 		}
 
+
+		/* wipes out spaces at the end of the label */
+		while (pos > 1 && line[pos - 1] == 32)
+			--pos;
+
 		line[pos++] = '\0';
 
 		if (usa == 0 && strstr(line, "USA")) {
@@ -1680,12 +1686,6 @@ struct kevent {
 	close(ftp_out[STDIN_FILENO]);
 
 	waitpid(ftp_pid, &n, 0);
-
-	/* (verbose == 0 || verbose == 1) */
-	if ((verbose >> 1) == 0) {
-		printf("\b \b");
-		fflush(stdout);
-	}
 
 	if (array_length > 500)
 		errx(1, "array_length got insanely large");
