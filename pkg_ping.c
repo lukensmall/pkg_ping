@@ -213,7 +213,7 @@ blue_jump:
 	if (ret == 0) {
 		/*
 		 * if (i):
-		 * One of red or blue has no more comma
+		 * Either red or blue has no more comma
 		 * separated entries while remaining, equal.
 		 * The one with fewer commas is preferred.
 		 * If red: i == 1, if blue: i == 2
@@ -226,9 +226,12 @@ blue_jump:
 
 		/*
 		 * exactly equal labels:
-		 * The price of checking for this initially,
-		 * (although its a simple strcmp())
-		 * likely isn't worth it because of its rarity.
+		 * Checking for this condition initially
+		 * with a label strcmp() doesn't
+		 * provide useful information unless
+		 * the labels are exactly equal.
+		 * It likely isn't worth wasting time testing
+		 * it initially because of its rarity.
 		 */
 		return strcmp(
 			      ((MIRROR *) a)->http + h,
@@ -640,48 +643,54 @@ file_d(const int write_pipe, const int8_t secure, const int8_t verbose)
 	}
 
 	int i = 0;
-	int kq = kqueue();
-	if (kq == -1) {
-		printf("%s ", strerror(errno));
-		printf("kq! line: %d\n", __LINE__);
-		_exit(1);
-	}
 
 	char *file_w = NULL;
 	FILE *pkg_write = NULL;
 
-	struct kevent ke;
+	file_w = calloc(302, sizeof(char));
+	if (file_w == NULL) {
+		printf("calloc\n");
+		_exit(1);
+	}
 
-	/*
-	 * It probably seems like overkill to use a kqueue for
-	 * a single file descriptor with no timeout, but I
-	 * don't have to guess about how much data will
-	 * be sent down the pipe. I can allocate the perfect
-	 * amount of buffer space AFTER the pipe receives it.
-	 */
-	EV_SET(&ke, write_pipe, EVFILT_READ,
-	    EV_ADD | EV_ONESHOT, 0, 0, NULL);
-	if (kevent(kq, &ke, 1, &ke, 1, NULL) == -1) {
+	int received = read(write_pipe, file_w, 301);
+	close(write_pipe);
+
+	if (received == -1) {
 		printf("%s ", strerror(errno));
-		printf("write_pid kevent register fail");
-		printf(" line: %d\n", __LINE__);
-		close(kq);
-		_exit(1);
-	}
-	close(kq);
-
-	/* ke.data is of type __int64_t */
-	__int64_t received = ke.data;
-
-	/* parent exited before sending data */
-	if (received == 0) {
+		printf("read error occurred, line: %d\n", __LINE__);
 		printf("/etc/installurl not written.\n");
-		_exit(1);
+		goto file_cleanup;
 	}
-	if (received > 300) {
+
+	if (received == 0) {
+		printf("program exited without writing.\n");
+		printf("/etc/installurl not written.\n");
+		goto file_cleanup;
+	}
+	
+	if (received == 301) {
 		printf("received mirror is too large\n");
 		printf("/etc/installurl not written.\n");
-		_exit(1);
+		goto file_cleanup;
+	}
+
+	file_w[received] = '\n';
+
+	if (secure) {
+		if (strncmp(file_w, "https://", 8)) {
+			printf("file_w does't begin with ");
+			printf("\"https://\", line: %d\n", __LINE__);
+			printf("/etc/installurl not written.\n");
+			goto file_cleanup;
+		}
+	} else {
+		if (strncmp(file_w, "http://", 7)) {
+			printf("file_w does't begin with ");
+			printf("\"http://\", line: %d\n", __LINE__);
+			printf("/etc/installurl not written.\n");
+			goto file_cleanup;
+		}
 	}
 
 	if (verbose > 0)
@@ -694,58 +703,15 @@ file_d(const int write_pipe, const int8_t secure, const int8_t verbose)
 	if (pkg_write == NULL) {
 		printf("%s ", strerror(errno));
 		printf("/etc/installurl not opened.\n");
-		_exit(1);
-	}
-
-	if (pledge("stdio", NULL) == -1) {
-		printf("%s ", strerror(errno));
-		printf("pledge, line: %d\n", __LINE__);
-		fclose(pkg_write);
-		_exit(1);
-	}
-
-	file_w = calloc(received + 1 + 1, sizeof(char));
-	if (file_w == NULL) {
-		printf("calloc\n");
-		fclose(pkg_write);
-		_exit(1);
-	}
-
-	i = read(write_pipe, file_w, received);
-	close(write_pipe);
-
-	if (i == -1) {
-		printf("%s ", strerror(errno));
-		printf("read error occurred, line: %d\n", __LINE__);
 		goto file_cleanup;
-	}
-
-	if (i < received) {
-		printf("didn't fully read from pipe, line: %d\n", __LINE__);
-		goto file_cleanup;
-	}
-
-	memcpy(file_w + received, "\n", 1 + 1);
-
-	if (secure) {
-		if (strncmp(file_w, "https://", 8)) {
-			printf("file_w does't begin with ");
-			printf("\"https://\", line: %d\n", __LINE__);
-			goto file_cleanup;
-		}
-	} else {
-		if (strncmp(file_w, "http://", 7)) {
-			printf("file_w does't begin with ");
-			printf("\"http://\", line: %d\n", __LINE__);
-			goto file_cleanup;
-		}
 	}
 
 	i = fwrite(file_w, 1, received + 1, pkg_write);
 	if (i < received + 1) {
-		printf("%s ", strerror(errno));
 		printf("write error occurred, line: %d\n", __LINE__);
-		goto file_cleanup;
+		fclose(pkg_write);
+		free(file_w);
+		_exit(1);
 	}
 
 	fclose(pkg_write);
@@ -759,7 +725,6 @@ file_d(const int write_pipe, const int8_t secure, const int8_t verbose)
 
 file_cleanup:
 	free(file_w);
-	fclose(pkg_write);
 	_exit(1);
 }
 
@@ -905,16 +870,9 @@ struct kevent {
 			err(1, "pledge, line: %d", __LINE__);
 	}
 
-	/* 
-	 * I could do strlen(), but this keeps it under
-	 * control in the case that argv[c] is very long.
-	 */
 	for(c = 1; c < argc; ++c) {
-		line0 = line_temp = argv[c] - 1;
-		while (*++line_temp != '\0') {
-			if (line_temp - line0 == 35)
-				errx(1, "keep argument lengths under 35");
-		}
+		if (strnlen(argv[c], 35) == 35)
+			errx(1, "keep argument lengths under 35");
 	}
 
 
@@ -1622,7 +1580,7 @@ struct kevent {
 
 
 		/* wipes out spaces at the end of the label */
-		while (pos > 1 && line[pos - 1] == 32)
+		while (pos && line[pos - 1] == 32)
 			--pos;
 
 		line[pos++] = '\0';
@@ -1638,16 +1596,15 @@ struct kevent {
 		 * make sure there is a space after last comma
 		 * which would allow the function to make the
 		 * assumption that 2 spaces after the comma is
-		 * on the array. Otherwise, an abberrant
-		 * label could crash the program.
+		 * on the array (or at least '\0'), otherwise,
+		 * an abberrant label could crash the program.
 		 *
-		 * I could make the label function safer,
-		 * but it would eat up more computing
-		 * resources being redundantly checked.
+		 * I could make label_cmp_minus_usa() safer,
+		 * but it costs less checking it here.
 		 */
 		if (verbose >= 1) {
 			line_temp = strrchr(line, ',');
-			if (line_temp != NULL && line_temp[1] != ' ') {
+			if (line_temp && line_temp[1] != ' ') {
 				free(array[array_length].http);
 				printf("label malformation: %s ", line);
 				printf("line: %d\n", __LINE__);
