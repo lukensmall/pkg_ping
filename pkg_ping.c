@@ -710,8 +710,7 @@ file_d(const int write_pipe, const int8_t secure, const int8_t verbose)
 	if (i < received + 1) {
 		printf("write error occurred, line: %d\n", __LINE__);
 		fclose(pkg_write);
-		free(file_w);
-		_exit(1);
+		goto file_cleanup;
 	}
 
 	fclose(pkg_write);
