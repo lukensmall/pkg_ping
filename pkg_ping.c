@@ -742,7 +742,7 @@ restart (int argc, char *argv[], const int loop, const int8_t verbose)
 	if (arg_v == NULL)
 		errx(1, "calloc");
 
-	memcpy(arg_v, argv, n * sizeof(char*));
+	memcpy(arg_v, argv, n * sizeof(char *));
 
 	int8_t len = 10;
 	arg_v[n] = calloc(len, sizeof(char));
