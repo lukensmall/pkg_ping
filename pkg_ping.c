@@ -98,7 +98,7 @@ free_array()
 	if (array == NULL)
 		return;
 	
-	/* Don't need useless junking while cleaning up */
+	/* There's no need for useless junking while cleaning up */
 	malloc_options = "CFGjjU";
 	
 	MIRROR *ac = array + array_length;
