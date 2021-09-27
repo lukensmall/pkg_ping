@@ -267,7 +267,10 @@ diff_cmp(const void *a, const void *b)
 	if (one_diff > two_diff)
 		return 1;
 
-	/* prioritize mirrors near to USA first */
+	/* 
+	 * Prioritize mirrors near to USA next.
+	 *    They didn't succeed past here.
+	 */
 	int ret = usa_cmp(a, b);
 	if (ret)
 		return ret;
