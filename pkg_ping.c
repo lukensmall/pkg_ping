@@ -1088,14 +1088,14 @@ struct kevent {
 
 	const char *ftp_list[60] = {
 
-          "mirrors.syringanetworks.net","openbsd.mirror.constant.com",
-           "plug-mirror.rcac.purdue.edu","cloudflare.cdn.openbsd.org",
-           "ftp.halifax.rwth-aachen.de","ftp.rnl.tecnico.ulisboa.pt",
-            "mirror.csclub.uwaterloo.ca","mirrors.gethosted.online",
-   "mirror.hs-esslingen.de","mirrors.pidginhost.com","openbsd.cs.toronto.edu",
-    "*artfiles.org/openbsd","ftpmirror.infania.net","mirror.bytemark.co.uk",
-     "mirror.planetunix.net","www.mirrorservice.org","ftp4.usa.openbsd.org",
-      "mirror.aarnet.edu.au","mirror.exonetric.net","openbsd.c3sl.ufpr.br",
+          "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
+           "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
+           "ftp.rnl.tecnico.ulisboa.pt","mirror.csclub.uwaterloo.ca",
+  "mirrors.gethosted.online","mirror.hs-esslingen.de","mirrors.pidginhost.com",
+    "openbsd.cs.toronto.edu","*artfiles.org/openbsd","ftpmirror.infania.net",
+    "mirror.bytemark.co.uk","mirror.planetunix.net","www.mirrorservice.org",
+      "ftp4.usa.openbsd.org","mirror.aarnet.edu.au","mirror.exonetric.net",
+      "mirror.fsrv.services","mirror.serverion.com","openbsd.c3sl.ufpr.br",
        "ftp.usa.openbsd.org","ftp2.eu.openbsd.org","mirror.leaseweb.com",
         "mirror.telepoint.bg","mirrors.gigenet.com","ftp.eu.openbsd.org",
          "ftp.fr.openbsd.org","ftp.lysator.liu.se","mirror.fsmg.org.nz",
@@ -1105,8 +1105,8 @@ struct kevent {
     "ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.esc7.net","mirror.ihost.md",
      "mirror.ox.ac.uk","mirror.vdms.com","mirrors.mit.edu","ftp.icm.edu.pl",
         "mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de",
-   "www.ftp.ne.jp","ftp.eenet.ee","ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl",
-                     "ftp.fau.de","ftp.fsn.hu","openbsd.hk"
+    "www.ftp.ne.jp","ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl","ftp.fau.de",
+                            "ftp.fsn.hu","openbsd.hk"
 
 	};
 
@@ -1625,11 +1625,12 @@ struct kevent {
 
 		if (++array_length == array_max) {
 
-			if (array_length > 500) {
+			array_max += 50;
+			
+			if (array_max > 500) {
 				easy_ftp_kill(kq, &ke, ftp_pid);
 				errx(1, "array_length got insanely large");
 			}
-			array_max += 50;
 			array = recallocarray(array, array_length, array_max,
 			    sizeof(MIRROR));
 
@@ -1645,9 +1646,6 @@ struct kevent {
 	close(ftp_out[STDIN_FILENO]);
 
 	waitpid(ftp_pid, &n, 0);
-
-	if (array_length > 500)
-		errx(1, "array_length got insanely large");
 
 	/*
 	 *            'ftplist' download error:
