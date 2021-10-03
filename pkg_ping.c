@@ -1491,7 +1491,7 @@ struct kevent {
 		fflush(stdout);
 	}
 	
-	if (i == -1 && errno != ESRCH) {
+	if (i == -1) {
 		printf("%s ", strerror(errno));
 		printf("kevent, timeout0 may be too large. ");
 		printf("line: %d\n", __LINE__);
