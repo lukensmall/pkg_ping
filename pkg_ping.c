@@ -793,7 +793,7 @@ easy_ftp_kill(const int kq, struct kevent *ke, const pid_t ftp_pid)
 		/* Don't exit. Already dying. */
     	}
     	
- 	waitpid(ftp_pid, NULL, WNOHANG);
+ 	waitpid(ftp_pid, NULL, 0);
 }
 
 int
@@ -1582,7 +1582,7 @@ struct kevent {
 
 
 		/* wipes out spaces at the end of the label */
-		while (pos && line[pos - 1] == 32)
+		while (pos && line[pos - 1] == ' ')
 			--pos;
 
 		line[pos++] = '\0';
@@ -1598,21 +1598,20 @@ struct kevent {
 		 * make sure there is a space after last comma
 		 * which would allow the function to make the
 		 * assumption that 2 spaces after the comma is
-		 * on the array (or at least '\0'), otherwise,
-		 * an abberrant label could crash the program.
+		 * on the array (or at least '\0'). A bad label 
+		 * could otherwise be read past the the end of
+		 * the buffer.
 		 *
 		 * I could make label_cmp_minus_usa() safer,
 		 * but it costs less checking it here.
 		 */
-		if (verbose >= 1) {
-			line_temp = strrchr(line, ',');
-			if (line_temp && line_temp[1] != ' ') {
-				free(array[array_length].http);
-				printf("label malformation: %s ", line);
-				printf("line: %d\n", __LINE__);
-				easy_ftp_kill(kq, &ke, ftp_pid);
-				return 1;
-			}
+		line_temp = strrchr(line, ',');
+		if (line_temp && line_temp[1] != ' ') {
+			free(array[array_length].http);
+			printf("label malformation: %s ", line);
+			printf("line: %d\n", __LINE__);
+			easy_ftp_kill(kq, &ke, ftp_pid);
+			return 1;
 		}
 
 		array[array_length].label = strdup(line);
@@ -1627,7 +1626,7 @@ struct kevent {
 
 			array_max += 50;
 			
-			if (array_max > 500) {
+			if (array_max >= 500) {
 				easy_ftp_kill(kq, &ke, ftp_pid);
 				errx(1, "array_length got insanely large");
 			}
@@ -1670,7 +1669,7 @@ struct kevent {
 
 	pos_max += tag_len;
 
-	if (pos_max > 255) {
+	if (pos_max > sizeof(line)) {
 		free(line);
 		line = calloc(pos_max, sizeof(char));
 		if (line == NULL)
@@ -1847,7 +1846,7 @@ restart_dns_err:
 
 				if (root_user) {
 				/*
-				 * user _pkgfetch: probably a good thing to
+				 * user _pkgfetch: possibly a good thing to
 				 * 		   not be root running ping
 				 */
 					setuid(57);
@@ -1922,7 +1921,7 @@ restart_dns_err:
 			if (verbose >= 3)
 				printf("done\n");
 
-			waitpid(ping_pid, NULL, WNOHANG);
+			waitpid(ping_pid, NULL, 0);
 
 		}
 
@@ -2263,7 +2262,7 @@ ping_skip:
 			if (n > 80) {
 
 				/* center the printed mirrors. Err to right */
-				for (j = (80 + 1 - (n - i)) / 2; j > 0; --j)
+				for (j = (81 - (n - i)) / 2; j > 0; --j)
 					printf(" ");
 				do {
 					printf("\"%s\",", array[first].http);
@@ -2275,7 +2274,7 @@ ping_skip:
 		}
 
 		/* center the printed mirrors. Err to right */
-		for (j = (80 + 1 - n) / 2; j > 0; --j)
+		for (j = (81 - n) / 2; j > 0; --j)
 			printf(" ");
 		for (j = first; j < se; ++j)
 			printf("\"%s\",", array[j].http);
@@ -2354,7 +2353,7 @@ gen_skip1:
 			if (n > 80) {
 
 				/* center the printed mirrors. Err to right */
-				for (j = (80 + 1 - (n - i)) / 2; j > 0; --j)
+				for (j = (81 - (n - i)) / 2; j > 0; --j)
 					printf(" ");
 				do {
 					printf("\"%s\",", array[first].http);
@@ -2366,7 +2365,7 @@ gen_skip1:
 		}
 
 		/* center the printed mirrors. Err to right */
-		for (j = (80 + 1 - n) / 2; j > 0; --j)
+		for (j = (81 - n) / 2; j > 0; --j)
 			printf(" ");
 		for (j = first; j < se; ++j)
 			printf("\"%s\",", array[j].http);
@@ -2394,16 +2393,15 @@ gen_skip2:
 
 generate_jump:
 
-		c = array_length - 1;
-
-		if (c == de)
+		if (de != -1)
 			printf("\n\nDOWNLOAD ERROR MIRRORS:\n\n\n");
-		else if (c == te)
+		else if (te != -1)
 			printf("\n\nTIMEOUT MIRRORS:\n\n\n");
 		else
 			printf("\n\nSUCCESSFUL MIRRORS:\n\n\n");
 
-		ac = array + ++c;
+		c = array_length;
+		ac = array + c;
 
 		while (array <= --ac) {
 
