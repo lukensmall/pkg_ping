@@ -1669,7 +1669,7 @@ struct kevent {
 
 	pos_max += tag_len;
 
-	if (pos_max > sizeof(line)) {
+	if (pos_max > (int)sizeof(line)) {
 		free(line);
 		line = calloc(pos_max, sizeof(char));
 		if (line == NULL)
