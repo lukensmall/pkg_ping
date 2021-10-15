@@ -1,4 +1,4 @@
-pkg_ping, the file, is pkg_ping.c compiled on my x86-64 openbsd-7.0 computer using: "cc pkg_ping.c -march=x86-64 -O3 -pipe -o pkg_ping"
+The file: "pkg_ping" is pkg_ping.c compiled on my x86-64 openbsd-7.0 computer using: "cc pkg_ping.c -march=x86-64 -O3 -pipe -o pkg_ping"
 
 It determines and prints the fastest OpenBSD mirror(s) for your version and architecture for the /etc/installurl file and if run 
 as root, will write the fastest successful one to disk unless -f is used.
