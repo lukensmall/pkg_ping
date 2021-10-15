@@ -1096,17 +1096,17 @@ struct kevent {
     "mirror.bytemark.co.uk","mirror.planetunix.net","www.mirrorservice.org",
       "ftp4.usa.openbsd.org","mirror.aarnet.edu.au","mirror.exonetric.net",
       "mirror.fsrv.services","mirror.serverion.com","openbsd.c3sl.ufpr.br",
-       "ftp.usa.openbsd.org","ftp2.eu.openbsd.org","mirror.leaseweb.com",
-        "mirror.telepoint.bg","mirrors.gigenet.com","ftp.eu.openbsd.org",
-         "ftp.fr.openbsd.org","ftp.lysator.liu.se","mirror.fsmg.org.nz",
-         "mirror.ungleich.ch","mirrors.dotsrc.org","openbsd.ipacct.com",
-"ftp.hostserver.de","ftp.man.poznan.pl","mirrors.sonic.net","mirrors.ucr.ac.cr",
-   "mirror.labkom.id","mirror.litnet.lt","mirror.yandex.ru","cdn.openbsd.org",
-    "ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.esc7.net","mirror.ihost.md",
-     "mirror.ox.ac.uk","mirror.vdms.com","mirrors.mit.edu","ftp.icm.edu.pl",
-        "mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de",
-    "www.ftp.ne.jp","ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl","ftp.fau.de",
-                            "ftp.fsn.hu","openbsd.hk"
+       "ftp.usa.openbsd.org","ftp2.eu.openbsd.org","mirror.edgecast.com",
+       "mirror.leaseweb.com","mirror.telepoint.bg","mirrors.gigenet.com",
+         "ftp.eu.openbsd.org","ftp.fr.openbsd.org","ftp.lysator.liu.se",
+         "mirror.fsmg.org.nz","mirror.ungleich.ch","mirrors.dotsrc.org",
+          "openbsd.ipacct.com","ftp.hostserver.de","ftp.man.poznan.pl",
+ "mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.labkom.id","mirror.litnet.lt",
+    "mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp",
+    "mirror.esc7.net","mirror.ihost.md","mirror.ox.ac.uk","mirrors.mit.edu",
+       "ftp.icm.edu.pl","mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie",
+   "ftp.spline.de","www.ftp.ne.jp","ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl",
+                     "ftp.fau.de","ftp.fsn.hu","openbsd.hk"
 
 	};
 
