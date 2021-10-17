@@ -1620,7 +1620,7 @@ struct kevent {
 		 */
 		if (line_temp) {
 			if (!strncmp(line_temp + 2, "The ", 4)) {
-				memmove(line_temp + 2,line_temp + 6,
+				memmove(line_temp + 2, line_temp + 6,
 				    line + pos - (line_temp + 6));
 			}
 		} else if (!strncmp(line, "The ", 4))
