@@ -172,7 +172,6 @@ label_cmp_minus_usa(const void *a, const void *b)
 		i = 1;
 	}
 
-
 	char *blue = strrchr(two_label, ',');
 	if (blue == NULL) {
 		blue = two_label - 2;
@@ -1086,7 +1085,7 @@ struct kevent {
                         /* GENERATED CODE BEGINS HERE */
 
 
-	const char *ftp_list[60] = {
+	const char *ftp_list[59] = {
 
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
            "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
@@ -1104,13 +1103,13 @@ struct kevent {
  "mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.labkom.id","mirror.litnet.lt",
     "mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp",
     "mirror.esc7.net","mirror.ihost.md","mirror.ox.ac.uk","mirrors.mit.edu",
-       "ftp.icm.edu.pl","mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie",
-   "ftp.spline.de","www.ftp.ne.jp","ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl",
-                     "ftp.fau.de","ftp.fsn.hu","openbsd.hk"
+       "ftp.icm.edu.pl","mirror.one.com","ftp.cc.uoc.gr","ftp.spline.de",
+    "www.ftp.ne.jp","ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl","ftp.fau.de",
+                            "ftp.fsn.hu","openbsd.hk"
 
 	};
 
-	const int index = 60;
+	const int index = 59;
 
 
 
@@ -1614,6 +1613,19 @@ struct kevent {
 			return 1;
 		}
 
+		/* 
+		 * Not a fan of "The" in "The Netherlands" in a list like this;
+		 *       nor of any other countries starting with "The"!
+		 *               It sticks out when it's sorted.
+		 */
+		if (line_temp) {
+			if (!strncmp(line_temp + 2, "The ", 4)) {
+				memmove(line_temp + 2,line_temp + 6,
+				    line + pos - (line_temp + 6));
+			}
+		} else if (!strncmp(line, "The ", 4))
+			memmove(line, line + 4, pos - 4);
+		
 		array[array_length].label = strdup(line);
 		if (array[array_length].label == NULL) {
 			free(array[array_length].http);
