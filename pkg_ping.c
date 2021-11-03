@@ -424,7 +424,7 @@ struct addrinfo {
 				   '8','9','a','b',
 				   'c','d','e','f' };
 
-	char *dns_line = calloc(255 + 1, sizeof(char));
+	char *dns_line = calloc(256, sizeof(char));
 	if (dns_line == NULL) {
 		printf("calloc\n");
 		goto dns_exit1;
@@ -432,15 +432,15 @@ struct addrinfo {
 
 dns_loop:
 
-	i = read(dns_socket, dns_line, 255 + 1);
+	i = read(dns_socket, dns_line, 256);
 	if (i == 0) {
 		free(dns_line);
 		close(dns_socket);
 		_exit(0);
 	}
 
-	if (i > 255) {
-		printf("i > dns_line max, line: %d\n", __LINE__);
+	if (i == 256) {
+		printf("i > 255, line: %d\n", __LINE__);
 		goto dns_exit1;
 	}
 
@@ -736,7 +736,7 @@ restart (int argc, char *argv[], const int loop, const int8_t verbose)
 		errx(2, "Looping exhausted: Try again.");
 
 	if (verbose != -1)
-		printf("restarting...\n");
+		printf("restarting...loop: %d\n", loop);
 
 	int8_t n = argc - (argc > 1 && !strncmp(argv[argc - 1], "-l", 2));
 
@@ -1085,7 +1085,7 @@ struct kevent {
                         /* GENERATED CODE BEGINS HERE */
 
 
-	const char *ftp_list[59] = {
+	const char *ftp_list[60] = {
 
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
            "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
@@ -1103,13 +1103,13 @@ struct kevent {
  "mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.labkom.id","mirror.litnet.lt",
     "mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp",
     "mirror.esc7.net","mirror.ihost.md","mirror.ox.ac.uk","mirrors.mit.edu",
-       "ftp.icm.edu.pl","mirror.one.com","ftp.cc.uoc.gr","ftp.spline.de",
-    "www.ftp.ne.jp","ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl","ftp.fau.de",
-                            "ftp.fsn.hu","openbsd.hk"
+       "ftp.icm.edu.pl","mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie",
+   "ftp.spline.de","www.ftp.ne.jp","ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl",
+                     "ftp.fau.de","ftp.fsn.hu","openbsd.hk"
 
 	};
 
-	const int index = 59;
+	const int index = 60;
 
 
 
@@ -1506,6 +1506,14 @@ struct kevent {
 		free(time);
 		free(release);
 		close(ftp_out[STDIN_FILENO]);
+		if (dns_cache) {
+			close(dns_cache_d_socket[1]);
+			waitpid(dns_cache_d_pid, NULL, 0);
+		}
+		if (to_file) {
+			close(write_pipe[STDOUT_FILENO]);
+			waitpid(write_pid, NULL, 0);
+		}
 		restart(argc, argv, loop, verbose);
 	}
 
@@ -1592,39 +1600,45 @@ struct kevent {
 			continue;
 		}
 
-		/*
-		 * safety check for label_cmp_minus_usa():
-		 * make sure there is a space after last comma
-		 * which would allow the function to make the
-		 * assumption that 2 spaces after the comma is
-		 * on the array (or at least '\0'). A bad label 
-		 * could otherwise be read past the the end of
-		 * the buffer.
-		 *
-		 * I could make label_cmp_minus_usa() safer,
-		 * but it costs less checking it here.
-		 */
-		line_temp = strrchr(line, ',');
-		if (line_temp && line_temp[1] != ' ') {
-			free(array[array_length].http);
-			printf("label malformation: %s ", line);
-			printf("line: %d\n", __LINE__);
-			easy_ftp_kill(kq, &ke, ftp_pid);
-			return 1;
-		}
-
-		/* 
-		 * Not a fan of "The" in "The Netherlands" in a list like this;
-		 *       nor of any other countries starting with "The"!
-		 *               It sticks out when it's sorted.
-		 */
-		if (line_temp) {
-			if (!strncmp(line_temp + 2, "The ", 4)) {
-				memmove(line_temp + 2, line_temp + 6,
-				    line + pos - (line_temp + 6));
+		if (verbose > 0) {
+			/*
+			 * safety check for label_cmp_minus_usa():
+			 * make sure there is a space after last comma
+			 * which would allow the function to make the
+			 * assumption that 2 spaces after the comma is
+			 * on the array (or at least '\0'). A bad label 
+			 * could otherwise be read past the the end of
+			 * the buffer.
+			 *
+			 * I could make label_cmp_minus_usa() safer,
+			 * but it costs less checking it here.
+			 */
+			line_temp = strrchr(line, ',');
+			if (line_temp && strncmp(line_temp, ", ", 2)) {
+				free(array[array_length].http);
+				printf("label malformation: %s ", line);
+				printf("line: %d\n", __LINE__);
+				easy_ftp_kill(kq, &ke, ftp_pid);
+				return 1;
 			}
-		} else if (!strncmp(line, "The ", 4))
-			memmove(line, line + 4, pos - 4);
+
+			/* 
+			 * Not a fan of "The " in "The Netherlands" in here;
+			 *  nor of any other countries starting with "The "
+			 *     I think it sticks out when it's sorted.
+			 * 
+			 *   If the label has a "The " after the last ", "
+			 *   or if it has no comma and starts with "The ",
+			 *          this will surgically remove it.
+			 */
+			if (line_temp) {
+				if (!strncmp(line_temp + 2, "The ", 4)) {
+					memmove(line_temp + 2, line_temp + 6,
+					    line + pos - (line_temp + 6));
+				}
+			} else if (!strncmp(line, "The ", 4))
+				memmove(line, line + 4, pos - 4);
+		}
 		
 		array[array_length].label = strdup(line);
 		if (array[array_length].label == NULL) {
@@ -1673,11 +1687,19 @@ struct kevent {
 		free(line);
 		free(time);
 		free(release);
+		if (dns_cache) {
+			close(dns_cache_d_socket[1]);
+			waitpid(dns_cache_d_pid, NULL, 0);
+		}
+		if (to_file) {
+			close(write_pipe[STDOUT_FILENO]);
+			waitpid(write_pid, NULL, 0);
+		}
 		restart(argc, argv, loop, verbose);
 	}
 
-	if (secure)
-		h = strlen("https://");
+	/* h = strlen("https://") instead of strlen("http://") if "secure" */
+	h += secure;
 
 	pos_max += tag_len;
 
@@ -1817,6 +1839,16 @@ restart_dns_err:
 				close(kq);
 				free(time);
 				free(release);
+				
+				if (dns_cache) {
+					close(dns_cache_d_socket[1]);
+					waitpid(dns_cache_d_pid, NULL, 0);
+				}
+				if (to_file) {
+					close(write_pipe[STDOUT_FILENO]);
+					waitpid(write_pid, NULL, 0);
+				}
+				
 				restart(argc, argv, loop, verbose);
 			}
 
