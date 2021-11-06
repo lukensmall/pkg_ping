@@ -795,6 +795,30 @@ easy_ftp_kill(const int kq, struct kevent *ke, const pid_t ftp_pid)
  	waitpid(ftp_pid, NULL, 0);
 }
 
+/* 
+ * print long double which is <1 and >0, without the leading '0'
+ * eg. 0.25 is printed ".25"
+ */
+static void
+print_sub_one(long double diff)
+{
+	if (diff >= (long double)1 || diff <= (long double)0)
+		errx(1, "print_sub_one received illegal value: %.9Lf", diff);
+	
+	char line[12];
+	int i = snprintf(line, 12, "%.9Lf", diff);
+	if (i >= 12 || i < 0) {
+		if (i < 0)
+		printf("%s",
+		    strerror(errno));
+		else
+			printf("'line': %s,", line);
+		printf(" snprintf, line: %d\n", __LINE__);
+		exit(1);
+	}
+	printf("%s", line + 1);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -1085,7 +1109,7 @@ struct kevent {
                         /* GENERATED CODE BEGINS HERE */
 
 
-	const char *ftp_list[60] = {
+	const char *ftp_list[59] = {
 
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
            "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
@@ -1104,12 +1128,12 @@ struct kevent {
     "mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp",
     "mirror.esc7.net","mirror.ihost.md","mirror.ox.ac.uk","mirrors.mit.edu",
        "ftp.icm.edu.pl","mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie",
-   "ftp.spline.de","www.ftp.ne.jp","ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl",
-                     "ftp.fau.de","ftp.fsn.hu","openbsd.hk"
+    "ftp.spline.de","ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl","ftp.fau.de",
+                            "ftp.fsn.hu","openbsd.hk"
 
 	};
 
-	const int index = 60;
+	const int index = 59;
 
 
 
@@ -2090,8 +2114,12 @@ ping_skip:
 			if (array[c].diff >= s) {
 				array[c].diff = s;
 				printf("Timeout\n");
-			} else
+			} else if (array[c].diff < (long double)1) {
+				print_sub_one(array[c].diff);
+				printf("\n");
+			} else {
 				printf("%.9Lf\n", array[c].diff);
+			}
 		} else if (verbose <= 0 && array[c].diff < S) {
 			S = array[c].diff;
 			timeout.tv_sec = (time_t) S;
@@ -2443,25 +2471,74 @@ generate_jump:
 			printf("\n\nTIMEOUT MIRRORS:\n\n\n");
 		else
 			printf("\n\nSUCCESSFUL MIRRORS:\n\n\n");
-
+			
+		int diff_topper = 0;
+		if (array[se].diff >= (long double)1) {
+			S = (long double)10;
+			diff_topper = 1;
+			while ( S < array[se].diff ) {
+				S *= (long double)10;
+				if (++diff_topper == 4)
+					break;
+			}
+		}
+		
+		pos_max = strlen(array->label);
+		
+		for (c = 1; c <= se; ++c) {
+			pos = strlen(array[c].label);
+			if (pos > pos_max)
+				pos_max = pos;
+		}
+		
 		c = array_length;
 		ac = array + c;
+				
 
 		while (array <= --ac) {
 
 			if (array_length >= 100)
-				printf("%3d", c);
+				printf("%3d : ", c);
 			else
-				printf("%2d", c);
-
-			printf(" : %s\n\t", ac->label);
+				printf("%2d : ", c);
 
 			if (--c <= se) {
-				printf("echo \"%s\" > /etc/installurl",
-				    ac->http);
-				printf(" : %.9Lf\n\n", ac->diff);
+				
+				printf("%s", ac->label);
+				
+								
+				for (j = pos_max - strlen(ac->label); j; --j)
+					printf(" ");
+					
+				printf(" : ");
+
+				if (ac->diff < (long double)1) {
+					for (j = diff_topper; j; --j)
+						printf(" ");
+					print_sub_one(ac->diff);
+				
+				} else {
+					switch (diff_topper) {
+					case 1:
+						printf("%1.9Lf", ac->diff);
+						break;
+					case 2:
+						printf("%2.9Lf", ac->diff);
+						break;
+					case 3:
+						printf("%3.9Lf", ac->diff);
+						break;
+					default:
+						printf("%4.9Lf", ac->diff);
+						break;
+					}
+				}
+				printf(" seconds\n\techo \"");
+				printf("%s\" > /etc/installurl\n\n", ac->http);
 				continue;
 			}
+			
+			printf("%s\n\t", ac->label);
 
 			cut = strchr(ac->http + h, '/');
 			if (cut)
