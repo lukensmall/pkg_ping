@@ -59,6 +59,7 @@
  */
 
 #include <sys/types.h>
+#include <sys/ioctl.h>
 #include <sys/event.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
@@ -95,11 +96,8 @@ const struct timespec timeout_kill = { 0, 100000000 };
 static void
 free_array()
 {
-	if (array == NULL)
-		return;
-	
 	/* There's no need for useless junking while cleaning up */
-	malloc_options = "CFGjjU";
+	malloc_options = "CFGjjU>>";
 	
 	MIRROR *ac = array + array_length;
 
@@ -108,9 +106,6 @@ free_array()
 		free(ac->http);
 	}
 	free(array);
-
-	array_length = 0;
-	array = NULL;
 }
 
 static int
@@ -695,12 +690,18 @@ file_d(const int write_pipe, const int8_t secure, const int8_t verbose)
 		}
 	}
 
-	if (verbose > 0)
-		printf("\n");
-
 	/* unlink() to prevent possible symlinks by...root? */
 	unlink("/etc/installurl");
 	pkg_write = fopen("/etc/installurl", "w");
+
+	if (pledge("stdio", NULL) == -1) {
+		printf("%s ", strerror(errno));
+		printf("pledge, line: %d\n", __LINE__);
+		_exit(1);
+	}
+
+	if (verbose > 0)
+		printf("\n");
 
 	if (pkg_write == NULL) {
 		printf("%s ", strerror(errno));
@@ -760,9 +761,6 @@ restart (int argc, char *argv[], const int loop, const int8_t verbose)
 		exit(1);
 	}
 
-
-	free_array();
-
 	execv(arg_v[0], arg_v);
 
 	err(1, "execv failed, line: %d", __LINE__);
@@ -795,34 +793,36 @@ easy_ftp_kill(const int kq, struct kevent *ke, const pid_t ftp_pid)
  	waitpid(ftp_pid, NULL, 0);
 }
 
+char *diff_array = NULL;
+
 /* 
  * print long double which is <1 and >0, without the leading '0'
  * eg. 0.25 is printed ".25"
+ * it doesn't get here unless diff < 1
  */
 static void
 print_sub_one(long double diff)
 {
-	if (diff >= (long double)1 || diff <= (long double)0)
-		errx(1, "print_sub_one received illegal value: %.9Lf", diff);
+	if (diff <= (long double)0)
+		errx(1, "diff is impossible value: %.9Lf", diff);
 	
-	char line[12];
-	int i = snprintf(line, 12, "%.9Lf", diff);
+	int i = snprintf(diff_array, 12, "%.9Lf", diff);
 	if (i >= 12 || i < 0) {
 		if (i < 0)
 		printf("%s",
 		    strerror(errno));
 		else
-			printf("'line': %s,", line);
+			printf("'line': %s,", diff_array);
 		printf(" snprintf, line: %d\n", __LINE__);
 		exit(1);
 	}
-	printf("%s", line + 1);
+	printf("%s", diff_array + 1);
 }
 
 int
 main(int argc, char *argv[])
 {
-	malloc_options = "CFGJJU";
+	malloc_options = "CFGJJU>>";
 
 	int8_t root_user = !getuid();
 	int8_t to_file = root_user;
@@ -834,7 +834,7 @@ main(int argc, char *argv[])
 	long double S = 0;
 	pid_t ftp_pid = 0, write_pid = 0, dns_cache_d_pid = 0;
 	int kq = 0, i = 0, pos = 0, c = 0, n = 0;
-	int array_max = 100, tag_len = 0;
+	int array_max = 100, tag_len = 0, j = 0;
 	int pos_max = 0, std_err = 0, entry_line = 0, exit_line = 0;
 
 	int dns_cache_d_socket[2] = { -1, -1 };
@@ -866,6 +866,17 @@ struct kevent {
 
 	/* 10 seconds and 0 nanoseconds to download ftplist */
 	struct timespec timeout0 = { 10, 0 };
+/*
+from: /usr/src/sys/sys/ttycom.h
+struct winsize {
+        unsigned short  ws_row;         // rows, in characters
+        unsigned short  ws_col;         // columns, in characters
+        unsigned short  ws_xpixel;      // horizontal size, pixels
+        unsigned short  ws_ypixel;      // vertical size, pixels
+};
+*/
+	struct winsize w = { 0, 0, 0, 0 };
+	ioctl(0, TIOCGWINSZ, &w);
 
 	if (pledge("stdio exec proc cpath wpath dns id unveil", NULL) == -1)
 		err(1, "pledge, line: %d", __LINE__);
@@ -894,6 +905,10 @@ struct kevent {
 		if (pledge("stdio exec proc dns id", NULL) == -1)
 			err(1, "pledge, line: %d", __LINE__);
 	}
+	
+	diff_array = calloc(12, sizeof(char));
+	if (diff_array == NULL)
+		errx(1, "calloc");
 
 	for(c = 1; c < argc; ++c) {
 		if (strnlen(argv[c], 35) == 35)
@@ -1109,7 +1124,7 @@ struct kevent {
                         /* GENERATED CODE BEGINS HERE */
 
 
-	const char *ftp_list[59] = {
+	const char *ftp_list[60] = {
 
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
            "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
@@ -1128,12 +1143,12 @@ struct kevent {
     "mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp",
     "mirror.esc7.net","mirror.ihost.md","mirror.ox.ac.uk","mirrors.mit.edu",
        "ftp.icm.edu.pl","mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie",
-    "ftp.spline.de","ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl","ftp.fau.de",
-                            "ftp.fsn.hu","openbsd.hk"
+   "ftp.spline.de","www.ftp.ne.jp","ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl",
+                     "ftp.fau.de","ftp.fsn.hu","openbsd.hk"
 
 	};
 
-	const int index = 59;
+	const int index = 60;
 
 
 
@@ -1781,23 +1796,98 @@ struct kevent {
 	if (fcntl(std_err, F_SETFD, FD_CLOEXEC) == -1)
 		err(1, "fcntl, line: %d\n", __LINE__);
 
+	MIRROR *ac = NULL;
+	int pos_maxl = 0, pos_maxh = 0, pos_maxb = 0, pos1 = 0;
+	int8_t num1 = 0, num2 = 0, num3 = 0;
+	char *host = NULL;
+	char *cut = NULL;
+	
+	if (verbose >= 2) {
+		
+		ac = array + array_length;
+		while (array != ac--) {
+			
+			pos = strlen(ac->label);
+			if (pos > pos_maxl)
+				pos_maxl = pos;
+
+			host = ac->http + h;
+			cut = strchr(host, '/');
+			if (cut == NULL)
+				pos1 = strlen(host);
+			else
+				pos1 = cut - host;
+				
+			if (pos1 > pos_maxh)
+				pos_maxh = pos1;
+				
+			pos += pos1;
+				
+			if (pos > pos_maxb)
+				pos_maxb = pos;
+		}
+
+		num1 = (w.ws_col >= 11 + pos_maxl + pos_max);
+		num2 = (w.ws_col >= 11 + pos_maxl + pos_maxh);
+		num3 = (w.ws_col >= 11 + pos_maxb);
+	}
+				
+
+	host = h + line;
+	
+	memcpy(line, array->http, h);
+	
 	for (c = 0; c < array_length; ++c) {
 
-		n = strlcpy(line, array[c].http, pos_max);
-		memcpy(line + n, tag, tag_len + 1);
+		n = strlcpy(host, array[c].http + h, pos_max - h);
+		memcpy(host + n, tag, tag_len + 1);
+
+
+		/* strchr always succeeds. 'tag' starts with '/' */
+		cut = strchr(host, '/');
 
 		if (verbose >= 2) {
 			if (verbose == 4)
-				printf("\n\n\n");
+				printf("\n\n\n\n");
 			else if (verbose == 3)
+				printf("\n\n");
+			else
 				printf("\n");
-			if (array_length >= 100) {
-				printf("\n%3d : %s  :  %s\n", array_length - c,
-				    array[c].label, line);
-			} else {
-				printf("\n%2d : %s  :  %s\n", array_length - c,
-				    array[c].label, line);
-			}
+			
+			if (array_length >= 100)
+				printf("%3d : ", array_length - c);
+			else
+				printf("%2d : ", array_length - c);
+				
+			if (num2) {
+				
+				i = strlen(array[c].label);
+				j = (pos_maxl + 1 - i) / 2;
+				n = pos_maxl - (i + j);
+
+				while (j--)
+					printf(" ");
+				
+				printf("%s", array[c].label);
+				
+				while (n--)
+					printf(" ");
+				
+				if (num1)
+					printf("  :  %s\n", line);
+				else {
+					*cut = '\0';
+					printf("  :  %s\n", host);
+					*cut = '/';
+				}
+				
+			} else if (num3) {
+				*cut = '\0';
+				printf("%s  :  %s\n", array[c].label, host);
+				*cut = '/';
+			} else
+				printf("%s\n", array[c].label);
+			
 		} else if (verbose >= 0) {
 			i = array_length - c;
 			if (c > 0) {
@@ -1815,10 +1905,7 @@ struct kevent {
 
 
 
-		char *host = h + line;
-
-		/* strchr always succeeds. 'tag' starts with '/' */
-		n = strchr(host, '/') - host;
+		n = cut - host;
 
 		if (dns_cache) {
 
@@ -2122,13 +2209,13 @@ ping_skip:
 			}
 		} else if (verbose <= 0 && array[c].diff < S) {
 			S = array[c].diff;
-			timeout.tv_sec = (time_t) S;
+			timeout.tv_sec = (time_t)(S + .125);
 			timeout.tv_nsec =
-			    (long) ((S -
+			    (long) (((S + .125) -
 			    (long double) timeout.tv_sec) *
 			    (long double) 1000000000);
 
-			if (ping && S < 1) {
+			if (ping && S < .875) {
 				memcpy(&timeout_ping, &timeout,
 				    sizeof(struct timespec));
 			}
@@ -2147,7 +2234,6 @@ ping_skip:
 	if (pledge("stdio exec", NULL) == -1)
 		err(1, "pledge, line: %d", __LINE__);
 
-
 	/* (verbose == 0 || verbose == 1) */
 	if ((verbose >> 1) == 0) {
 		printf("\b \b");
@@ -2155,8 +2241,6 @@ ping_skip:
 	}
 	close(std_err);
 	free(line);
-
-	MIRROR *ac = NULL;
 
 	if (verbose <= 0) {
 
@@ -2181,8 +2265,7 @@ ping_skip:
 
 			memcpy(array, fastest, sizeof(MIRROR));
 
-			fastest->label = NULL;
-			fastest->http = NULL;
+			memset(fastest, 0, sizeof(MIRROR));
 		}
 
 	} else {
@@ -2217,9 +2300,7 @@ ping_skip:
 		} while (c);
 
 
-		char *cut = NULL;
-
-		int j = 0, first = 0, se0 = se;
+		int first = 0, se0 = se;
 
 		if (se == -1)
 			goto no_good;
@@ -2227,6 +2308,8 @@ ping_skip:
 		if (generate == 0)
 			goto generate_jump;
 
+		free(diff_array);
+	
 		/*
 		 * load diff with what will be printed http lengths
 		 *          then process http for printing
@@ -2276,13 +2359,13 @@ ping_skip:
 			printf("Couldn't find any openbsd.org mirrors.\n");
 			printf("Try again with a larger timeout!\n");
 
-			ac = array + se0 + 1;
-			while (array <= --ac) {
+			ac = array + se0;
+			do {
 				if (ac->http[0] == '*')
 					ac->http -= h - 1;
 				else
 					ac->http -= h;
-			}
+			} while (array != ac--);
 
 			free(time);
 
@@ -2361,11 +2444,12 @@ gen_skip1:
 		 * make non-openbsd.org mirrors: diff == 0
 		 *   and stop them from being displayed
 		 */
-		for (c = 0; c <= se0; ++c) {
-			cut = strchr(array[c].http, '/');
+		ac = array + se;
+		do {
+			cut = strchr(ac->http, '/');
 			if (cut == NULL)
-				cut = array[c].http + (int)array[c].diff;
-			if (cut - array[c].http <= 12 ||
+				cut = ac->http + (int)ac->diff;
+			if (cut - ac->http <= 12 ||
 			    (
 			     strncmp(cut - 12, ".openbsd.org", 12)
 
@@ -2374,10 +2458,10 @@ gen_skip1:
 			     strncmp(cut - 12, ".OpenBSD.org", 12)
 			    )
 			   ) {
-				array[c].diff = 0;
+				ac->diff = 0;
 				--se;
 			}
-		}
+		} while (array != ac--);
 
 		/* sort by longest length first,
 		 * if diff > 0 then
@@ -2451,13 +2535,13 @@ gen_skip2:
 		printf("Replace section after line: %d, but ", entry_line);
 		printf("before line: %d with the code above.\n\n", exit_line);
 
-		ac = array + se0 + 1;
-		while (array <= --ac) {
+		ac = array + se0;
+		do {
 			if (ac->http[0] == '*')
 				ac->http -= h - 1;
 			else
 				ac->http -= h;
-		}
+		} while (array != ac--);
 
 		free(time);
 
@@ -2466,57 +2550,64 @@ gen_skip2:
 generate_jump:
 
 		if (de != -1)
-			printf("\n\nDOWNLOAD ERROR MIRRORS:\n\n\n");
+			printf("\n\nDOWNLOAD ERROR MIRRORS:\n\n");
 		else if (te != -1)
-			printf("\n\nTIMEOUT MIRRORS:\n\n\n");
+			printf("\n\nTIMEOUT MIRRORS:\n\n");
 		else
-			printf("\n\nSUCCESSFUL MIRRORS:\n\n\n");
+			printf("\n\nSUCCESSFUL MIRRORS:\n\n");
 			
 		int diff_topper = 0;
 		if (array[se].diff >= (long double)1) {
 			S = (long double)10;
 			diff_topper = 1;
-			while ( S < array[se].diff ) {
+			while (array[se].diff >= S) {
 				S *= (long double)10;
 				if (++diff_topper == 4)
 					break;
 			}
 		}
 		
-		pos_max = strlen(array->label);
+		char *dt_str = strndup("    ", diff_topper);
+		if (dt_str == NULL)
+			errx(1, "strndup");
 		
-		for (c = 1; c <= se; ++c) {
-			pos = strlen(array[c].label);
-			if (pos > pos_max)
-				pos_max = pos;
+		ac = array + se;
+		pos_maxl = strlen(ac->label);
+	
+		while (array != ac--) {
+			pos = strlen(ac->label);
+			if (pos > pos_maxl)
+				pos_maxl = pos;
 		}
 		
 		c = array_length;
 		ac = array + c;
-				
 
-		while (array <= --ac) {
+		while (array != ac--) {
 
 			if (array_length >= 100)
-				printf("%3d : ", c);
+				printf("\n%3d : ", c);
 			else
-				printf("%2d : ", c);
+				printf("\n%2d : ", c);
 
 			if (--c <= se) {
-				
+
+				i = strlen(ac->label);
+                                j = (pos_maxl + 1 - i) / 2;
+				n = pos_maxl - (i + j);
+                                while (j--)
+                                        printf(" ");
+
 				printf("%s", ac->label);
 				
-								
-				for (j = pos_max - strlen(ac->label); j; --j)
+				while (n--)
 					printf(" ");
 					
 				printf(" : ");
 
 				if (ac->diff < (long double)1) {
-					for (j = diff_topper; j; --j)
-						printf(" ");
+					printf("%s", dt_str);
 					print_sub_one(ac->diff);
-				
 				} else {
 					switch (diff_topper) {
 					case 1:
@@ -2534,7 +2625,7 @@ generate_jump:
 					}
 				}
 				printf(" seconds\n\techo \"");
-				printf("%s\" > /etc/installurl\n\n", ac->http);
+				printf("%s\" > /etc/installurl\n", ac->http);
 				continue;
 			}
 			
@@ -2547,29 +2638,32 @@ generate_jump:
 			printf("%s : ", ac->http + h);
 
 			if (c <= te) {
-				printf("Timeout\n\n");
+				printf("Timeout\n");
 				if (c == ts && se != -1)
-					printf("\nSUCCESSFUL MIRRORS:\n\n\n");
+					printf("\n\nSUCCESSFUL MIRRORS:\n\n");
 				continue;
 			}
 
 			if (ac->diff == s + 1)
-				printf("Download Error\n\n");
+				printf("Download Error\n");
 			else if (ac->diff == s + 2)
-				printf("IPv6 DNS record not found\n\n");
+				printf("IPv6 DNS record not found\n");
 			else
 				printf("DNS record not found\n\n");
 
 			if (c == ds) {
 				if (te != -1)
-					printf("\nTIMEOUT MIRRORS:\n\n\n");
+					printf("\n\nTIMEOUT MIRRORS:\n\n");
 				else if (se != -1)
-					printf("\nSUCCESSFUL MIRRORS:\n\n\n");
+					printf("\n\nSUCCESSFUL MIRRORS:\n\n");
 			}
 		}
+		free(dt_str);
 	}
+	
+	free(diff_array);
 
-	if (array[0].diff >= s) {
+	if (array->diff >= s) {
 
 no_good:
 
@@ -2615,25 +2709,27 @@ no_good:
 
 	if (to_file) {
 
-		n = strlen(array[0].http);
+		n = strlen(array->http);
 
-		i = write(write_pipe[STDOUT_FILENO], array[0].http, n);
+		i = write(write_pipe[STDOUT_FILENO], array->http, n);
 
 		if (i < n) {
-			printf("not all of mirror sent to write_pid\n");
+			printf("\nnot all of mirror sent to write_pid\n");
 			restart(argc, argv, loop, verbose);
 		}
 
 		waitpid(write_pid, &n, 0);
 
 		if (n) {
-			printf("write_pid error.\n");
+			printf("\nwrite_pid error.\n");
 			restart(argc, argv, loop, verbose);
 		}
 
-	}  else if (verbose >= 0) {
-		printf("As root, type: echo \"%s\" > /etc/installurl\n",
-		    array[0].http);
+	} else if ((!root_user && verbose != -1) || (root_user && !verbose)) {
+		if (verbose)
+			printf("\n");
+		printf("As root, type: echo ");
+		printf("\"%s\" > /etc/installurl\n", array->http);
 	}
 
 	return 0;
