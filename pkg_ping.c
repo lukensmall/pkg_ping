@@ -50,17 +50,17 @@
  *
  * 	If you want bleeding edge performance, you can try:
  *
- * 	cc pkg_ping.c -march=native -mtune=native -O3 -pipe -o pkg_ping
+ * 	cc pkg_ping.c -march=native -mtune=native -O2 -pipe -o pkg_ping
  *
- * 	You probably won't see an appreciable performance gain between
- * 	the getaddrinfo(3) and ftp(1) calls which fetch data over the network.
+ * 	You probably won't see an appreciable performance gain between the
+ * 	getaddrinfo(3) and ftp(1) calls which fetch data over the network.
  *
  * 	program designed to be viewed with tabs which are 8 characters wide
  */
 
 #include <sys/types.h>
-#include <sys/ioctl.h>
 #include <sys/event.h>
+#include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/utsname.h>
@@ -97,7 +97,7 @@ static void
 free_array()
 {
 	/* There's no need for useless junking while cleaning up */
-	malloc_options = "CFGjjU>>";
+	malloc_options = "jj";
 	
 	MIRROR *ac = array + array_length;
 
@@ -152,7 +152,7 @@ label_cmp_minus_usa(const void *a, const void *b)
 
 	char *one_label = ((MIRROR *) a)->label;
 	char *two_label = ((MIRROR *) b)->label;
-	int8_t i = 3;
+	int i = 3;
 
 	/*
 	 * compare the labels alphabetically by proper decreasing
@@ -224,7 +224,7 @@ blue_jump:
 		 * with a label strcmp() doesn't
 		 * provide useful information unless
 		 * the labels are exactly equal.
-		 * It likely isn't worth wasting time testing
+		 * It isn't worth wasting time testing
 		 * it initially because of its rarity.
 		 */
 		return strcmp(
@@ -262,8 +262,8 @@ diff_cmp(const void *a, const void *b)
 		return 1;
 
 	/* 
-	 * Prioritize mirrors near to USA next.
-	 *    They didn't succeed past here.
+	 *    Prioritize mirrors near to USA next.
+	 * They most likely didn't succeed past here.
 	 */
 	int ret = usa_cmp(a, b);
 	if (ret)
@@ -276,44 +276,59 @@ diff_cmp(const void *a, const void *b)
 static int
 diff_cmp_g(const void *a, const void *b)
 {
-	long double one_diff = ((MIRROR *) a)->diff;
-	long double two_diff = ((MIRROR *) b)->diff;
+	/* sort those with greater diff values first */
 
-	/* sort the biggest diff values first */
-	if (one_diff > two_diff)
-		return -1;
-	if (one_diff < two_diff)
-		return 1;
+	int diff = (int) (
+			  ((MIRROR *) b)->diff
+			  -
+			  ((MIRROR *) a)->diff
+			 );
 
-	return strcmp(
-		      ((MIRROR *) a)->http,
-		      ((MIRROR *) b)->http
-		     );
+	if (!diff) {
+
+		return strcmp(
+			      ((MIRROR *) a)->http,
+			      ((MIRROR *) b)->http
+			     );
+
+	}
+	return diff;
 }
 
+/*
+ * diff_cmp can be used in the place of this function, but it
+ * is more efficient to avoid the many unnecessary strcmp() for mirrors
+ * which have been turned to a zero value which are going to be ignored.
+ */ 
 static int
 diff_cmp_g2(const void *a, const void *b)
 {
-	long double one_diff = ((MIRROR *) a)->diff;
-	long double two_diff = ((MIRROR *) b)->diff;
+	int one_len = (int) ((MIRROR *) a)->diff;
+	int two_len = (int) ((MIRROR *) b)->diff;
 
 	/*
-	 * most will fall under this comparison
-	 *      of non-openbsd.org mirrors
+	 * If either are an OpenBSD.org mirror...
+	 *    (which means a non-zero length)
+	 *
+	 *  Most of the time both will be zero
+	 *  if they are, dont process further.
 	 */
-	if (one_diff == two_diff && one_diff == 0)
-		return 0;
-		
-	/* sort the biggest diff values first */
-	if (one_diff > two_diff)
-		return -1;
-	if (one_diff < two_diff)
-		return 1;
+	if (one_len | two_len) {
 
-	return strcmp(
-		      ((MIRROR *) a)->http,
-		      ((MIRROR *) b)->http
-		     );
+		/* sort those with greater len values first */
+
+		int diff = two_len - one_len;
+		if (!diff) {
+
+			return strcmp(
+				      ((MIRROR *) a)->http,
+				      ((MIRROR *) b)->http
+				     );
+
+		}
+		return diff;
+	}
+	return 0;
 }
 
 static int
@@ -521,6 +536,7 @@ dns_loop:
 			continue;
 
 		six_available = '1';
+
 		if (verbose < 4)
 			break;
 
@@ -571,7 +587,7 @@ dns_loop:
 				else
 					printf(":");
 				i += max << 1;
-				if (i >= 16)
+				if (i > 14)
 					break;
 			}
 
@@ -651,14 +667,16 @@ file_d(const int write_pipe, const int8_t secure, const int8_t verbose)
 	}
 
 	int received = read(write_pipe, file_w, 301);
-	close(write_pipe);
 
 	if (received == -1) {
 		printf("%s ", strerror(errno));
+		close(write_pipe);
 		printf("read error occurred, line: %d\n", __LINE__);
 		printf("/etc/installurl not written.\n");
 		goto file_cleanup;
 	}
+
+	close(write_pipe);
 
 	if (received == 0) {
 		printf("program exited without writing.\n");
@@ -733,13 +751,14 @@ file_cleanup:
 static __attribute__((noreturn)) void
 restart (int argc, char *argv[], const int loop, const int8_t verbose)
 {
+
 	if (loop == 0)
 		errx(2, "Looping exhausted: Try again.");
 
 	if (verbose != -1)
 		printf("restarting...loop: %d\n", loop);
 
-	int8_t n = argc - (argc > 1 && !strncmp(argv[argc - 1], "-l", 2));
+	const int n = argc - (argc > 1 && !strncmp(argv[argc - 1], "-l", 2));
 
 	char **arg_v = calloc(n + 1 + 1, sizeof(char *));
 	if (arg_v == NULL)
@@ -747,11 +766,11 @@ restart (int argc, char *argv[], const int loop, const int8_t verbose)
 
 	memcpy(arg_v, argv, n * sizeof(char *));
 
-	int8_t len = 10;
+	const int len = 10;
 	arg_v[n] = calloc(len, sizeof(char));
 	if (arg_v[n] == NULL)
 		errx(1, "calloc");
-	int8_t c = snprintf(arg_v[n], len, "-l%d", loop - 1);
+	int c = snprintf(arg_v[n], len, "-l%d", loop - 1);
 	if (c >= len || c < 0) {
 		if (c < 0)
 			printf("%s", strerror(errno));
@@ -762,7 +781,6 @@ restart (int argc, char *argv[], const int loop, const int8_t verbose)
 	}
 
 	execv(arg_v[0], arg_v);
-
 	err(1, "execv failed, line: %d", __LINE__);
 }
 
@@ -797,7 +815,7 @@ char *diff_array = NULL;
 
 /* 
  * print long double which is <1 and >0, without the leading '0'
- * eg. 0.25 is printed ".25"
+ * eg. 0.25 is printed: .25
  * it doesn't get here unless diff < 1
  */
 static void
@@ -816,13 +834,14 @@ print_sub_one(long double diff)
 		printf(" snprintf, line: %d\n", __LINE__);
 		exit(1);
 	}
-	printf("%s", diff_array + 1);
+	printf("%s", 1 + diff_array);
 }
 
 int
 main(int argc, char *argv[])
 {
-	malloc_options = "CFGJJU>>";
+
+	malloc_options = "CFGJJU";
 
 	int8_t root_user = !getuid();
 	int8_t to_file = root_user;
@@ -866,6 +885,8 @@ struct kevent {
 
 	/* 10 seconds and 0 nanoseconds to download ftplist */
 	struct timespec timeout0 = { 10, 0 };
+
+
 /*
 from: /usr/src/sys/sys/ttycom.h
 struct winsize {
@@ -875,11 +896,13 @@ struct winsize {
         unsigned short  ws_ypixel;      // vertical size, pixels
 };
 */
-	struct winsize w = { 0, 0, 0, 0 };
-	ioctl(0, TIOCGWINSZ, &w);
+        struct winsize w = { 0, 0, 0, 0 };
 
-	if (pledge("stdio exec proc cpath wpath dns id unveil", NULL) == -1)
-		err(1, "pledge, line: %d", __LINE__);
+        i = pledge("stdio exec proc cpath wpath dns id unveil tty", NULL);
+        if (i == -1)
+                err(1, "pledge, line: %d", __LINE__);
+
+        ioctl(0, TIOCGWINSZ, &w);
 
 	if (unveil("/usr/bin/ftp", "x") == -1)
 		err(1, "unveil, line: %d", __LINE__);
@@ -893,7 +916,6 @@ struct winsize {
 	if (unveil(argv[0], "x") == -1)
 		err(1, "unveil, line: %d", __LINE__);
 
-
 	if (to_file) {
 
 		if (unveil("/etc/installurl", "cw") == -1)
@@ -905,7 +927,7 @@ struct winsize {
 		if (pledge("stdio exec proc dns id", NULL) == -1)
 			err(1, "pledge, line: %d", __LINE__);
 	}
-	
+
 	diff_array = calloc(12, sizeof(char));
 	if (diff_array == NULL)
 		errx(1, "calloc");
@@ -1716,11 +1738,10 @@ struct winsize {
 	 * It's caused by no internet, bad dns resolution;
 	 *   Or from a faulty mirror or its bad dns info
 	 */
-	if (n || array_length == 0) {
-
+	if (n || array_length == 0) {		
 
 		if (verbose >= 0)
-			printf("There was an 'ftplist' download error.\n");
+			printf("There was an 'ftplist' download problem.\n");
 
 		close(kq);
 		free(line);
@@ -1801,7 +1822,7 @@ struct winsize {
 	int8_t num1 = 0, num2 = 0, num3 = 0;
 	char *host = NULL;
 	char *cut = NULL;
-	
+
 	if (verbose >= 2) {
 		
 		ac = array + array_length;
@@ -1827,9 +1848,10 @@ struct winsize {
 				pos_maxb = pos;
 		}
 
-		num1 = (w.ws_col >= 11 + pos_maxl + pos_max);
-		num2 = (w.ws_col >= 11 + pos_maxl + pos_maxh);
-		num3 = (w.ws_col >= 11 + pos_maxb);
+		i = (array_length >= 100) + 10;
+		num1 = (w.ws_col >= i + pos_maxl + pos_max);
+		num2 = (w.ws_col >= i + pos_maxl + pos_maxh);
+		num3 = (w.ws_col >= i + pos_maxb);
 	}
 				
 
@@ -1837,9 +1859,11 @@ struct winsize {
 	
 	memcpy(line, array->http, h);
 	
+	pos_max -= h;
+	
 	for (c = 0; c < array_length; ++c) {
 
-		n = strlcpy(host, array[c].http + h, pos_max - h);
+		n = strlcpy(host, array[c].http + h, pos_max);
 		memcpy(host + n, tag, tag_len + 1);
 
 
@@ -1975,7 +1999,9 @@ restart_dns_err:
 				continue;
 			} else if (v == 'u') {
 				if (verbose >= 2)
-					printf("unknown record type.\n");
+					printf("blocked subdomain.\n");
+				array[c].diff = s + 4;
+				continue;
 			}
 		}
 
@@ -1987,98 +2013,91 @@ restart_dns_err:
 		if (ping_host == NULL)
 			errx(1, "strndup");
 
-		for (n = 1; n <= 2; ++n) {
+		/*
+		 * ping()ing the mirror will likely optimize network
+		 * path traversal in much the same way that pre-caching
+		 * the nameserver optimizes fetching IP addresses
+		 */
 
+		pid_t ping_pid = fork();
+		if (ping_pid == (pid_t) 0) {
+
+			if (root_user) {
+			/*
+			 * user _pkgfetch: possibly a good thing to
+			 * 		   not be root running ping
+			 */
+				setuid(57);
+			}
+
+			if (verbose >= 3) {
+				printf("ping...");
+				fflush(stdout);
+			}
+
+			close(STDOUT_FILENO);
+			close(STDERR_FILENO);
+
+			if (six) {
+				execl("/sbin/ping6", "ping6",
+				"-c1", ping_host, NULL);
+			} else {
+				execl("/sbin/ping", "ping",
+				"-c1", ping_host, NULL);
+			}
+
+			dprintf(std_err, "%s ", strerror(errno));
+			dprintf(std_err, "ping execl() failed, ");
+			dprintf(std_err, "line: %d\n", __LINE__);
+			fflush(NULL);
+			_exit(1);
+		}
+		if (ping_pid == -1)
+			err(1, "ping fork, line: %d", __LINE__);
+
+		EV_SET(&ke, ping_pid, EVFILT_PROC, EV_ADD |
+		    EV_ONESHOT, NOTE_EXIT, 0, NULL);
+
+		i = kevent(kq, &ke, 1, &ke, 1, &timeout_ping);
+		if (i == -1 && errno != ESRCH)
+			err(1, "kevent, line: %d", __LINE__);
+
+		/* timeout occurred before ping() exit was received */
+		if (i == 0) {
+
+			kill(ping_pid, SIGINT);
 
 			/*
-			 * ping()ing the mirror will likely optimize network
-			 * path traversal in much the same way that pre-caching
-			 * the nameserver optimizes fetching IP addresses
+			 * give it time to gracefully abort, play
+			 *  nice with the server and reap event
 			 */
-
-			pid_t ping_pid = fork();
-			if (ping_pid == (pid_t) 0) {
-
-				if (root_user) {
-				/*
-				 * user _pkgfetch: possibly a good thing to
-				 * 		   not be root running ping
-				 */
-					setuid(57);
-				}
-
-				if (verbose >= 3) {
-					printf("ping %d of 2...", n);
-					fflush(stdout);
-				}
-
-				close(STDOUT_FILENO);
-				close(STDERR_FILENO);
-
-				if (six) {
-					execl("/sbin/ping6", "ping6",
-					"-c1", ping_host, NULL);
-				} else {
-					execl("/sbin/ping", "ping",
-					"-c1", ping_host, NULL);
-				}
-
-				dprintf(std_err, "%s ", strerror(errno));
-				dprintf(std_err, "ping execl() failed, ");
-				dprintf(std_err, "line: %d\n", __LINE__);
-				fflush(NULL);
-				_exit(1);
-			}
-			if (ping_pid == -1)
-				err(1, "ping fork, line: %d", __LINE__);
-
-			EV_SET(&ke, ping_pid, EVFILT_PROC, EV_ADD |
-			    EV_ONESHOT, NOTE_EXIT, 0, NULL);
-
-			i = kevent(kq, &ke, 1, &ke, 1, &timeout_ping);
-			if (i == -1 && errno != ESRCH)
+			i = kevent(kq, NULL, 0, &ke, 1, &timeout_kill);
+			if (i == -1)
 				err(1, "kevent, line: %d", __LINE__);
-
-			/* timeout occurred before ping() exit was received */
 			if (i == 0) {
 
-				kill(ping_pid, SIGINT);
+				kill(ping_pid, SIGKILL);
 
-				/*
-				 * give it time to gracefully abort, play
-				 *  nice with the server and reap event
-				 */
-				i = kevent(kq, NULL, 0, &ke, 1, &timeout_kill);
-				if (i == -1)
-					err(1, "kevent, line: %d", __LINE__);
-				if (i == 0) {
-
-					kill(ping_pid, SIGKILL);
-
-					i = kevent(kq, NULL, 0, &ke, 1, NULL);
-					if (i == -1) {
-						printf("%s ", strerror(errno));
-						printf("kevent, ");
-						printf("line: %d", __LINE__);
-						return 1;
-					}
+				i = kevent(kq, NULL, 0, &ke, 1, NULL);
+				if (i == -1) {
+					printf("%s ", strerror(errno));
+					printf("kevent, ");
+					printf("line: %d", __LINE__);
+					return 1;
 				}
-
-				if (verbose >= 3)
-					printf("timed out\n");
-
-				waitpid(ping_pid, NULL, 0);
-
-				break;
-
 			}
 
 			if (verbose >= 3)
-				printf("done\n");
+				printf("timed out\n");
 
 			waitpid(ping_pid, NULL, 0);
 
 		}
+
+		if (verbose >= 3)
+			printf("done\n");
+
+		waitpid(ping_pid, NULL, 0);
 
 		free(ping_host);
 
@@ -2258,7 +2277,7 @@ ping_skip:
 				fastest = ac;
 		}
 
-		if (array != fastest) {
+			if (array != fastest) {
 
 			free(array->label);
 			free(array->http);
@@ -2516,7 +2535,6 @@ gen_skip1:
 				} while (++first < c);
 				printf("\n");
 				n = i;
-
 			}
 		}
 
@@ -2580,6 +2598,28 @@ generate_jump:
 				pos_maxl = pos;
 		}
 		
+		
+		int pos_maxt = 0;
+		
+		if (te != -1) {
+			for (c = te; c >= ts; --c) {
+				pos = strlen(array[c].label);
+				if (pos > pos_maxt)
+					pos_maxt = pos;
+			}
+		}
+		
+		
+		int pos_maxd = 0;
+
+		if (de != -1) {
+			for (c = de; c >= ds; --c) {
+				pos = strlen(array[c].label);
+				if (pos > pos_maxd)
+					pos_maxd = pos;
+			}
+		}
+		
 		c = array_length;
 		ac = array + c;
 
@@ -2625,31 +2665,70 @@ generate_jump:
 					}
 				}
 				printf(" seconds\n\techo \"");
-				printf("%s\" > /etc/installurl\n", ac->http);
+				printf("%s", ac->http);
+				printf("\" > /etc/installurl\n");
 				continue;
 			}
 			
-			printf("%s\n\t", ac->label);
-
-			cut = strchr(ac->http + h, '/');
-			if (cut)
-				*cut = '\0';
-
-			printf("%s : ", ac->http + h);
-
 			if (c <= te) {
+				
+				i = strlen(ac->label);
+                                j = (pos_maxt + 1 - i) / 2;
+				n = pos_maxt - (i + j);
+                                while (j--)
+                                        printf(" ");
+
+				printf("%s", ac->label);
+				
+				while (n--)
+					printf(" ");
+				
+				printf(" : ");
+			
 				printf("Timeout\n");
+
+				cut = strchr(ac->http + h, '/');
+				if (cut)
+					*cut = '\0';
+
+				printf("\t%s\n", ac->http + h);
+
 				if (c == ts && se != -1)
 					printf("\n\nSUCCESSFUL MIRRORS:\n\n");
 				continue;
 			}
 
+			i = strlen(ac->label);
+			j = (pos_maxd + 1 - i) / 2;
+			n = pos_maxd - (i + j);
+			while (j--)
+				printf(" ");
+
+			printf("%s", ac->label);
+			
+			while (n--)
+				printf(" ");
+			
+			printf(" : ");
+			
 			if (ac->diff == s + 1)
-				printf("Download Error\n");
+				printf("Download Error");
 			else if (ac->diff == s + 2)
-				printf("IPv6 DNS record not found\n");
+				printf("IPv6 DNS record not found");
+			else if (ac->diff == s + 3)
+				printf("DNS record not found");
 			else
-				printf("DNS record not found\n\n");
+				printf("BLOCKED domain");
+
+			
+			printf("\n\t");
+
+			cut = strchr(ac->http + h, '/');
+			if (cut)
+				*cut = '\0';
+
+			printf("%s\n", ac->http + h);
+
 
 			if (c == ds) {
 				if (te != -1)
