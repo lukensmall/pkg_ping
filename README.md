@@ -102,7 +102,7 @@ It will also restart if downloading 'ftplist' becomes unresponsive past a wait t
 
 cc pkg_ping.c -o pkg_ping
 
-cc pkg_ping.c -march=native -mtune=native -O3 -pipe -o pkg_ping
+cc pkg_ping.c -march=native -mtune=native -O2 -pipe -o pkg_ping
 
 Example usages:
 ./pkg_ping -vs1.5 -vvu
