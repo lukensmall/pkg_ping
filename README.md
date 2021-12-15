@@ -52,9 +52,9 @@ It uses several commandline options:
 -O will override and search for snapshot mirrors if it is a release; and will search for release mirrors if it a snapshot.
    Useful when you are running a pre-release snapshot without available release mirrors or...are just curious?
 
--p searches for previous release package folders! It subtracts .1 to your version and searches for the release.
+-p searches for previous release package folders! It subtracts .1 from your version and searches for the release.
 
--P skips where it ping()s a mirror a couple times in rapid succession to optimize the network for a download.
+-P skips where it ping()s a mirror to optimize the network for a download.
 
 -n searches for next release package folders! It adds .1 to your version and searches for the release.
 
@@ -65,8 +65,8 @@ It uses several commandline options:
    http mirrors are likely faster than all https mirror selections, however they pass over the internet without encryption.
    Integrity is still preserved by not using -S, but it will not provide secrecy...maybe you don't want the internets to know you're downloading hot-babe! LOL!
 
--u will make it avoid loading mirrors with "USA" in the label for encryption export compliance if you are searching from outside of the USA and Canada.
-   I'm not sure if this eliminates all mirrors located in the USA. Use your best judgement.
+-u will make it avoid loading mirrors with "USA" in the label for encryption export compliance (if that's still a thing) if you are searching from outside of the USA and Canada.
+   I'm not sure if this eliminates all mirrors located in the USA. Mirrors with "(CDN)" label may be from the USA. Use your best judgement.
 
 -v will show when it is fetching "ftplist" from one of the many hard coded mirrors, prints out the results 
    sorted in reverse order by time or if it is timed out, or a download error,
@@ -79,6 +79,7 @@ It uses several commandline options:
      The progress bar could be interesting if you are on dial-up. Is that still a thing?
 
 -vvvv (an additional -v) will also show dns lookup output if -d is not used. It will temporarily print a * with less -v's to indicate dns caching.
+      Further -v arguments are ignored
 
 -V will stop all output except error messages. It overrides all -v instances.
    It's useful I suppose, if run from a script or daemon as root so that it writes the result to file.
@@ -90,8 +91,7 @@ if no -v or if -V is used, so if you want the fastest single result, don't use -
 If it is run as root, it will make ftp calling processes change to the pkg_fetch user which only has read access to the /var/empty directory,
 and ftp(1) doesn't unveil() so it may actually be safer to run as root.
 
-If the parent process spins up dns caching, file writing and is calling ftp, it can run 4 processes at one time, all with very different pledge sets.
-
+If the process spins up dns caching, file writing and is calling ftp, it can run 4 processes at one time, all with very different pledge sets.
 
 If it returns 1, something very bad has occurred or the timeout value is too low to find a successful mirror;
 something that running it again won't likely solve.
@@ -104,6 +104,7 @@ cc pkg_ping.c -o pkg_ping
 
 cc pkg_ping.c -march=native -mtune=native -O3 -pipe -o pkg_ping
 
+Example usages:
 ./pkg_ping -vs1.5 -vvu
 
 ./pkg_ping -vSvs 2
