@@ -827,8 +827,7 @@ print_sub_one(long double diff)
 	int i = snprintf(diff_array, 12, "%.9Lf", diff);
 	if (i >= 12 || i < 0) {
 		if (i < 0)
-		printf("%s",
-		    strerror(errno));
+			 printf("%s", strerror(errno));
 		else
 			printf("'line': %s,", diff_array);
 		printf(" snprintf, line: %d\n", __LINE__);
