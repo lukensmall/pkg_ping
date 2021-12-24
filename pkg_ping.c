@@ -974,7 +974,7 @@ struct winsize {
 			do {
 				if (optarg[c] < '0' || optarg[c] > '9') {
 					printf("-l argument only accepts ");
-					printf(" numeric characters\n");
+					printf("numeric characters\n");
 					return 1;
 				}
 				loop = loop * 10 + optarg[c] - '0';
