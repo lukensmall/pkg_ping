@@ -1984,7 +1984,7 @@ restart_dns_err:
 				
 				restart(argc, argv, loop, verbose);
 			}
-
+			
 			if (six && v == '0') {
 				if (verbose >= 2)
 					printf("IPv6 DNS record not found.\n");
