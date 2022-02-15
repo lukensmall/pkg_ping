@@ -2569,14 +2569,11 @@ generate_jump:
 			printf("\n\nSUCCESSFUL MIRRORS:\n\n");
 			
 		int diff_topper = 0;
-		if (array[se].diff >= (long double)1) {
-			S = (long double)10;
-			diff_topper = 1;
-			while (array[se].diff >= S) {
-				S *= (long double)10;
-				if (++diff_topper == 4)
-					break;
-			}
+		i = 1;
+		while (array[se].diff >= i) {
+			i *= 10;
+			if (++diff_topper == 4)
+				break;
 		}
 		
 		char *dt_str = strndup("    ", diff_topper);
@@ -2667,10 +2664,11 @@ generate_jump:
 			cut = strchr(ac->http + h, '/');
 			if (cut)
 				*cut = '\0';
+			
+			i = strlen(ac->label);
 
 			if (c <= te) {
 				
-				i = strlen(ac->label);
                                 j = (pos_maxt + 1 - i) / 2;
 				n = pos_maxt - (i + j);
 				
@@ -2689,9 +2687,9 @@ generate_jump:
 				continue;
 			}
 
-			i = strlen(ac->label);
 			j = (pos_maxd + 1 - i) / 2;
 			n = pos_maxd - (i + j);
+			
 			while (j--)
 				printf(" ");
 
@@ -2712,9 +2710,7 @@ generate_jump:
 				printf("BLOCKED domain");
 
 			
-			printf("\n\t");
-
-			printf("%s\n", ac->http + h);
+			printf("\n\t%s\n", ac->http + h);
 
 
 			if (c == ds) {
