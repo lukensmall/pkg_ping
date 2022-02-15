@@ -1,7 +1,8 @@
+
 /*
  * BSD 2-Clause License
  *
- * Copyright (c) 2016 - 2022, Luke N Small, lukensmall@gmail.com
+ * Copyright (c) 2016 - 2021, Luke N Small, lukensmall@gmail.com
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -59,6 +60,7 @@
  */
 
 #include <sys/types.h>
+
 #include <sys/event.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -146,6 +148,10 @@ usa_cmp(const void *a, const void *b)
 	return 0;
 }
 
+/*
+ * compare the labels alphabetically by proper decreasing
+ *  hierarchy which are in reverse order between commas.
+ */
 static int
 label_cmp_minus_usa(const void *a, const void *b)
 {
@@ -153,11 +159,6 @@ label_cmp_minus_usa(const void *a, const void *b)
 	char *one_label = ((MIRROR *) a)->label;
 	char *two_label = ((MIRROR *) b)->label;
 	int i = 3;
-
-	/*
-	 * compare the labels alphabetically by proper decreasing
-	 *  hierarchy which are in reverse order between commas.
-	 */
 
 	/* start with the last comma */
 
@@ -278,11 +279,11 @@ diff_cmp_g(const void *a, const void *b)
 {
 	/* sort those with greater diff values first */
 
-	int diff = (int) (
-			  ((MIRROR *) b)->diff
-			  -
-			  ((MIRROR *) a)->diff
-			 );
+	int diff = (
+		    (int) ((MIRROR *) b)->diff
+		                 -
+		    (int) ((MIRROR *) a)->diff
+		   );
 
 	if (!diff) {
 
@@ -298,8 +299,8 @@ diff_cmp_g(const void *a, const void *b)
 /*
  * diff_cmp can be used in the place of this function, but it
  * is more efficient to avoid the many unnecessary strcmp() for mirrors
- * which have been turned to a zero value which are going to be ignored.
- */ 
+ * which have been turned to diff == 0 which are going to be ignored.
+ */
 static int
 diff_cmp_g2(const void *a, const void *b)
 {
@@ -581,6 +582,9 @@ dns_loop:
 		 */
 		for (i = 0; i < 16; i += 2) {
 
+			if (i)
+				printf(":");
+
 			if (i == i_max) {
 				if (i == 0)
 					printf("::");
@@ -612,9 +616,6 @@ dns_loop:
 				printf("%c",
 				    hexadec[suc6[i|1]     ]);
 			}
-
-			if (i < 14)
-				printf(":");
 		}
 		printf("\n");
 	}
@@ -825,7 +826,7 @@ print_sub_one(long double diff)
 		errx(1, "diff is impossible value: %.9Lf", diff);
 	
 	int i = snprintf(diff_array, 12, "%.9Lf", diff);
-	if (i >= 12 || i < 0) {
+	if (i != 11) {
 		if (i < 0)
 			 printf("%s", strerror(errno));
 		else
@@ -973,8 +974,8 @@ struct winsize {
 			c = loop = 0;
 			do {
 				if (optarg[c] < '0' || optarg[c] > '9') {
-					printf("-l argument only accepts ");
-					printf("numeric characters\n");
+					printf("-l argument only accepts");
+					printf(" numeric characters\n");
 					return 1;
 				}
 				loop = loop * 10 + optarg[c] - '0';
@@ -1145,31 +1146,30 @@ struct winsize {
                         /* GENERATED CODE BEGINS HERE */
 
 
-	const char *ftp_list[60] = {
+	const char *ftp_list[57] = {
 
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
            "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
-           "ftp.rnl.tecnico.ulisboa.pt","mirror.csclub.uwaterloo.ca",
- "mirrors.gethosted.online","mirrors.ocf.berkeley.edu","mirror.hs-esslingen.de",
-   "mirrors.pidginhost.com","openbsd.cs.toronto.edu","*artfiles.org/openbsd",
-    "ftpmirror.infania.net","mirror.bytemark.co.uk","mirror.planetunix.net",
-     "www.mirrorservice.org","ftp4.usa.openbsd.org","mirror.aarnet.edu.au",
-      "mirror.exonetric.net","openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org",
-       "ftp2.eu.openbsd.org","mirror.edgecast.com","mirror.leaseweb.com",
-        "mirror.telepoint.bg","mirrors.gigenet.com","ftp.eu.openbsd.org",
-         "ftp.fr.openbsd.org","ftp.lysator.liu.se","mirror.fsmg.org.nz",
-         "mirror.ungleich.ch","mirrors.aliyun.com","mirrors.dotsrc.org",
-          "openbsd.ipacct.com","ftp.hostserver.de","ftp.man.poznan.pl",
- "mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.labkom.id","mirror.litnet.lt",
-    "mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp",
-    "mirror.esc7.net","mirror.ihost.md","mirror.ox.ac.uk","mirrors.mit.edu",
-       "ftp.icm.edu.pl","mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie",
-   "ftp.spline.de","www.ftp.ne.jp","ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl",
-                     "ftp.fau.de","ftp.fsn.hu","openbsd.hk"
+            "ftp.rnl.tecnico.ulisboa.pt","mirrors.gethosted.online",
+  "mirrors.ocf.berkeley.edu","mirror.hs-esslingen.de","mirrors.pidginhost.com",
+    "openbsd.cs.toronto.edu","*artfiles.org/openbsd","ftpmirror.infania.net",
+    "mirror.bytemark.co.uk","mirror.planetunix.net","www.mirrorservice.org",
+      "ftp4.usa.openbsd.org","mirror.aarnet.edu.au","mirror.exonetric.net",
+       "openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
+       "mirror.edgecast.com","mirror.leaseweb.com","mirror.telepoint.bg",
+        "mirrors.gigenet.com","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
+         "ftp.lysator.liu.se","mirror.fsmg.org.nz","mirror.ungleich.ch",
+         "mirrors.aliyun.com","mirrors.dotsrc.org","openbsd.ipacct.com",
+ "ftp.hostserver.de","mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.labkom.id",
+   "mirror.litnet.lt","mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org",
+    "ftp.jaist.ac.jp","mirror.esc7.net","mirror.ihost.md","mirror.ox.ac.uk",
+      "mirrors.mit.edu","ftp.icm.edu.pl","mirror.one.com","ftp.cc.uoc.gr",
+ "ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp","ftp.nluug.nl","ftp.riken.jp",
+                     "ftp.bit.nl","ftp.fau.de","ftp.fsn.hu"
 
 	};
 
-	const int index = 60;
+	const int index = 57;
 
 
 
@@ -2089,11 +2089,7 @@ restart_dns_err:
 			if (verbose >= 3)
 				printf("timed out\n");
 
-			waitpid(ping_pid, NULL, 0);
-
-		}
-
-		if (verbose >= 3)
+		} else if (verbose >= 3)
 			printf("done\n");
 
 		waitpid(ping_pid, NULL, 0);
