@@ -2664,11 +2664,16 @@ generate_jump:
 				continue;
 			}
 			
+			cut = strchr(ac->http + h, '/');
+			if (cut)
+				*cut = '\0';
+
 			if (c <= te) {
 				
 				i = strlen(ac->label);
                                 j = (pos_maxt + 1 - i) / 2;
 				n = pos_maxt - (i + j);
+				
                                 while (j--)
                                         printf(" ");
 
@@ -2677,15 +2682,7 @@ generate_jump:
 				while (n--)
 					printf(" ");
 				
-				printf(" : ");
-			
-				printf("Timeout\n");
-
-				cut = strchr(ac->http + h, '/');
-				if (cut)
-					*cut = '\0';
-
-				printf("\t%s\n", ac->http + h);
+				printf(" : Timeout\n\t%s\n", ac->http + h);
 
 				if (c == ts && se != -1)
 					printf("\n\nSUCCESSFUL MIRRORS:\n\n");
@@ -2716,10 +2713,6 @@ generate_jump:
 
 			
 			printf("\n\t");
-
-			cut = strchr(ac->http + h, '/');
-			if (cut)
-				*cut = '\0';
 
 			printf("%s\n", ac->http + h);
 
