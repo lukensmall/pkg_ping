@@ -117,7 +117,7 @@ usa_cmp(const void *a, const void *b)
 	char *two_label = ((MIRROR *) b)->label;
 
 	/* prioritize the USA mirrors first */
-	int8_t temp = (strstr(one_label, "USA") != NULL);
+	int temp = (strstr(one_label, "USA") != NULL);
 	if (temp != (strstr(two_label, "USA") != NULL)) {
 		if (temp)
 			return -1;
