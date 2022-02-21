@@ -848,7 +848,7 @@ main(int argc, char *argv[])
 	int8_t num = 0, current = 0, secure = 0, verbose = 0;
 	int8_t generate = 0, override = 0, six = 0;
 	int8_t previous = 0, next = 0, s_set = 0;
-	int8_t dns_cache = 1, usa = 1, ping = 1;
+	int8_t dns_cache = 1, usa = 1, ping = 0;
 	int loop = 20;
 	long double S = 0;
 	pid_t ftp_pid = 0, write_pid = 0, dns_cache_d_pid = 0;
@@ -2271,7 +2271,7 @@ ping_skip:
 				fastest = ac;
 		}
 
-			if (array != fastest) {
+		if (array != fastest) {
 
 			free(array->label);
 			free(array->http);
