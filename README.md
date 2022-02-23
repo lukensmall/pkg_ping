@@ -54,8 +54,6 @@ It uses several commandline options:
 
 -p searches for previous release package folders! It subtracts .1 from your version and searches for the release.
 
--P skips where it ping()s a mirror to optimize the network for a download.
-
 -n searches for next release package folders! It adds .1 to your version and searches for the release.
 
 -s will accept floating-point timeout like 1.5 seconds using strtold() and handrolled validation, eg. "-s 1.5" . Default 5.
@@ -65,7 +63,8 @@ It uses several commandline options:
    http mirrors are likely faster than all https mirror selections, however they pass over the internet without encryption.
    Integrity is still preserved by not using -S, but it will not provide secrecy...maybe you don't want the internets to know you're downloading hot-babe! LOL!
 
--u will make it avoid loading mirrors with "USA" in the label for encryption export compliance (if that's still a thing) if you are searching from outside of the USA and Canada.
+-u will make it avoid loading mirrors with "USA" in the label for encryption export compliance
+   (if that's still a thing) if you are searching from outside of the USA and Canada.
    I'm not sure if this eliminates all mirrors located in the USA. Mirrors with "(CDN)" label may be from the USA. Use your best judgement.
 
 -v will show when it is fetching "ftplist" from one of the many hard coded mirrors, prints out the results 
