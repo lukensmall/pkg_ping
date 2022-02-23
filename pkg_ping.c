@@ -357,23 +357,21 @@ manpage()
 	printf("[-h (print this Help message and exit)]\n");
 
 	printf("[-l (ell) quantity of attempts the program will restart\n");
-	printf("\tin a Loop for recoverable errors (default 20)]\n");
+	printf("        in a Loop for recoverable errors (default 20)]\n");
 
 	printf("[-n (search for mirrors with the Next release!)]\n");
 
 	printf("[-O (if you're running a snapshot, it will Override it and\n");
-	printf("\tsearch for release mirrors. if you're running a release,\n");
-	printf("\tit will Override it and search for snapshot mirrors.)\n");
+	printf("        search for release mirrors. if you're running a release,\n");
+	printf("        it will Override it and search for snapshot mirrors.)\n");
 
 	printf("[-p (search for mirrors with the Previous release!)]\n");
 
-	printf("[-P (do not perform Pings before testing the mirror.)]\n");
-
 	printf("[-s timeout in Seconds (eg. -s 2.3) (default 10 if -g\n");
-	printf("\tis specified. Otherwise default 5)]\n");
+	printf("        is specified. Otherwise default 5)]\n");
 
 	printf("[-S (converts http mirrors into Secure https mirrors\n");
-	printf("\thttp mirrors still preserve file integrity!)]\n");
+	printf("        http mirrors still preserve file integrity!)]\n");
 
 	printf("[-u (no USA mirrors to comply ");
 	printf("with USA encryption export laws)]\n");
@@ -405,14 +403,14 @@ dns_cache_d(const int dns_socket, const int8_t secure,
 /*
 from: /usr/src/include/netdb.h
 struct addrinfo {
-        int ai_flags;
-        int ai_family;
-        int ai_socktype;
-        int ai_protocol;
-        socklen_t ai_addrlen;
-        struct sockaddr *ai_addr;
-        char *ai_canonname;
-        struct addrinfo *ai_next;
+	int ai_flags;
+	int ai_family;
+	int ai_socktype;
+	int ai_protocol;
+	socklen_t ai_addrlen;
+	struct sockaddr *ai_addr;
+	char *ai_canonname;
+	struct addrinfo *ai_next;
 };
 */
 	const struct addrinfo hints =
@@ -750,7 +748,7 @@ file_cleanup:
 }
 
 static __attribute__((noreturn)) void
-restart (int argc, char *argv[], const int loop, const int8_t verbose)
+restart(int argc, char *argv[], const int loop, const int8_t verbose)
 {
 
 	if (loop == 0)
@@ -848,7 +846,7 @@ main(int argc, char *argv[])
 	int8_t num = 0, current = 0, secure = 0, verbose = 0;
 	int8_t generate = 0, override = 0, six = 0;
 	int8_t previous = 0, next = 0, s_set = 0;
-	int8_t dns_cache = 1, usa = 1, ping = 0;
+	int8_t dns_cache = 1, usa = 1;
 	int loop = 20;
 	long double S = 0;
 	pid_t ftp_pid = 0, write_pid = 0, dns_cache_d_pid = 0;
@@ -862,7 +860,7 @@ main(int argc, char *argv[])
 	int         block_pipe[2] = { -1, -1 };
 
 	struct timespec start = { 0, 0 }, end = { 0, 0 };
-	struct timespec timeout = { 0, 0 }, timeout_ping = { 0, 0 };
+	struct timespec timeout = { 0, 0 };
 	char *line_temp = NULL, *line0 = NULL, *line = NULL, *release = NULL;
 	char *tag = NULL, *time = NULL;
 	size_t len = 0;
@@ -870,12 +868,12 @@ main(int argc, char *argv[])
 /*
 from: /usr/src/sys/sys/event.h
 struct kevent {
-        __uintptr_t     ident;
-        short           filter;
-        unsigned short  flags;
-        unsigned int    fflags;
-        __int64_t       data;
-        void            *udata;
+	__uintptr_t     ident;
+	short           filter;
+	unsigned short  flags;
+	unsigned int    fflags;
+	__int64_t       data;
+	void            *udata;
 };
 */
 	struct kevent ke = { 0, 0, 0, 0, 0, NULL };
@@ -890,27 +888,23 @@ struct kevent {
 /*
 from: /usr/src/sys/sys/ttycom.h
 struct winsize {
-        unsigned short  ws_row;         // rows, in characters
-        unsigned short  ws_col;         // columns, in characters
-        unsigned short  ws_xpixel;      // horizontal size, pixels
-        unsigned short  ws_ypixel;      // vertical size, pixels
+	unsigned short  ws_row;         // rows, in characters
+	unsigned short  ws_col;         // columns, in characters
+	unsigned short  ws_xpixel;      // horizontal size, pixels
+	unsigned short  ws_ypixel;      // vertical size, pixels
 };
 */
-        struct winsize w = { 0, 0, 0, 0 };
+	struct winsize w = { 0, 0, 0, 0 };
 
-        i = pledge("stdio exec proc cpath wpath dns id unveil tty", NULL);
-        if (i == -1)
-                err(1, "pledge, line: %d", __LINE__);
+	i = pledge("stdio exec proc cpath wpath dns id unveil tty", NULL);
+	if (i == -1)
+		err(1, "pledge, line: %d", __LINE__);
 
-        ioctl(0, TIOCGWINSZ, &w);
+	i = ioctl(0, TIOCGWINSZ, &w);
+	if (i == -1)
+		err(1, "ioctl, line: %d", __LINE__);
 
 	if (unveil("/usr/bin/ftp", "x") == -1)
-		err(1, "unveil, line: %d", __LINE__);
-
-	if (unveil("/sbin/ping", "x") == -1)
-		err(1, "unveil, line: %d", __LINE__);
-
-	if (unveil("/sbin/ping6", "x") == -1)
 		err(1, "unveil, line: %d", __LINE__);
 
 	if (unveil(argv[0], "x") == -1)
@@ -945,7 +939,7 @@ struct winsize {
 	}
 
 
-	while ((c = getopt(argc, argv, "6dfghl:nOpPSs:uvV")) != -1) {
+	while ((c = getopt(argc, argv, "6dfghl:nOpSs:uvV")) != -1) {
 		switch (c) {
 		case '6':
 			six = 1;
@@ -991,9 +985,6 @@ struct winsize {
 		case 'p':
 			next = 0;
 			previous = 1;
-			break;
-		case 'P':
-			ping = 0;
 			break;
 		case 'S':
 			secure = 1;
@@ -1064,7 +1055,7 @@ struct winsize {
 		if (verbose < 1)
 			verbose = 1;
 		secure = 1;
-		next = previous = ping = override = to_file = 0;
+		next = previous = override = to_file = 0;
 		if (pledge("stdio exec proc dns id", NULL) == -1)
 			err(1, "pledge, line: %d", __LINE__);
 
@@ -1098,7 +1089,7 @@ struct winsize {
 			case 0:
 				close(dns_cache_d_socket[1]);
 				dns_cache_d(dns_cache_d_socket[0], secure,
-				                    six, verbose);
+						six, verbose);
 				errx(1, "dns_cache_d returned! line: %d\n",
 				    __LINE__);
 		}
@@ -1118,7 +1109,7 @@ struct winsize {
 				close(dns_cache_d_socket[1]);
 				close(write_pipe[STDOUT_FILENO]);
 				file_d(write_pipe[STDIN_FILENO],
-				           secure, verbose);
+					secure, verbose);
 				errx(1, "file_d returned! line: %d\n",
 				    __LINE__);
 		}
@@ -1146,7 +1137,7 @@ struct winsize {
                         /* GENERATED CODE BEGINS HERE */
 
 
-	const char *ftp_list[55] = {
+        const char *ftp_list[55] = {
 
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
            "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
@@ -1166,23 +1157,23 @@ struct winsize {
  "ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp","ftp.nluug.nl","ftp.riken.jp",
               "ftp.psnc.pl","ftp.bit.nl","ftp.fau.de","ftp.fsn.hu"
 
-	};
+        };
 
-	const int index = 55;
+        const int index = 55;
 
 
 
      /* Trusted OpenBSD.org subdomain mirrors for generating this section */
 
-	const char *ftp_list_g[8] = {
+        const char *ftp_list_g[8] = {
 
    "cloudflare.cdn.openbsd.org","ftp4.usa.openbsd.org","ftp.usa.openbsd.org",
         "ftp2.eu.openbsd.org","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
                        "cdn.openbsd.org","ftp.OpenBSD.org"
 
-	};
+        };
 
-	const int index_g = 8;
+        const int index_g = 8;
 
 
                          /* GENERATED CODE ENDS HERE */
@@ -1209,7 +1200,7 @@ struct winsize {
 
 		close(ftp_out[STDIN_FILENO]);
 
-		n = 200;
+		n = 300;
 		line = calloc(n, sizeof(char));
 		if (line == NULL) {
 			printf("calloc\n");
@@ -1297,19 +1288,6 @@ struct winsize {
 		timeout0.tv_nsec =
 		    (long) ((s -
 		    (long double) timeout0.tv_sec) *
-		    (long double) 1000000000);
-	}
-
-	if (ping) {
-		if (s < 1)
-			S = s;
-		else
-			S = 1;
-
-		timeout_ping.tv_sec = (time_t) S;
-		timeout_ping.tv_nsec =
-		    (long) ((S -
-		    (long double) timeout_ping.tv_sec) *
 		    (long double) 1000000000);
 	}
 
@@ -2003,101 +1981,6 @@ restart_dns_err:
 			}
 		}
 
-		if (ping == 0)
-			goto ping_skip;
-
-
-		char *ping_host = strndup(host, n);
-		if (ping_host == NULL)
-			errx(1, "strndup");
-
-		/*
-		 * ping()ing the mirror will likely optimize network
-		 * path traversal in much the same way that pre-caching
-		 * the nameserver optimizes fetching IP addresses
-		 */
-
-		pid_t ping_pid = fork();
-		if (ping_pid == (pid_t) 0) {
-
-			if (root_user) {
-			/*
-			 * user _pkgfetch: possibly a good thing to
-			 * 		   not be root running ping
-			 */
-				setuid(57);
-			}
-
-			if (verbose >= 3) {
-				printf("ping...");
-				fflush(stdout);
-			}
-
-			close(STDOUT_FILENO);
-			close(STDERR_FILENO);
-
-			if (six) {
-				execl("/sbin/ping6", "ping6",
-				"-c1", ping_host, NULL);
-			} else {
-				execl("/sbin/ping", "ping",
-				"-c1", ping_host, NULL);
-			}
-
-			dprintf(std_err, "%s ", strerror(errno));
-			dprintf(std_err, "ping execl() failed, ");
-			dprintf(std_err, "line: %d\n", __LINE__);
-			fflush(NULL);
-			_exit(1);
-		}
-		if (ping_pid == -1)
-			err(1, "ping fork, line: %d", __LINE__);
-
-		EV_SET(&ke, ping_pid, EVFILT_PROC, EV_ADD |
-		    EV_ONESHOT, NOTE_EXIT, 0, NULL);
-
-		i = kevent(kq, &ke, 1, &ke, 1, &timeout_ping);
-		if (i == -1 && errno != ESRCH)
-			err(1, "kevent, line: %d", __LINE__);
-
-		/* timeout occurred before ping() exit was received */
-		if (i == 0) {
-
-			kill(ping_pid, SIGINT);
-
-			/*
-			 * give it time to gracefully abort, play
-			 *  nice with the server and reap event
-			 */
-			i = kevent(kq, NULL, 0, &ke, 1, &timeout_kill);
-			if (i == -1)
-				err(1, "kevent, line: %d", __LINE__);
-			if (i == 0) {
-
-				kill(ping_pid, SIGKILL);
-
-				i = kevent(kq, NULL, 0, &ke, 1, NULL);
-				if (i == -1) {
-					printf("%s ", strerror(errno));
-					printf("kevent, ");
-					printf("line: %d", __LINE__);
-					return 1;
-				}
-			}
-
-			if (verbose >= 3)
-				printf("timed out\n");
-
-		} else if (verbose >= 3)
-			printf("done\n");
-
-		waitpid(ping_pid, NULL, 0);
-
-		free(ping_host);
-
-ping_skip:
-
-
 
 		if (pipe(block_pipe) == -1)
 			err(1, "pipe, line: %d", __LINE__);
@@ -2228,11 +2111,6 @@ ping_skip:
 			    (long double) timeout.tv_sec) *
 			    (long double) 1000000000);
 
-			if (ping && S < .875) {
-				memcpy(&timeout_ping, &timeout,
-				    sizeof(struct timespec));
-			}
-
 		} else if (array[c].diff > s)
 			array[c].diff = s;
 	}
@@ -2336,7 +2214,7 @@ ping_skip:
 
 			if (j <= 12) {
 				(ac->http -= 1)[0] = '*';
-                                ac->diff = j + 1;
+				ac->diff = j + 1;
 			} else if (strcmp(cut += j -= 12, "/pub/OpenBSD")) {
 				(ac->http -= 1)[0] = '*';
 				ac->diff = j + 13;
@@ -2394,7 +2272,7 @@ ping_skip:
 		printf("\n\n");
 		printf("                        ");
 		printf("/* GENERATED CODE BEGINS HERE */\n\n\n");
-		printf("\tconst char *ftp_list[%d] = {\n\n", se + 1);
+		printf("        const char *ftp_list[%d] = {\n\n", se + 1);
 
 
 		/* n = 0; */
@@ -2444,13 +2322,13 @@ ping_skip:
 		/* center the printed mirrors. Err to right */
 		for (j = (81 - n) / 2; j > 0; --j)
 			printf(" ");
-		for (j = first; j < se; ++j)
-			printf("\"%s\",", array[j].http);
+		while (first < se)
+			printf("\"%s\",", array[first++].http);
 gen_skip1:
 		printf("\"%s\"\n\n", array[se].http);
 
-		printf("\t};\n\n");
-		printf("\tconst int index = %d;\n\n\n\n", se + 1);
+		printf("        };\n\n");
+		printf("        const int index = %d;\n\n\n\n", se + 1);
 
 
 		/*
@@ -2484,7 +2362,7 @@ gen_skip1:
 
 		printf("     /* Trusted OpenBSD.org subdomain ");
 		printf("mirrors for generating this section */\n\n");
-		printf("\tconst char *ftp_list_g[%d] = {\n\n", se + 1);
+		printf("        const char *ftp_list_g[%d] = {\n\n", se + 1);
 
 
 		n = 0;
@@ -2535,13 +2413,13 @@ gen_skip1:
 		/* center the printed mirrors. Err to right */
 		for (j = (81 - n) / 2; j > 0; --j)
 			printf(" ");
-		for (j = first; j < se; ++j)
-			printf("\"%s\",", array[j].http);
+		while (first < se)
+			printf("\"%s\",", array[first++].http);
 gen_skip2:
 		printf("\"%s\"\n\n", array[se].http);
 
-		printf("\t};\n\n");
-		printf("\tconst int index_g = %d;\n\n\n", se + 1);
+		printf("        };\n\n");
+		printf("        const int index_g = %d;\n\n\n", se + 1);
 		printf("                         ");
 		printf("/* GENERATED CODE ENDS HERE */\n\n\n\n");
 		printf("Replace section after line: %d, but ", entry_line);
@@ -2621,13 +2499,14 @@ generate_jump:
 			else
 				printf("\n%2d : ", c);
 
+			i = strlen(ac->label);
+			
 			if (--c <= se) {
 
-				i = strlen(ac->label);
-                                j = (pos_maxl + 1 - i) / 2;
+				j = (pos_maxl + 1 - i) / 2;
 				n = pos_maxl - (i + j);
-                                while (j--)
-                                        printf(" ");
+				while (j--)
+					printf(" ");
 
 				printf("%s", ac->label);
 				
@@ -2655,7 +2534,7 @@ generate_jump:
 						break;
 					}
 				}
-				printf(" seconds\n\techo \"");
+				printf(" seconds\n        echo \"");
 				printf("%s", ac->http);
 				printf("\" > /etc/installurl\n");
 				continue;
@@ -2665,22 +2544,21 @@ generate_jump:
 			if (cut)
 				*cut = '\0';
 			
-			i = strlen(ac->label);
-
 			if (c <= te) {
 				
-                                j = (pos_maxt + 1 - i) / 2;
+				j = (pos_maxt + 1 - i) / 2;
 				n = pos_maxt - (i + j);
 				
-                                while (j--)
-                                        printf(" ");
+				while (j--)
+					printf(" ");
 
 				printf("%s", ac->label);
 				
 				while (n--)
 					printf(" ");
 				
-				printf(" : Timeout\n\t%s\n", ac->http + h);
+				printf(" : ");
+				printf("Timeout\n        %s\n", ac->http + h);
 
 				if (c == ts && se != -1)
 					printf("\n\nSUCCESSFUL MIRRORS:\n\n");
@@ -2710,7 +2588,7 @@ generate_jump:
 				printf("BLOCKED domain");
 
 			
-			printf("\n\t%s\n", ac->http + h);
+			printf("\n        %s\n", ac->http + h);
 
 
 			if (c == ds) {
