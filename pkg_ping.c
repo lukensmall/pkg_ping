@@ -1802,6 +1802,8 @@ struct winsize {
 	if (verbose >= 2) {
 		
 		ac = array + array_length;
+		i = (array_length >= 100) + 10;
+
 		while (array != ac--) {
 			
 			pos = strlen(ac->label);
@@ -1824,7 +1826,6 @@ struct winsize {
 				pos_maxb = pos;
 		}
 
-		i = (array_length >= 100) + 10;
 		num1 = (w.ws_col >= i + pos_maxl + pos_max);
 		num2 = (w.ws_col >= i + pos_maxl + pos_maxh);
 		num3 = (w.ws_col >= i + pos_maxb);
