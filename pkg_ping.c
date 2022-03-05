@@ -495,8 +495,23 @@ dns_loop:
 
 	if (verbose < 4 && six == 0) {
 		for (res = res0; res; res = res->ai_next) {
-			if (res->ai_family == AF_INET ||
-			    res->ai_family == AF_INET6)
+			
+			if (res->ai_family == AF_INET) {
+
+				sa4 = (struct sockaddr_in *) res->ai_addr;
+				sui4 = sa4->sin_addr.s_addr;
+
+				/* 
+				 * I have an unbound blocklist where I
+				 * force unwanted domains to resolve to
+				 * 0.0.0.0 which translates to sui4 == 0
+				 */
+				if (sui4 == 0)
+					continue;
+				break;
+			}
+			
+			if (res->ai_family == AF_INET6)
 				break;
 		}
 		
