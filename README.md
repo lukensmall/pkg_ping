@@ -59,11 +59,13 @@ It uses several commandline options:
 
 -S (“Secure only”) option will convert the http mirrors to https mirrors. Otherwise, http mirrors will be chosen.
    http mirrors are likely faster than all https mirror selections, however they pass over the internet without encryption.
-   Integrity is still preserved by not using -S, but it will not provide secrecy...maybe you don't want the internets to know you're downloading hot-babe! LOL!
+   for pkg_add, syspatch, sysupgrade, etc., integrity is still preserved by not using -S, but it will not provide
+   secrecy...maybe you don't want the internets to know you're downloading hot-babe! LOL!
 
 -u will make it avoid loading mirrors with "USA" in the label for encryption export compliance
    (if that's still a thing) if you are searching from outside of the USA and Canada.
-   I'm not sure if this eliminates all mirrors located in the USA. Mirrors with "(CDN)" label may be from the USA. Use your best judgement.
+   I'm not sure if this eliminates all mirrors located in the USA. Mirrors with "(CDN)" label may be from the USA.
+   Use your best judgement.
 
 -v will show when it is fetching "ftplist" from one of the many hard coded mirrors, prints out the results 
    sorted in reverse order by time or if it is timed out, or a download error,
@@ -98,7 +100,8 @@ It will also restart if downloading 'ftplist' becomes unresponsive past a wait t
 'timeout0' can be extended by defining a larger -s value than what is hard-coded.
 
 I've observed at least one instance in which the dns caching process stalled for such a long time that
-I gave up on it. I made it restart if it takes longer than 50 seconds.
+I gave up on it. I make it restart if it takes longer than 50 seconds for a single dns caching attempt.
+
 
 cc pkg_ping.c -o pkg_ping
 
