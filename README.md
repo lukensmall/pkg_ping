@@ -10,7 +10,9 @@ Compiler optimizations for speed is probably not worth the extra second of compi
 run-time; everything else happens in the blink of an eye.
 
 pledge() is updated throughout. Because of how unveil() is designed, unveil() limits are created up front and
-immediately takes away the possibility to unveil() any further.
+immediately takes away the possibility to unveil() any further. To run smoothly, this program may need to call itself.
+If it is called from another program such as a C program, it will need to be able to call the program passed by the exec family
+of functions into argv[0]
 
 It automatically discovers whether you are running a release vs a current or beta snapshot!
 
@@ -32,11 +34,11 @@ It uses several commandline options:
 
 -f prohibits a fork()ed process from writing the fastest mirror to file even if it has the power to do so as root.
 
--g generates the massive https list from which to retrieve and parse "ftplist", which you no doubt, noticed when
-   you look at the source code. It downloads an 11 byte timestamp which is in all mirrors, whereas not all mirrors
-   might have snapshots of your architecture or version. It presets options such as minimum verboseness of -v, 
+-g generates the large https list from which to retrieve and parse "ftplist", which you no doubt, noticed if
+   you looked at the source code. It downloads an 11 byte timestamp which is in all mirrors, whereas not all mirrors
+   might have snapshots or desired release of your architecture or version. It presets options such as minimum verboseness of -v, 
    -f, -P, and finally: -S because the mirror list needs to be securely downloaded. This flag will also ignore
-   effects of -O, -p and -n.
+   -O, -p and -n flags.
 
 -h will print the "help" options.
 
@@ -54,6 +56,8 @@ It uses several commandline options:
 
 -n searches for next release package folders! It adds .1 to your version and searches for the release.
 
+If both -n and -p are specified, it will default to the last argument specified.
+
 -s will accept floating-point timeout like 1.5 seconds using strtold() and handrolled validation, eg. "-s 1.5" . Default 5.
    If -g is specified -s defaults to 10.
 
@@ -65,7 +69,8 @@ It uses several commandline options:
 -u will make it avoid loading mirrors with "USA" in the label for encryption export compliance
    (if that's still a thing) if you are searching from outside of the USA and Canada.
    I'm not sure if this eliminates all mirrors located in the USA. Mirrors with "(CDN)" label may be from the USA.
-   Use your best judgement.
+   Use your best judgement. If -u is used, usa_cmp() won't be used which will sort USA mirrors followed by CDN mirrors
+   then followed by Canada mirrors.
 
 -v will show when it is fetching "ftplist" from one of the many hard coded mirrors, prints out the results 
    sorted in reverse order by time or if it is timed out, or a download error,
@@ -97,10 +102,13 @@ something that running it again won't likely solve.
 
 If an error is thrown in the processes that precache dns records and writes the mirror to disk, it will restart.
 It will also restart if downloading 'ftplist' becomes unresponsive past a wait time defined in 'timeout0'.
+timeout0 specifies the maximum time it will wait to download the fresh mirror list: "ftplist"
 'timeout0' can be extended by defining a larger -s value than what is hard-coded.
 
 I've observed at least one instance in which the dns caching process stalled for such a long time that
 I gave up on it. I make it restart if it takes longer than 50 seconds for a single dns caching attempt.
+If the timeout is too short, it could cause many loops which may both exhaust the quantity of -l loops
+which may cause a needless failure and will needlessly and repeatedly beat up on the mirrors.
 
 
 cc pkg_ping.c -o pkg_ping
