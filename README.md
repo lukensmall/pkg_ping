@@ -105,6 +105,7 @@ cc pkg_ping.c -o pkg_ping
 cc pkg_ping.c -march=native -mtune=native -O2 -pipe -o pkg_ping
 
 Example usages:
+
 ./pkg_ping -vs1.5 -vvu
 
 ./pkg_ping -vSvs 2
