@@ -94,11 +94,16 @@ MIRROR *array = NULL;
 
 /* .1 second for an ftp SIGINT to turn into a SIGKILL */
 const struct timespec timeout_kill = { 0, 100000000 };
+/* 50 seconds for dns_cache_d to respond */
+const struct timespec timeout_d = { 50, 0 };
 
 static void
 free_array()
 {
-	/* There's no need for useless junking while cleaning up */
+	/*
+	 * There's no need for useless junking while cleaning up.
+	 * array_length is never decreased in the program
+	 */
 	malloc_options = "jj";
 	
 	MIRROR *ac = array + array_length;
@@ -127,20 +132,20 @@ usa_cmp(const void *a, const void *b)
 	if (temp)
 		return 0;
 
-	/* prioritize Canada mirrors next */
-	temp = (strstr(one_label, "Canada") != NULL);
-	if (temp != (strstr(two_label, "Canada") != NULL)) {
-		if (temp)
-			return -1;
-		return 1;
-	}
+        /* prioritize Content Delivery Network "CDN" mirrors next */
+        temp = (strstr(one_label, "CDN") != NULL);
+        if (temp != (strstr(two_label, "CDN") != NULL)) {
+                if (temp)
+                        return -1;
+                return 1;
+        }
 
 	if (temp)
 		return 0;
 
-	/* prioritize Content Delivery Network "CDN" mirrors last */
-	temp = (strstr(one_label, "CDN") != NULL);
-	if (temp != (strstr(two_label, "CDN") != NULL)) {
+	/* prioritize Canada mirrors last */
+	temp = (strstr(one_label, "Canada") != NULL);
+	if (temp != (strstr(two_label, "Canada") != NULL)) {
 		if (temp)
 			return -1;
 		return 1;
@@ -150,7 +155,7 @@ usa_cmp(const void *a, const void *b)
 
 /*
  * compare the labels alphabetically by proper decreasing
- *  hierarchy which are in reverse order between commas.
+ * hierarchy which are in reverse order between commas.
  */
 static int
 label_cmp_minus_usa(const void *a, const void *b)
@@ -179,8 +184,8 @@ label_cmp_minus_usa(const void *a, const void *b)
 	while(ret == 0 && i == 3) {
 
 		/*
-		 * search for a comma before the
-		 * one found in the previous iteration
+		 * search for a comma before the one
+		 * found in the previous iteration
 		 */
 
 		while (one_label <= --red) {
@@ -274,6 +279,11 @@ diff_cmp(const void *a, const void *b)
 	return label_cmp_minus_usa(b, a);
 }
 
+/*
+ * at this time, diff values represent the length of their http char*
+ * stripped of the leading "http://" or "https://" and if it exists,
+ * the trailing "/pub/OpenBSD".
+ */
 static int
 diff_cmp_g(const void *a, const void *b)
 {
@@ -297,9 +307,9 @@ diff_cmp_g(const void *a, const void *b)
 }
 
 /*
- * diff_cmp can be used in the place of this function, but it
- * is more efficient to avoid the many unnecessary strcmp() for mirrors
- * which have been turned to diff == 0 which are going to be ignored.
+ * diff_cmp_g can be used in the place of this function, but it is
+ * far more efficient to avoid the many unnecessary strcmp() for mirrors
+ * which have been turned to diff == 0; to be excised from the output.
  */
 static int
 diff_cmp_g2(const void *a, const void *b)
@@ -309,10 +319,12 @@ diff_cmp_g2(const void *a, const void *b)
 
 	/*
 	 * If either are an OpenBSD.org mirror...
-	 *    (which means a non-zero length)
+	 *    (which means a non-zero diff)
 	 *
-	 *  Most of the time both will be zero
-	 *  if they are, dont process further.
+	 *  Vast majority of the time both will be zero
+	 *         if so, dont process further.
+	 *
+	 * Otherwise, process like diff_cmp_g
 	 */
 	if (one_len | two_len) {
 
@@ -1137,7 +1149,7 @@ struct winsize {
                         /* GENERATED CODE BEGINS HERE */
 
 
-        const char *ftp_list[55] = {
+        const char *ftp_list[54] = {
 
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
            "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
@@ -1154,12 +1166,12 @@ struct winsize {
    "mirror.litnet.lt","mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org",
     "ftp.jaist.ac.jp","mirror.esc7.net","mirror.ihost.md","mirror.ox.ac.uk",
       "mirrors.mit.edu","ftp.icm.edu.pl","mirror.one.com","ftp.cc.uoc.gr",
- "ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp","ftp.nluug.nl","ftp.riken.jp",
-              "ftp.psnc.pl","ftp.bit.nl","ftp.fau.de","ftp.fsn.hu"
+  "ftp.spline.de","www.ftp.ne.jp","ftp.nluug.nl","ftp.riken.jp","ftp.psnc.pl",
+                     "ftp.bit.nl","ftp.fau.de","ftp.fsn.hu"
 
         };
 
-        const int index = 55;
+        const int index = 54;
 
 
 
@@ -1924,12 +1936,60 @@ struct winsize {
 				fflush(stdout);
 			}
 
-			i = read(dns_cache_d_socket[1], &v, 1);
+
+
+
+
+
+
+			/*
+			 * I use kevent here, just so I can restart
+			 * the program again if DNS daemon is stuck
+			 */
+			EV_SET(&ke, dns_cache_d_socket[1], EVFILT_READ,
+			    EV_ADD | EV_ONESHOT, 0, 0, NULL);
+			i = kevent(kq, &ke, 1, &ke, 1, &timeout_d);
 
 			if ((verbose >> 2) == 0) {
 				printf("\b \b");
 				fflush(stdout);
 			}
+
+			if (i == -1) {
+				printf("%s ", strerror(errno));
+				printf("kevent, timeout_d may be too large. ");
+				printf("line: %d\n", __LINE__);
+				return 1;
+			}
+
+			if (i != 1) {
+				kill(dns_cache_d_pid, SIGINT);
+
+				/*
+				 * give it time to gracefully abort, play
+				 *  nice with the server and reap event
+				 */
+				i = kevent(kq, NULL, 0, &ke, 1, &timeout_kill);
+				if (i == -1)
+					err(1, "kevent, line: %d", __LINE__);
+						
+				if (i == 0) {
+
+					kill(dns_cache_d_pid, SIGKILL);
+					if (kevent(kq, NULL, 0, &ke, 1, NULL) == -1)
+						err(1, "kevent, line: %d", __LINE__);
+				}
+
+				waitpid(dns_cache_d_pid, NULL, 0);
+				
+				dns_cache = 0;
+				
+				
+				goto restart_dns_err;
+			}
+
+
+			i = read(dns_cache_d_socket[1], &v, 1);
 
 			if (i < 1) {
 
