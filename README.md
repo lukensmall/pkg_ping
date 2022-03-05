@@ -35,7 +35,8 @@ It uses several commandline options:
 -g generates the massive https list from which to retrieve and parse "ftplist", which you no doubt, noticed when
    you look at the source code. It downloads an 11 byte timestamp which is in all mirrors, whereas not all mirrors
    might have snapshots of your architecture or version. It presets options such as minimum verboseness of -v, 
-   -f, -P, and finally: -S because the mirror list needs to be securely downloaded. This flag will also override -O, -p and -n.
+   -f, -P, and finally: -S because the mirror list needs to be securely downloaded. This flag will also ignore
+   effects of -O, -p and -n.
 
 -h will print the "help" options.
 
@@ -87,7 +88,7 @@ if no -v or if -V is used, so if you want the fastest single result, don't use -
 If it is run as root, it will make ftp calling processes change to the pkg_fetch user which only has read access to the /var/empty directory,
 and ftp(1) doesn't unveil() so it may actually be safer to run as root.
 
-If the process spins up dns caching, file writing and is calling ftp, it can run 4 processes at one time, all with very different pledge sets.
+If the parent process spins up dns caching, file writing and is calling ftp, it can be running 4 processes at one time, all with very different pledge sets.
 
 If it returns 1, something very bad has occurred or the timeout value is too low to find a successful mirror;
 something that running it again won't likely solve.
@@ -95,6 +96,9 @@ something that running it again won't likely solve.
 If an error is thrown in the processes that precache dns records and writes the mirror to disk, it will restart.
 It will also restart if downloading 'ftplist' becomes unresponsive past a wait time defined in 'timeout0'.
 'timeout0' can be extended by defining a larger -s value than what is hard-coded.
+
+I've observed at least one instance in which the dns caching process stalled for such a long time that
+I gave up on it. I made it restart if it takes longer than 50 seconds.
 
 cc pkg_ping.c -o pkg_ping
 
