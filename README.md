@@ -108,7 +108,7 @@ timeout0 specifies the maximum time it will wait to download the fresh mirror li
 I've observed at least one instance in which the dns caching process stalled for such a long time that
 I gave up on it. I make it restart if it takes longer than 50 seconds for a single dns caching attempt.
 If the timeout is too short, it could cause many loops which may both exhaust the quantity of -l loops
-which may cause a needless failure and will needlessly and repeatedly beat up on the mirrors.
+which may cause a needless failure and may needlessly and repeatedly beat up on the mirrors.
 
 
 cc pkg_ping.c -o pkg_ping
