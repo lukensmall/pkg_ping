@@ -669,7 +669,12 @@ dns_exit1:
  * if there's a possibility of the main() getting overrun,
  * this process performs some sanity checks to, among
  * other things, prevent /etc/installurl from becoming a
- * massive file which fills up the partition.
+ * massive file which fills up the partition. That
+ * scenario is perhaps possible if the program is
+ * called with doas so that the program has root privileges
+ * but the caller isn't root, so they don't have full
+ * access to fill up the partition in which /etc/ resides
+ * all by themselves.
  */
 static __attribute__((noreturn)) void
 file_d(const int write_pipe, const int8_t secure, const int8_t verbose)
@@ -2051,7 +2056,7 @@ restart_dns_err:
 				continue;
 			} else if (v == 'u') {
 				if (verbose >= 2)
-					printf("blocked subdomain.\n");
+					printf("BLOCKED subdomain!\n");
 				array[c].diff = s + 4;
 				continue;
 			}
@@ -2661,7 +2666,7 @@ generate_jump:
 			else if (ac->diff == s + 3)
 				printf("DNS record not found");
 			else
-				printf("BLOCKED domain");
+				printf("BLOCKED subdomain!");
 
 			
 			printf("\n        %s\n", ac->http + h);
