@@ -847,14 +847,11 @@ char *diff_array = NULL;
 /* 
  * print long double which is <1 and >0, without the leading '0'
  * eg. 0.25 is printed: .25
- * it doesn't get here unless diff < 1
+ * it doesn't get here unless diff <1 and >0
  */
 static void
 print_sub_one(long double diff)
-{
-	if (diff <= (long double)0)
-		errx(1, "diff is impossible value: %.9Lf", diff);
-	
+{	
 	int i = snprintf(diff_array, 12, "%.9Lf", diff);
 	if (i != 11) {
 		if (i < 0)
@@ -1169,7 +1166,7 @@ struct winsize {
                         /* GENERATED CODE BEGINS HERE */
 
 
-        const char *ftp_list[56] = {
+        const char *ftp_list[55] = {
 
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
            "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
@@ -1183,16 +1180,15 @@ struct winsize {
          "ftp.eu.openbsd.org","ftp.fr.openbsd.org","ftp.lysator.liu.se",
          "mirror.fsmg.org.nz","mirror.ungleich.ch","mirrors.dotsrc.org",
           "openbsd.ipacct.com","ftp.hostserver.de","mirrors.sonic.net",
-  "mirrors.ucr.ac.cr","mirror.labkom.id","mirror.litnet.lt","mirror.yandex.ru",
-    "cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.esc7.net",
-     "mirror.ihost.md","mirror.ox.ac.uk","mirrors.mit.edu","ftp.icm.edu.pl",
-        "mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de",
-    "www.ftp.ne.jp","ftp.nluug.nl","ftp.riken.jp","ftp.psnc.pl","ftp.bit.nl",
-                            "ftp.fau.de","ftp.fsn.hu"
+  "mirrors.ucr.ac.cr","mirror.labkom.id","mirror.litnet.lt","cdn.openbsd.org",
+    "ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.esc7.net","mirror.ihost.md",
+     "mirror.ox.ac.uk","mirrors.mit.edu","ftp.icm.edu.pl","mirror.one.com",
+ "ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp","ftp.nluug.nl",
+       "ftp.riken.jp","ftp.psnc.pl","ftp.bit.nl","ftp.fau.de","ftp.fsn.hu"
 
         };
 
-        const int index = 56;
+        const int index = 55;
 
 
 
@@ -2179,7 +2175,7 @@ restart_dns_err:
 			if (array[c].diff >= s) {
 				array[c].diff = s;
 				printf("Timeout\n");
-			} else if (array[c].diff < (long double)1) {
+			} else if (array[c].diff < 1 && array[c].diff > 0) {
 				print_sub_one(array[c].diff);
 				printf("\n");
 			} else {
@@ -2597,7 +2593,7 @@ generate_jump:
 					
 				printf(" : ");
 
-				if (ac->diff < (long double)1) {
+				if (ac->diff < 1 && array[c].diff > 0) {
 					printf("%s", dt_str);
 					print_sub_one(ac->diff);
 				} else {
