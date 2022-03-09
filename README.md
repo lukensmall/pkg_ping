@@ -37,12 +37,12 @@ It uses several commandline options:
 -g generates the large https list from which to retrieve and parse "ftplist", which you no doubt, noticed if
    you looked at the source code. It downloads an 11 byte timestamp which is in all mirrors, whereas not all mirrors
    might have snapshots or desired release of your architecture or version. It presets options such as minimum verboseness of -v, 
-   -f, -P, and finally: -S because the mirror list needs to be securely downloaded. This flag will also ignore
-   -O, -p and -n flags.
+   -f, and finally: -S because the mirror list needs to be securely downloaded. This flag will also reset
+   variables set by -O, -p and -n.
 
 -h will print the "help" options.
 
--l (letter ell) will automatically loop a specified integer number of times if there are repeated 'ftplist' download errors.
+-l (letter ell) will automatically loop a specified integer number of times if there are repeated potentially correctable errors.
    It will randomly select a different mirror each time it runs.
    It will return a value of 2 when the looping is exhausted. If it isn't specified, a 20x loop will be started.
    when it loops, it will detect if the last argv argument starts with "-l" if it does, it will ignore it to minimize the
