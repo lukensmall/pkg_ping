@@ -1,4 +1,3 @@
-
 /*
  * BSD 2-Clause License
  *
@@ -211,11 +210,14 @@ blue_jump:
 	}
 
 	if (ret == 0) {
+		
+		/* i equals 0, 1, or 2 */
+		
 		/*
 		 * if (i):
 		 * Either red or blue has no more comma
 		 * separated entries while remaining, equal.
-		 * The one with fewer commas is preferred.
+		 * The one with fewer commas is preferred first.
 		 * If red: i == 1, if blue: i == 2
 		 */
 		if (i == 1)
@@ -231,7 +233,7 @@ blue_jump:
 		 * provide useful information unless
 		 * the labels are exactly equal.
 		 * It isn't worth wasting time testing
-		 * it initially because of its rarity.
+		 * for it initially because of its rarity.
 		 */
 		return strcmp(
 			      ((MIRROR *) a)->http + h,
@@ -1666,7 +1668,7 @@ struct winsize {
 			continue;
 		}
 
-		if (verbose > 0) {
+		if (verbose >= 1) {
 			/*
 			 * safety check for label_cmp_minus_usa():
 			 * make sure there is a space after last comma
@@ -2284,9 +2286,8 @@ restart_dns_err:
 		 *          then process http for printing
 		 */
 		n = 1;
-		ac = array + se + 1;
-		while (array <= --ac) {
-
+		ac = array + se;
+		do {
 			cut = ac->http += h;
 			j = strlen(cut);
 
@@ -2319,7 +2320,7 @@ restart_dns_err:
 				   )
 					n = 0;
 			}
-		}
+		} while (array != ac--);
 
 
 
