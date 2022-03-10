@@ -11,8 +11,7 @@ run-time; everything else happens in the blink of an eye.
 
 pledge() is updated throughout. Because of how unveil() is designed, unveil() limits are created up front and
 immediately takes away the possibility to unveil() any further. To run smoothly, this program may need to call itself.
-If it is called from another program such as a C program, it will need to be able to call the program passed by the exec family
-of functions into argv[0]
+If it is called from another program such as a C program, it will need to be able to call the program passed by the exec family of functions into argv[0]
 
 It automatically discovers whether you are running a release vs a current or beta snapshot!
 
@@ -36,9 +35,9 @@ It uses several commandline options:
 
 -g generates the large https list from which to retrieve and parse "ftplist", which you no doubt, noticed if
    you looked at the source code. It downloads an 11 byte timestamp which is in all mirrors, whereas not all mirrors
-   might have snapshots or desired release of your architecture or version. It presets options such as minimum verboseness of -v, 
-   -f, and finally: -S because the mirror list needs to be securely downloaded. This flag will also reset
-   variables set by -O, -p and -n.
+   might have snapshots or desired release of your architecture or version. It presets options such as minimum 
+   verboseness of -v, -f, and finally: -S because the mirror list needs to be securely downloaded. 
+   This flag will also reset variables set by -O, -p and -n.
 
 -h will print the "help" options.
 
@@ -92,8 +91,8 @@ If both -n and -p are specified, it will default to the last argument specified.
 pkg_ping will shorten the timeout period to the download time of the fastest previous mirror throughout ftp timing calls
 if no -v or if -V is used, so if you want the fastest single result, don't use -v or you could use -V, but it won't print the result to the screen.
 
-If it is run as root, it will make ftp calling processes change to the pkg_fetch user which only has read access to the /var/empty directory,
-and ftp(1) doesn't unveil() so it may actually be safer to run as root.
+If it is run as root, it will make ftp calling processes change to the pkg_fetch user and ftp will revert to its environment which only has read access to the /var/empty directory,
+and ftp(1) doesn't unveil() so it probably is safer to run as root.
 
 If the parent process spins up dns caching, file writing and is calling ftp, it can be running 4 processes at one time, all with very different pledge sets.
 
