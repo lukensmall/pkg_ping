@@ -43,8 +43,11 @@
  */
 
 /*
+ * 	// the following call is destructive:
+ * 
  *	indent pkg_ping.c -bap -br -ce -ci4 -cli0 -d0 -di0 -i8 \
  *	-ip -l79 -nbc -ncdb -ndj -ei -nfc1 -nlp -npcs -psl -sc -sob
+ * 
  *
  *	cc pkg_ping.c -o pkg_ping
  *
@@ -328,7 +331,7 @@ diff_cmp_g2(const void *a, const void *b)
 	 *
 	 * Otherwise, process like diff_cmp_g
 	 */
-	if (one_len | two_len) {
+	if (one_len || two_len) {
 
 		/* sort those with greater len values first */
 
@@ -376,8 +379,10 @@ manpage()
 	printf("[-n (search for mirrors with the Next release!)]\n");
 
 	printf("[-O (if you're running a snapshot, it will Override it and\n");
-	printf("        search for release mirrors. if you're running a release,\n");
-	printf("        it will Override it and search for snapshot mirrors.)\n");
+	printf("        search for release mirrors. ");
+	printf("If you're running a release,\n");
+	printf("        it will Override it and ");
+	printf("search for snapshot mirrors.)\n");
 
 	printf("[-p (search for mirrors with the Previous release!)]\n");
 
@@ -388,11 +393,11 @@ manpage()
 	printf("        http mirrors still preserve file integrity!)]\n");
 
 	printf("[-u (no USA mirrors to comply ");
-	printf("with USA encryption export laws)]\n");
+	printf("with USA encryption export laws.)]\n");
 
 	printf("[-v (increase Verbosity. It recognizes up to 4 of these)]\n");
 
-	printf("[-V (no Verbose output. No output but error messages)]\n\n");
+	printf("[-V (no Verbose output. No output except error messages)]\n\n");
 
 
 	printf("More information at: ");
@@ -447,7 +452,7 @@ struct addrinfo {
 				   '8','9','a','b',
 				   'c','d','e','f' };
 
-	char *dns_line = calloc(256, sizeof(char));
+	char *dns_line = calloc(1256, sizeof(char));
 	if (dns_line == NULL) {
 		printf("calloc\n");
 		goto dns_exit1;
@@ -455,15 +460,15 @@ struct addrinfo {
 
 dns_loop:
 
-	i = read(dns_socket, dns_line, 256);
+	i = read(dns_socket, dns_line, 1256);
 	if (i == 0) {
 		free(dns_line);
 		close(dns_socket);
 		_exit(0);
 	}
 
-	if (i == 256) {
-		printf("i > 255, line: %d\n", __LINE__);
+	if (i == 1256) {
+		printf("i > 1255, line: %d\n", __LINE__);
 		goto dns_exit1;
 	}
 
@@ -693,13 +698,13 @@ file_d(const int write_pipe, const int8_t secure, const int8_t verbose)
 	char *file_w = NULL;
 	FILE *pkg_write = NULL;
 
-	file_w = calloc(302, sizeof(char));
+	file_w = calloc(1302, sizeof(char));
 	if (file_w == NULL) {
 		printf("calloc\n");
 		_exit(1);
 	}
 
-	int received = read(write_pipe, file_w, 301);
+	int received = read(write_pipe, file_w, 1301);
 
 	if (received == -1) {
 		printf("%s ", strerror(errno));
@@ -717,7 +722,7 @@ file_d(const int write_pipe, const int8_t secure, const int8_t verbose)
 		goto file_cleanup;
 	}
 	
-	if (received == 301) {
+	if (received == 1301) {
 		printf("received mirror is too large\n");
 		printf("/etc/installurl not written.\n");
 		goto file_cleanup;
@@ -1097,6 +1102,12 @@ struct winsize {
 
 	if (s > 1000)
 		errx(1, "try an -s less than, equal to 1000");
+
+
+	/* 
+	 * 1/64th is represented exactly within 
+	 * binary datatype long double
+	 */
 	if (s < (long double)0.015625)
 		errx(1, "try an -s greater than or equal to 0.015625 (1/64)");
 
@@ -1231,7 +1242,7 @@ struct winsize {
 
 		close(ftp_out[STDIN_FILENO]);
 
-		n = 300;
+		n = 1300;
 		line = calloc(n, sizeof(char));
 		if (line == NULL) {
 			printf("calloc\n");
@@ -1527,8 +1538,8 @@ struct winsize {
 	}
 
 
-	/* if the index for line[] can exceed 254, it will error out */
-	line = calloc(255, sizeof(char));
+	/* if the index for line[] can exceed 1254, it will error out */
+	line = calloc(1255, sizeof(char));
 	if (line == NULL) {
 		easy_ftp_kill(kq, &ke, ftp_pid);
 		errx(1, "calloc");
@@ -1586,7 +1597,7 @@ struct winsize {
 	}
 
 	while (read(c, &v, 1) == 1) {
-		if (pos == 254) {
+		if (pos == 1254) {
 			line[pos] = '\0';
 			printf("'line': %s\n", line);
 			printf("pos got too big! line: %d\n", __LINE__);
@@ -1835,7 +1846,7 @@ struct winsize {
 		ac = array + array_length;
 		i = (array_length >= 100) + 10;
 
-		while (array != ac--) {
+		while (array <= --ac) {
 			
 			pos = strlen(ac->label);
 			if (pos > pos_maxl)
@@ -1957,10 +1968,6 @@ struct winsize {
 
 
 
-
-
-
-
 			/*
 			 * I use kevent here, just so I can restart
 			 * the program again if DNS daemon is stuck
@@ -1982,27 +1989,10 @@ struct winsize {
 			}
 
 			if (i != 1) {
-				kill(dns_cache_d_pid, SIGINT);
-
-				/*
-				 * give it time to gracefully abort, play
-				 *  nice with the server and reap event
-				 */
-				i = kevent(kq, NULL, 0, &ke, 1, &timeout_kill);
-				if (i == -1)
-					err(1, "kevent, line: %d", __LINE__);
-						
-				if (i == 0) {
-
-					kill(dns_cache_d_pid, SIGKILL);
-					if (kevent(kq, NULL, 0, &ke, 1, NULL) == -1)
-						err(1, "kevent, line: %d", __LINE__);
-				}
-
+				
+				kill(dns_cache_d_pid, SIGKILL);
+				
 				waitpid(dns_cache_d_pid, NULL, 0);
-				
-				dns_cache = 0;
-				
 				
 				goto restart_dns_err;
 			}
@@ -2031,10 +2021,9 @@ restart_dns_err:
 				free(time);
 				free(release);
 				
-				if (dns_cache) {
-					close(dns_cache_d_socket[1]);
-					waitpid(dns_cache_d_pid, NULL, 0);
-				}
+				close(dns_cache_d_socket[1]);
+				waitpid(dns_cache_d_pid, NULL, 0);
+				
 				if (to_file) {
 					close(write_pipe[STDOUT_FILENO]);
 					waitpid(write_pid, NULL, 0);
@@ -2320,7 +2309,7 @@ restart_dns_err:
 				   )
 					n = 0;
 			}
-		} while (array != ac--);
+		} while (array <= --ac);
 
 
 
@@ -2335,7 +2324,7 @@ restart_dns_err:
 					ac->http -= h - 1;
 				else
 					ac->http -= h;
-			} while (array != ac--);
+			} while (array <= --ac);
 
 			free(time);
 
@@ -2431,7 +2420,7 @@ gen_skip1:
 				ac->diff = 0;
 				--se;
 			}
-		} while (array != ac--);
+		} while (array <= --ac);
 
 		/* sort by longest length first,
 		 * if diff > 0 then
@@ -2510,7 +2499,7 @@ gen_skip2:
 				ac->http -= h - 1;
 			else
 				ac->http -= h;
-		} while (array != ac--);
+		} while (array <= --ac);
 
 		free(time);
 
@@ -2540,7 +2529,7 @@ generate_jump:
 		ac = array + se;
 		pos_maxl = strlen(ac->label);
 	
-		while (array != ac--) {
+		while (array <= --ac) {
 			pos = strlen(ac->label);
 			if (pos > pos_maxl)
 				pos_maxl = pos;
@@ -2571,7 +2560,7 @@ generate_jump:
 		c = array_length;
 		ac = array + c;
 
-		while (array != ac--) {
+		while (array <= --ac) {
 
 			if (array_length >= 100)
 				printf("\n%3d : ", c);
