@@ -102,12 +102,6 @@ const struct timespec timeout_d = { 50, 0 };
 static void
 free_array()
 {
-	/*
-	 * There's no need for useless junking while cleaning up.
-	 * array_length is never decreased in the program
-	 */
-	malloc_options = "jj";
-	
 	MIRROR *ac = array + array_length;
 
 	while (array <= --ac) {
@@ -1685,7 +1679,7 @@ struct winsize {
 			 * make sure there is a space after last comma
 			 * which would allow the function to make the
 			 * assumption that 2 spaces after the comma is
-			 * on the array (or at least '\0'). A bad label 
+			 * on the array (or at least '\0'). A bad label
 			 * could otherwise be read past the the end of
 			 * the buffer.
 			 *
@@ -1693,7 +1687,7 @@ struct winsize {
 			 * but it costs less checking it here.
 			 */
 			line_temp = strrchr(line, ',');
-			if (line_temp && strncmp(line_temp, ", ", 2)) {
+			if (line_temp && line_temp[1] != ' ') {
 				free(array[array_length].http);
 				printf("label malformation: %s ", line);
 				printf("line: %d\n", __LINE__);
@@ -1776,7 +1770,7 @@ struct winsize {
 		restart(argc, argv, loop, verbose);
 	}
 
-	/* h = strlen("https://") instead of strlen("http://") if "secure" */
+	/* if "secure", h = strlen("https://") instead of strlen("http://") */
 	h += secure;
 
 	pos_max += tag_len;
@@ -1841,6 +1835,7 @@ struct winsize {
 	char *host = NULL;
 	char *cut = NULL;
 
+	/* calculations for preventing ugly line wraps in realtime output */
 	if (verbose >= 2) {
 		
 		ac = array + array_length;
