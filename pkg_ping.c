@@ -1985,10 +1985,7 @@ struct winsize {
 
 			if (i != 1) {
 				
-				kill(dns_cache_d_pid, SIGKILL);
-				
-				waitpid(dns_cache_d_pid, NULL, 0);
-				
+				kill(dns_cache_d_pid, SIGKILL);				
 				goto restart_dns_err;
 			}
 
