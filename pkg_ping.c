@@ -53,10 +53,12 @@
  *
  * 	If you want bleeding edge performance, you can try:
  *
- * 	cc pkg_ping.c -march=native -mtune=native -O2 -pipe -o pkg_ping
+ * 	cc pkg_ping.c -march=native -mtune=native -O3 -pipe -o pkg_ping
  *
- * 	You probably won't see an appreciable performance gain between the
+ * 	but, you ABSOLUTELY won't see ANY performance gain between the
  * 	getaddrinfo(3) and ftp(1) calls which fetch data over the network.
+ * 	Everything else happens in likely less than third of a second
+ * 	after the first ftp call starts to return its results.
  *
  * 	program designed to be viewed with tabs which are 8 characters wide
  */
@@ -99,6 +101,29 @@ const struct timespec timeout_kill = { 0, 100000000 };
 /* 50 seconds for dns_cache_d to respond */
 const struct timespec timeout_d = { 50, 0 };
 
+char *diff_string = NULL;
+
+/* 
+ * print long double which is <1 and >0, without the leading '0'
+ * eg. 0.25 is printed: .25
+ * it doesn't get here unless diff <1 and >0
+ */
+static void
+print_sub_one(long double diff)
+{	
+	int i = snprintf(diff_string, 12, "%.9Lf", diff);
+	if (i != 11) {
+		if (i < 0)
+			 printf("%s", strerror(errno));
+		else
+			printf("'line': %s,", diff_string);
+		printf(" snprintf, line: %d\n", __LINE__);
+		exit(1);
+	}
+	printf("%s", 1 + diff_string);
+}
+
+/* Called with atexit. Only function called with atexit. */
 static void
 free_array()
 {
@@ -109,6 +134,7 @@ free_array()
 		free(ac->http);
 	}
 	free(array);
+	free(diff_string);
 }
 
 static int
@@ -177,7 +203,7 @@ label_cmp_minus_usa(const void *a, const void *b)
 
 	int ret = strcmp(red + 2, blue + 2);
 
-	while(ret == 0 && i == 3) {
+	while (ret == 0 && i == 3) {
 
 		/*
 		 * search for a comma before the one
@@ -360,6 +386,9 @@ manpage()
 	printf("[-6 (only return IPv6 compatible mirrors)]\n");
 
 	printf("[-d (don't cache DNS)]\n");
+
+	printf("[-D (Debug mode. Short circuit mirror downloads.\n        ");
+	printf("Show elapsed time since ftplist starts downloading.)]\n");
 
 	printf("[-f (don't automatically write to File if run as root)]\n");
 
@@ -843,28 +872,6 @@ easy_ftp_kill(const int kq, struct kevent *ke, const pid_t ftp_pid)
  	waitpid(ftp_pid, NULL, 0);
 }
 
-char *diff_array = NULL;
-
-/* 
- * print long double which is <1 and >0, without the leading '0'
- * eg. 0.25 is printed: .25
- * it doesn't get here unless diff <1 and >0
- */
-static void
-print_sub_one(long double diff)
-{	
-	int i = snprintf(diff_array, 12, "%.9Lf", diff);
-	if (i != 11) {
-		if (i < 0)
-			 printf("%s", strerror(errno));
-		else
-			printf("'line': %s,", diff_array);
-		printf(" snprintf, line: %d\n", __LINE__);
-		exit(1);
-	}
-	printf("%s", 1 + diff_array);
-}
-
 int
 main(int argc, char *argv[])
 {
@@ -876,7 +883,7 @@ main(int argc, char *argv[])
 	int8_t num = 0, current = 0, secure = 0, verbose = 0;
 	int8_t generate = 0, override = 0, six = 0;
 	int8_t previous = 0, next = 0, s_set = 0;
-	int8_t dns_cache = 1, usa = 1;
+	int8_t dns_cache = 1, usa = 1, debug = 0;
 	int loop = 20;
 	long double S = 0;
 	pid_t ftp_pid = 0, write_pid = 0, dns_cache_d_pid = 0;
@@ -890,7 +897,7 @@ main(int argc, char *argv[])
 	int         block_pipe[2] = { -1, -1 };
 
 	struct timespec start = { 0, 0 }, end = { 0, 0 };
-	struct timespec timeout = { 0, 0 };
+	struct timespec timeout = { 0, 0 }, startD = { 0, 0 }, endD = { 0, 0};
 	char *line_temp = NULL, *line0 = NULL, *line = NULL, *release = NULL;
 	char *tag = NULL, *time = NULL;
 	size_t len = 0;
@@ -952,8 +959,8 @@ struct winsize {
 			err(1, "pledge, line: %d", __LINE__);
 	}
 
-	diff_array = calloc(12, sizeof(char));
-	if (diff_array == NULL)
+	diff_string = calloc(12, sizeof(char));
+	if (diff_string == NULL)
 		errx(1, "calloc");
 
 	for(c = 1; c < argc; ++c) {
@@ -969,13 +976,16 @@ struct winsize {
 	}
 
 
-	while ((c = getopt(argc, argv, "6dfghl:nOpSs:uvV")) != -1) {
+	while ((c = getopt(argc, argv, "6dDfghl:nOpSs:uvV")) != -1) {
 		switch (c) {
 		case '6':
 			six = 1;
 			break;
 		case 'd':
 			dns_cache = 0;
+			break;
+		case 'D':
+			debug = 1;
 			break;
 		case 'f':
 			to_file = 0;
@@ -1220,7 +1230,6 @@ struct winsize {
 
 	if (pipe(ftp_out) == -1)
 		err(1, "pipe, line: %d", __LINE__);
-
 
 	ftp_pid = fork();
 	if (ftp_pid == (pid_t) 0) {
@@ -1574,11 +1583,9 @@ struct winsize {
 	if (i != 1) {
 
 		easy_ftp_kill(kq, &ke, ftp_pid);
-		close(kq);
-		free(line);
-		free(time);
-		free(release);
-		close(ftp_out[STDIN_FILENO]);
+		
+		close(c);
+		
 		if (dns_cache) {
 			close(dns_cache_d_socket[1]);
 			waitpid(dns_cache_d_pid, NULL, 0);
@@ -1589,6 +1596,11 @@ struct winsize {
 		}
 		restart(argc, argv, loop, verbose);
 	}
+
+
+
+	if (debug)
+		clock_gettime(CLOCK_REALTIME, &startD);
 
 	while (read(c, &v, 1) == 1) {
 		if (pos == 1254) {
@@ -1755,10 +1767,6 @@ struct winsize {
 		if (verbose >= 0)
 			printf("There was an 'ftplist' download problem.\n");
 
-		close(kq);
-		free(line);
-		free(time);
-		free(release);
 		if (dns_cache) {
 			close(dns_cache_d_socket[1]);
 			waitpid(dns_cache_d_pid, NULL, 0);
@@ -1796,10 +1804,10 @@ struct winsize {
 			    label_cmp_minus_usa);
 		} /* else don't sort */
 	} else {
-		if (verbose > 1)
-			qsort(array, array_length, sizeof(MIRROR), label_cmp);
-		else if (verbose < 1)
+		if (verbose < 1)
 			qsort(array, array_length, sizeof(MIRROR), usa_cmp);
+		else if (verbose > 1)
+			qsort(array, array_length, sizeof(MIRROR), label_cmp);
 		/* else don't sort */
 	}
 
@@ -1928,7 +1936,7 @@ struct winsize {
 			
 		} else if (verbose >= 0) {
 			i = array_length - c;
-			if (c > 0) {
+			if (c) {
 				if ( i == 9 || i == 99 )
 					printf("\b \b");
 				n = i;
@@ -1996,9 +2004,6 @@ struct winsize {
 
 restart_dns_err:
 
-				close(std_err);
-				free(line);
-
 				if (verbose >= 2)
 					printf("dns_cache process issues\n\n");
 				else if (verbose >= 0) {
@@ -2009,10 +2014,6 @@ restart_dns_err:
 					} while (n);
 				}
 
-				close(kq);
-				free(time);
-				free(release);
-				
 				close(dns_cache_d_socket[1]);
 				waitpid(dns_cache_d_pid, NULL, 0);
 				
@@ -2073,6 +2074,8 @@ restart_dns_err:
 			read(block_pipe[STDIN_FILENO], &v, 1);
 			close(block_pipe[STDIN_FILENO]);
 
+			if (debug)
+				_exit(0);
 
 			execl("/usr/bin/ftp", "ftp", line0, line, NULL);
 
@@ -2098,7 +2101,6 @@ restart_dns_err:
 		}
 
 		close(block_pipe[STDOUT_FILENO]);
-
 
 		clock_gettime(CLOCK_REALTIME, &start);
 		i = kevent(kq, NULL, 0, &ke, 1, &timeout);
@@ -2176,8 +2178,6 @@ restart_dns_err:
 			array[c].diff = s;
 	}
 
-	close(kq);
-
 	if (dns_cache) {
 		close(dns_cache_d_socket[1]);
 		waitpid(dns_cache_d_pid, NULL, 0);
@@ -2191,7 +2191,6 @@ restart_dns_err:
 		printf("\b \b");
 		fflush(stdout);
 	}
-	close(std_err);
 	free(line);
 
 	if (verbose <= 0) {
@@ -2260,8 +2259,6 @@ restart_dns_err:
 		if (generate == 0)
 			goto generate_jump;
 
-		free(diff_array);
-	
 		/*
 		 * load diff with what will be printed http lengths
 		 *          then process http for printing
@@ -2368,7 +2365,7 @@ restart_dns_err:
 			if (n > 80) {
 
 				/* center the printed mirrors. Err to right */
-				for (j = (81 - (n - i)) / 2; j > 0; --j)
+				for (j = (81 - (n - i)) / 2; j; --j)
 					printf(" ");
 				do {
 					printf("\"%s\",", array[first].http);
@@ -2380,7 +2377,7 @@ restart_dns_err:
 		}
 
 		/* center the printed mirrors. Err to right */
-		for (j = (81 - n) / 2; j > 0; --j)
+		for (j = (81 - n) / 2; j; --j)
 			printf(" ");
 		while (first < se)
 			printf("\"%s\",", array[first++].http);
@@ -2460,7 +2457,7 @@ gen_skip1:
 			if (n > 80) {
 
 				/* center the printed mirrors. Err to right */
-				for (j = (81 - (n - i)) / 2; j > 0; --j)
+				for (j = (81 - (n - i)) / 2; j; --j)
 					printf(" ");
 				do {
 					printf("\"%s\",", array[first].http);
@@ -2471,7 +2468,7 @@ gen_skip1:
 		}
 
 		/* center the printed mirrors. Err to right */
-		for (j = (81 - n) / 2; j > 0; --j)
+		for (j = (81 - n) / 2; j; --j)
 			printf(" ");
 		while (first < se)
 			printf("\"%s\",", array[first++].http);
@@ -2494,6 +2491,9 @@ gen_skip2:
 		} while (array <= --ac);
 
 		free(time);
+
+		if (debug)
+			goto debug_display;
 
 		return 0;
 
@@ -2660,8 +2660,6 @@ generate_jump:
 		}
 		free(dt_str);
 	}
-	
-	free(diff_array);
 
 	if (array->diff >= s) {
 
@@ -2730,6 +2728,27 @@ no_good:
 			printf("\n");
 		printf("As root, type: echo ");
 		printf("\"%s\" > /etc/installurl\n", array->http);
+	}
+
+	if (debug) {
+		
+debug_display:
+		clock_gettime(CLOCK_REALTIME, &endD);
+
+
+		if (verbose != -1)
+			printf("\n");
+		printf("Elapsed time: ");
+
+		S = (long double) (endD.tv_sec  - startD.tv_sec ) +
+		    (long double) (endD.tv_nsec - startD.tv_nsec) /
+		    (long double) 1000000000;
+
+		if (S < 1 && S > 0) {
+			print_sub_one(S);
+			printf("\n");
+		} else
+			printf("%.9Lf\n", S);
 	}
 
 	return 0;
