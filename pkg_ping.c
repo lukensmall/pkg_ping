@@ -92,16 +92,16 @@ typedef struct {
 extern char *malloc_options;
 
 /* strlen("http://") == 7 */
-int8_t h = 7;
-int array_length = 0;
-MIRROR *array = NULL;
+static size_t h = 7;
+static size_t array_length = 0;
+static MIRROR *array = NULL;
 
 /* .1 second for an ftp SIGINT to turn into a SIGKILL */
-const struct timespec timeout_kill = { 0, 100000000 };
+static const struct timespec timeout_kill = { 0, 100000000 };
 /* 50 seconds for dns_cache_d to respond */
-const struct timespec timeout_d = { 50, 0 };
+static const struct timespec timeout_d = { 50, 0 };
 
-char *diff_string = NULL;
+static char *diff_string = NULL;
 
 /* 
  * print long double which is <1 and >0, without the leading '0'
@@ -140,11 +140,11 @@ free_array()
 static int
 usa_cmp(const void *a, const void *b)
 {
-	char *one_label = ((MIRROR *) a)->label;
-	char *two_label = ((MIRROR *) b)->label;
+	char *one_label = ((const MIRROR *) a)->label;
+	char *two_label = ((const MIRROR *) b)->label;
 
 	/* prioritize the USA mirrors first */
-	int temp = (strstr(one_label, "USA") != NULL);
+	size_t temp = (strstr(one_label, "USA") != NULL);
 	if (temp != (strstr(two_label, "USA") != NULL)) {
 		if (temp)
 			return -1;
@@ -183,9 +183,9 @@ static int
 label_cmp_minus_usa(const void *a, const void *b)
 {
 
-	char *one_label = ((MIRROR *) a)->label;
-	char *two_label = ((MIRROR *) b)->label;
-	int i = 3;
+	char *one_label = ((const MIRROR *) a)->label;
+	char *two_label = ((const MIRROR *) b)->label;
+	size_t i = 3;
 
 	/* start with the last comma */
 
@@ -259,8 +259,8 @@ blue_jump:
 		 * for it initially because of its rarity.
 		 */
 		return strcmp(
-			      ((MIRROR *) a)->http + h,
-			      ((MIRROR *) b)->http + h
+			      ((const MIRROR *) a)->http + h,
+			      ((const MIRROR *) b)->http + h
 			     );
 	}
 	return ret;
@@ -269,8 +269,8 @@ blue_jump:
 static int
 diff_cmp_minus_usa(const void *a, const void *b)
 {
-	long double one_diff = ((MIRROR *) a)->diff;
-	long double two_diff = ((MIRROR *) b)->diff;
+	const long double one_diff = ((const MIRROR *) a)->diff;
+	const long double two_diff = ((const MIRROR *) b)->diff;
 
 	if (one_diff < two_diff)
 		return -1;
@@ -284,8 +284,8 @@ diff_cmp_minus_usa(const void *a, const void *b)
 static int
 diff_cmp(const void *a, const void *b)
 {
-	long double one_diff = ((MIRROR *) a)->diff;
-	long double two_diff = ((MIRROR *) b)->diff;
+	const long double one_diff = ((const MIRROR *) a)->diff;
+	const long double two_diff = ((const MIRROR *) b)->diff;
 
 	if (one_diff < two_diff)
 		return -1;
@@ -315,16 +315,16 @@ diff_cmp_g(const void *a, const void *b)
 	/* sort those with greater diff values first */
 
 	int diff = (
-		    (int) ((MIRROR *) b)->diff
+		    (int) ((const MIRROR *) b)->diff
 		                 -
-		    (int) ((MIRROR *) a)->diff
+		    (int) ((const MIRROR *) a)->diff
 		   );
 
 	if (!diff) {
 
 		return strcmp(
-			      ((MIRROR *) a)->http,
-			      ((MIRROR *) b)->http
+			      ((const MIRROR *) a)->http,
+			      ((const MIRROR *) b)->http
 			     );
 
 	}
@@ -339,8 +339,8 @@ diff_cmp_g(const void *a, const void *b)
 static int
 diff_cmp_g2(const void *a, const void *b)
 {
-	int one_len = (int) ((MIRROR *) a)->diff;
-	int two_len = (int) ((MIRROR *) b)->diff;
+	const int one_len = (int) ((const MIRROR *) a)->diff;
+	const int two_len = (int) ((const MIRROR *) b)->diff;
 
 	/*
 	 * If either are an OpenBSD.org mirror...
@@ -359,8 +359,8 @@ diff_cmp_g2(const void *a, const void *b)
 		if (!diff) {
 
 			return strcmp(
-				      ((MIRROR *) a)->http,
-				      ((MIRROR *) b)->http
+				      ((const MIRROR *) a)->http,
+				      ((const MIRROR *) b)->http
 				     );
 
 		}
@@ -429,8 +429,8 @@ manpage()
 }
 
 static __attribute__((noreturn)) void
-dns_cache_d(const int dns_socket, const int8_t secure,
-	     const int8_t six, const int8_t verbose)
+dns_cache_d(const int dns_socket, const size_t secure,
+	     const size_t six, const ssize_t verbose)
 {
 	if (pledge("stdio dns", NULL) == -1) {
 		printf("%s ", strerror(errno));
@@ -438,7 +438,7 @@ dns_cache_d(const int dns_socket, const int8_t secure,
 		_exit(1);
 	}
 
-	int i = 0, c = 0;
+	ssize_t i = 0, c = 0;
 
 	struct addrinfo *res0 = NULL, *res = NULL;
 
@@ -464,7 +464,7 @@ struct addrinfo {
 	struct sockaddr_in6 *sa6 = NULL;
 	unsigned char *suc6 = NULL;
 
-	int8_t max = 0, i_temp = 0, i_max = 0;
+	ssize_t max = 0, i_temp = 0, i_max = 0;
 	char six_available = '0';
 
 	const char *dns_line0     = (secure) ? "https" : "http";
@@ -512,7 +512,7 @@ dns_loop:
 		
 		if (c) {
 			if (verbose == 4)
-				printf("%s\n", gai_strerror(c));
+				printf("%s\n", gai_strerror((int)c));
 			i = write(dns_socket, "f", 1);
 			if (i < 1) {
 				printf("%s ", strerror(errno));
@@ -707,7 +707,7 @@ dns_exit1:
  * all by themselves.
  */
 static __attribute__((noreturn)) void
-file_d(const int write_pipe, const int8_t secure, const int8_t verbose)
+file_d(const int write_pipe, const size_t secure, const ssize_t verbose)
 {
 
 	if (pledge("stdio cpath wpath", NULL) == -1) {
@@ -716,7 +716,7 @@ file_d(const int write_pipe, const int8_t secure, const int8_t verbose)
 		_exit(1);
 	}
 
-	int i = 0;
+	size_t i = 0;
 
 	char *file_w = NULL;
 	FILE *pkg_write = NULL;
@@ -727,7 +727,7 @@ file_d(const int write_pipe, const int8_t secure, const int8_t verbose)
 		_exit(1);
 	}
 
-	int received = read(write_pipe, file_w, 1301);
+	ssize_t received = read(write_pipe, file_w, 1301);
 
 	if (received == -1) {
 		printf("%s ", strerror(errno));
@@ -788,8 +788,8 @@ file_d(const int write_pipe, const int8_t secure, const int8_t verbose)
 		goto file_cleanup;
 	}
 
-	i = fwrite(file_w, 1, received + 1, pkg_write);
-	if (i < received + 1) {
+	i = fwrite(file_w, 1, (size_t)received + 1, pkg_write);
+	if (i < (size_t)received + 1) {
 		printf("write error occurred, line: %d\n", __LINE__);
 		fclose(pkg_write);
 		goto file_cleanup;
@@ -810,28 +810,28 @@ file_cleanup:
 }
 
 static __attribute__((noreturn)) void
-restart(int argc, char *argv[], const int loop, const int8_t verbose)
+restart(int argc, char *argv[], const size_t loop, const ssize_t verbose)
 {
 
 	if (loop == 0)
 		errx(2, "Looping exhausted: Try again.");
 
 	if (verbose != -1)
-		printf("restarting...loop: %d\n", loop);
+		printf("restarting...loop: %zu\n", loop);
 
 	const int n = argc - (argc > 1 && !strncmp(argv[argc - 1], "-l", 2));
 
-	char **arg_v = calloc(n + 1 + 1, sizeof(char *));
+	char **arg_v = calloc((size_t)n + 1 + 1, sizeof(char *));
 	if (arg_v == NULL)
 		errx(1, "calloc");
 
-	memcpy(arg_v, argv, n * sizeof(char *));
+	memcpy(arg_v, argv, (size_t)n * sizeof(char *));
 
 	const int len = 10;
 	arg_v[n] = calloc(len, sizeof(char));
 	if (arg_v[n] == NULL)
 		errx(1, "calloc");
-	int c = snprintf(arg_v[n], len, "-l%d", loop - 1);
+	int c = snprintf(arg_v[n], len, "-l%zu", loop - 1);
 	if (c >= len || c < 0) {
 		if (c < 0)
 			printf("%s", strerror(errno));
@@ -841,8 +841,8 @@ restart(int argc, char *argv[], const int loop, const int8_t verbose)
 		exit(1);
 	}
 
-	execv(arg_v[0], arg_v);
-	err(1, "execv failed, line: %d", __LINE__);
+	execvp(arg_v[0], arg_v);
+	err(1, "execvp failed, line: %d", __LINE__);
 }
 
 static void
@@ -878,18 +878,21 @@ main(int argc, char *argv[])
 
 	malloc_options = "CFGJJU";
 
-	int8_t root_user = !getuid();
-	int8_t to_file = root_user;
-	int8_t num = 0, current = 0, secure = 0, verbose = 0;
-	int8_t generate = 0, override = 0, six = 0;
-	int8_t previous = 0, next = 0, s_set = 0;
-	int8_t dns_cache = 1, usa = 1, debug = 0;
-	int loop = 20;
+	size_t root_user = !getuid();
+	size_t to_file = root_user;
+	size_t num = 0, current = 0, secure = 0;
+	size_t generate = 0, override = 0, six = 0;
+	size_t previous = 0, next = 0, s_set = 0;
+	size_t dns_cache = 1, usa = 1, debug = 0;
+	
+	ssize_t verbose = 0;
+	
 	long double S = 0;
 	pid_t ftp_pid = 0, write_pid = 0, dns_cache_d_pid = 0;
-	int kq = 0, i = 0, pos = 0, c = 0, n = 0;
-	int array_max = 100, tag_len = 0, j = 0;
-	int pos_max = 0, std_err = 0, entry_line = 0, exit_line = 0;
+	int kq = 0, std_err = 0, z = 0;
+	ssize_t i = 0, c = 0, n = 0, j = 0;
+	size_t loop = 20,  array_max = 100, tag_len = 0, len = 0;
+	size_t pos_max = 0, pos = 0, entry_line = 0, exit_line = 0;
 
 	int dns_cache_d_socket[2] = { -1, -1 };
 	int         write_pipe[2] = { -1, -1 };
@@ -900,7 +903,6 @@ main(int argc, char *argv[])
 	struct timespec timeout = { 0, 0 }, startD = { 0, 0 }, endD = { 0, 0};
 	char *line_temp = NULL, *line0 = NULL, *line = NULL, *release = NULL;
 	char *tag = NULL, *time = NULL;
-	size_t len = 0;
 	char v = '\0';
 /*
 from: /usr/src/sys/sys/event.h
@@ -1012,7 +1014,7 @@ struct winsize {
 					printf("numeric characters\n");
 					return 1;
 				}
-				loop = loop * 10 + optarg[c] - '0';
+				loop = loop * 10 + (size_t)(optarg[c] - '0');
 			} while (optarg[++c] != '\0');
 			break;
 		case 'n':
@@ -1136,8 +1138,7 @@ struct winsize {
 				close(dns_cache_d_socket[1]);
 				dns_cache_d(dns_cache_d_socket[0], secure,
 						six, verbose);
-				errx(1, "dns_cache_d returned! line: %d\n",
-				    __LINE__);
+				/* function cannot return */
 		}
 		close(dns_cache_d_socket[0]);
 	}
@@ -1156,8 +1157,7 @@ struct winsize {
 				close(write_pipe[STDOUT_FILENO]);
 				file_d(write_pipe[STDIN_FILENO],
 					secure, verbose);
-				errx(1, "file_d returned! line: %d\n",
-				    __LINE__);
+				/* function cannot return */
 		}
 		close(write_pipe[STDIN_FILENO]);
 	}
@@ -1183,29 +1183,29 @@ struct winsize {
                         /* GENERATED CODE BEGINS HERE */
 
 
-        const char *ftp_list[55] = {
+        const char *ftp_list[54] = {
 
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
            "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
             "ftp.rnl.tecnico.ulisboa.pt","mirrors.gethosted.online",
-  "mirrors.ocf.berkeley.edu","mirror.hs-esslingen.de","mirror2.sandyriver.net",
-   "mirrors.pidginhost.com","openbsd.cs.toronto.edu","*artfiles.org/openbsd",
-    "mirror.bytemark.co.uk","mirror.planetunix.net","www.mirrorservice.org",
-      "ftp4.usa.openbsd.org","mirror.aarnet.edu.au","openbsd.c3sl.ufpr.br",
-       "ftp.usa.openbsd.org","ftp2.eu.openbsd.org","mirror.edgecast.com",
-       "mirror.leaseweb.com","mirror.telepoint.bg","mirrors.gigenet.com",
-         "ftp.eu.openbsd.org","ftp.fr.openbsd.org","ftp.lysator.liu.se",
-         "mirror.fsmg.org.nz","mirror.ungleich.ch","mirrors.dotsrc.org",
-          "openbsd.ipacct.com","ftp.hostserver.de","mirrors.sonic.net",
-  "mirrors.ucr.ac.cr","mirror.labkom.id","mirror.litnet.lt","cdn.openbsd.org",
-    "ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.esc7.net","mirror.ihost.md",
-     "mirror.ox.ac.uk","mirrors.mit.edu","ftp.icm.edu.pl","mirror.one.com",
- "ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp","ftp.nluug.nl",
-       "ftp.riken.jp","ftp.psnc.pl","ftp.bit.nl","ftp.fau.de","ftp.fsn.hu"
+  "mirrors.ocf.berkeley.edu","mirror.hs-esslingen.de","mirrors.pidginhost.com",
+    "openbsd.cs.toronto.edu","*artfiles.org/openbsd","mirror.bytemark.co.uk",
+     "mirror.planetunix.net","www.mirrorservice.org","ftp4.usa.openbsd.org",
+      "mirror.aarnet.edu.au","openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org",
+       "ftp2.eu.openbsd.org","mirror.edgecast.com","mirror.leaseweb.com",
+        "mirror.telepoint.bg","mirrors.gigenet.com","ftp.eu.openbsd.org",
+         "ftp.fr.openbsd.org","ftp.lysator.liu.se","mirror.fsmg.org.nz",
+         "mirror.ungleich.ch","mirrors.dotsrc.org","openbsd.ipacct.com",
+ "ftp.hostserver.de","mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.labkom.id",
+   "mirror.litnet.lt","mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org",
+    "ftp.jaist.ac.jp","mirror.esc7.net","mirror.ihost.md","mirror.ox.ac.uk",
+      "mirrors.mit.edu","ftp.icm.edu.pl","mirror.one.com","ftp.cc.uoc.gr",
+  "ftp.spline.de","www.ftp.ne.jp","ftp.nluug.nl","ftp.riken.jp","ftp.psnc.pl",
+                     "ftp.bit.nl","ftp.fau.de","ftp.fsn.hu"
 
         };
 
-        const int index = 55;
+        const size_t index = 54;
 
 
 
@@ -1219,7 +1219,7 @@ struct winsize {
 
         };
 
-        const int index_g = 8;
+        const size_t index_g = 8;
 
 
                          /* GENERATED CODE ENDS HERE */
@@ -1246,7 +1246,7 @@ struct winsize {
 		close(ftp_out[STDIN_FILENO]);
 
 		n = 1300;
-		line = calloc(n, sizeof(char));
+		line = calloc((size_t)n, sizeof(char));
 		if (line == NULL) {
 			printf("calloc\n");
 			_exit(1);
@@ -1257,11 +1257,11 @@ struct winsize {
 			i = arc4random_uniform(index_g);
 
 			if (ftp_list_g[i][0] == '*') {
-				i = snprintf(line, n,
+				i = snprintf(line, (ulong)n,
 				   "https://%s/ftplist",
 				   1 + ftp_list_g[i]);
 			} else {
-				i = snprintf(line, n,
+				i = snprintf(line, (ulong)n,
 				    "https://%s/pub/OpenBSD/ftplist",
 				    ftp_list_g[i]);
 			}
@@ -1271,11 +1271,11 @@ struct winsize {
 			i = arc4random_uniform(index);
 
 			if (ftp_list[i][0] == '*') {
-				i = snprintf(line, n,
+				i = snprintf(line, (ulong)n,
 				    "https://%s/ftplist",
 				    1 + ftp_list[i]);
 			} else {
-				i = snprintf(line, n,
+				i = snprintf(line, (ulong)n,
 				    "https://%s/pub/OpenBSD/ftplist",
 				    ftp_list[i]);
 			}
@@ -1340,12 +1340,12 @@ struct winsize {
 
 	if (time == NULL) {
 		n = 20;
-		time = calloc(n, sizeof(char));
+		time = calloc((size_t)n, sizeof(char));
 		if (time == NULL) {
 			easy_ftp_kill(kq, &ke, ftp_pid);
 			errx(1, "calloc");
 		}
-		i = snprintf(time, n, "%Lf", s);
+		i = snprintf(time, (ulong)n, "%Lf", s);
 		if (i >= n || i < 0) {
 			if (i < 0)
 				printf("%s", strerror(errno));
@@ -1361,7 +1361,7 @@ struct winsize {
 	/* trim extra zeroes after decimal point in 'time' */
 	if (strchr(time, '.') != NULL) {
 		i = 0;
-		n = strlen(time);
+		n = (ssize_t)strlen(time);
 		while (time[--n] == '0')
 			i = n;
 
@@ -1474,8 +1474,9 @@ struct winsize {
 
 		if (next && i) {
 
-			n = strlen(release) + 1;
-			i = snprintf(release, n, "%.1f", atof(release) + .1);
+			n = (ssize_t)strlen(release) + 1;
+			i = snprintf(release, (ulong)n,
+			    "%.1f", atof(release) + .1);
 
 			if (i >= n || i < 0) {
 				if (i < 0)
@@ -1490,8 +1491,9 @@ struct winsize {
 
 		if (previous) {
 
-			n = strlen(release) + 1;
-			i = snprintf(release, n, "%.1f", atof(release) - .1);
+			n = (ssize_t)strlen(release) + 1;
+			i = snprintf(release, (ulong)n, "%.1f",
+			    atof(release) - .1);
 
 			if (i >= n || i < 0) {
 				if (i < 0)
@@ -1527,7 +1529,7 @@ struct winsize {
 			    "/%s/%s/SHA256", release, name->machine);
 		}
 
-		if (i >= tag_len + 1 || i < 0) {
+		if (i >= (ssize_t)tag_len + 1 || i < 0) {
 			if (i < 0)
 				printf("%s", strerror(errno));
 			else
@@ -1556,13 +1558,13 @@ struct winsize {
 
 	atexit(free_array);
 
-	c = ftp_out[STDIN_FILENO];
+	z = ftp_out[STDIN_FILENO];
 
 	/*
 	 * I use kevent here, just so I can restart
 	 *   the program again if ftp is sluggish
 	 */
-	EV_SET(&ke, c, EVFILT_READ,
+	EV_SET(&ke, z, EVFILT_READ,
 	    EV_ADD | EV_ONESHOT, 0, 0, NULL);
 	i = kevent(kq, &ke, 1, &ke, 1, &timeout0);
 
@@ -1584,7 +1586,7 @@ struct winsize {
 
 		easy_ftp_kill(kq, &ke, ftp_pid);
 		
-		close(c);
+		close(z);
 		
 		if (dns_cache) {
 			close(dns_cache_d_socket[1]);
@@ -1602,7 +1604,7 @@ struct winsize {
 	if (debug)
 		clock_gettime(CLOCK_REALTIME, &startD);
 
-	while (read(c, &v, 1) == 1) {
+	while (read(z, &v, 1) == 1) {
 		if (pos == 1254) {
 			line[pos] = '\0';
 			printf("'line': %s\n", line);
@@ -1633,7 +1635,7 @@ struct winsize {
 					pos_max = pos;
 
 				array[array_length].http =
-				    calloc(pos, sizeof(char));
+				    calloc((size_t)pos, sizeof(char));
 
 				if (array[array_length].http == NULL) {
 					easy_ftp_kill(kq, &ke, ftp_pid);
@@ -1719,10 +1721,12 @@ struct winsize {
 			if (line_temp) {
 				if (!strncmp(line_temp + 2, "The ", 4)) {
 					memmove(line_temp + 2, line_temp + 6,
-					    line + pos - (line_temp + 6));
+					    (size_t)
+					    (line + pos - (line_temp + 6))
+					    );
 				}
 			} else if (!strncmp(line, "The ", 4))
-				memmove(line, line + 4, pos - 4);
+				memmove(line, line + 4, (size_t)pos - 4);
 		}
 		
 		array[array_length].label = strdup(line);
@@ -1753,16 +1757,16 @@ struct winsize {
 		pos = num = 0;
 	}
 
-	close(ftp_out[STDIN_FILENO]);
+	close(z);
 
-	waitpid(ftp_pid, &n, 0);
+	waitpid(ftp_pid, &z, 0);
 
 	/*
 	 *            'ftplist' download error:
 	 * It's caused by no internet, bad dns resolution;
 	 *   Or from a faulty mirror or its bad dns info
 	 */
-	if (n || array_length == 0) {		
+	if (z || array_length == 0) {		
 
 		if (verbose >= 0)
 			printf("There was an 'ftplist' download problem.\n");
@@ -1783,7 +1787,7 @@ struct winsize {
 
 	pos_max += tag_len;
 
-	if (pos_max > (int)sizeof(line)) {
+	if (pos_max > sizeof(line)) {
 		free(line);
 		line = calloc(pos_max, sizeof(char));
 		if (line == NULL)
@@ -1838,8 +1842,8 @@ struct winsize {
 		err(1, "fcntl, line: %d\n", __LINE__);
 
 	MIRROR *ac = NULL;
-	int pos_maxl = 0, pos_maxh = 0, pos_maxb = 0, pos1 = 0;
-	int8_t num1 = 0, num2 = 0, num3 = 0;
+	size_t pos_maxl = 0, pos_maxh = 0, pos_maxb = 0, pos1 = 0;
+	ssize_t num1 = 0, num2 = 0, num3 = 0;
 	char *host = NULL;
 	char *cut = NULL;
 
@@ -1860,7 +1864,7 @@ struct winsize {
 			if (cut == NULL)
 				pos1 = strlen(host);
 			else
-				pos1 = cut - host;
+				pos1 = (size_t)(cut - host);
 				
 			if (pos1 > pos_maxh)
 				pos_maxh = pos1;
@@ -1871,9 +1875,9 @@ struct winsize {
 				pos_maxb = pos;
 		}
 
-		num1 = (w.ws_col >= i + pos_maxl + pos_max);
-		num2 = (w.ws_col >= i + pos_maxl + pos_maxh);
-		num3 = (w.ws_col >= i + pos_maxb);
+		num1 = (w.ws_col - i >= (ushort)(pos_maxl + pos_max));
+		num2 = (w.ws_col - i >= (ushort)(pos_maxl + pos_maxh));
+		num3 = (w.ws_col - i >= (ushort)(pos_maxb));
 	}
 				
 
@@ -1883,9 +1887,9 @@ struct winsize {
 	
 	pos_max -= h;
 	
-	for (c = 0; c < array_length; ++c) {
+	for (c = 0; c < (ssize_t)array_length; ++c) {
 
-		n = strlcpy(host, array[c].http + h, pos_max);
+		n = (ssize_t)strlcpy(host, array[c].http + h, pos_max);
 		memcpy(host + n, tag, tag_len + 1);
 
 
@@ -1901,15 +1905,15 @@ struct winsize {
 				printf("\n");
 			
 			if (array_length >= 100)
-				printf("%3d : ", array_length - c);
+				printf("%3zd : ", (ssize_t)array_length - c);
 			else
-				printf("%2d : ", array_length - c);
+				printf("%2zd : ", (ssize_t)array_length - c);
 				
 			if (num2) {
 				
-				i = strlen(array[c].label);
-				j = (pos_maxl + 1 - i) / 2;
-				n = pos_maxl - (i + j);
+				i = (ssize_t)strlen(array[c].label);
+				j = ((ssize_t)pos_maxl + 1 - i) / 2;
+				n = (ssize_t)pos_maxl - (i + j);
 
 				while (j--)
 					printf(" ");
@@ -1935,7 +1939,7 @@ struct winsize {
 				printf("%s\n", array[c].label);
 			
 		} else if (verbose >= 0) {
-			i = array_length - c;
+			i = (ssize_t)array_length - c;
 			if (c) {
 				if ( i == 9 || i == 99 )
 					printf("\b \b");
@@ -1945,7 +1949,7 @@ struct winsize {
 					n /= 10;
 				} while (n);
 			}
-			printf("%d", i);
+			printf("%zd", i);
 			fflush(stdout);
 		}
 
@@ -1955,7 +1959,7 @@ struct winsize {
 
 		if (dns_cache) {
 
-			i = write(dns_cache_d_socket[1], host, n);
+			i = write(dns_cache_d_socket[1], host, (size_t)n);
 			if (i < n)
 				goto restart_dns_err;
 
@@ -2007,7 +2011,7 @@ restart_dns_err:
 				if (verbose >= 2)
 					printf("dns_cache process issues\n\n");
 				else if (verbose >= 0) {
-					n = array_length - c;
+					n = (ssize_t)array_length - c;
 					do {
 						printf("\b \b");
 						n /= 10;
@@ -2142,9 +2146,9 @@ restart_dns_err:
 			array[c].diff = s;
 			continue;
 		}
-		waitpid(ftp_pid, &n, 0);
+		waitpid(ftp_pid, &z, 0);
 
-		if (n) {
+		if (z) {
 			array[c].diff = s + 1;
 			if (verbose >= 2)
 				printf("Download Error\n");
@@ -2168,9 +2172,9 @@ restart_dns_err:
 			}
 		} else if (verbose <= 0 && array[c].diff < S) {
 			S = array[c].diff;
-			timeout.tv_sec = (time_t)(S + .125);
+			timeout.tv_sec = (time_t)(S + (long double).125);
 			timeout.tv_nsec =
-			    (long) (((S + .125) -
+			    (long) (((S + (long double).125) -
 			    (long double) timeout.tv_sec) *
 			    (long double) 1000000000);
 
@@ -2226,9 +2230,9 @@ restart_dns_err:
 		} else
 			qsort(array, array_length, sizeof(MIRROR), diff_cmp);
 
-		int  de = -1, ds = -1,   te = -1, ts = -1,   se = -1;
+		ssize_t  de = -1, ds = -1,   te = -1, ts = -1,   se = -1;
 
-		c = array_length;
+		c = (ssize_t)array_length;
 		do {
 
 			if (array[--c].diff < s) {
@@ -2251,7 +2255,7 @@ restart_dns_err:
 		} while (c);
 
 
-		int first = 0, se0 = se;
+		ssize_t first = 0, se0 = se;
 
 		if (se == -1)
 			goto no_good;
@@ -2267,7 +2271,7 @@ restart_dns_err:
 		ac = array + se;
 		do {
 			cut = ac->http += h;
-			j = strlen(cut);
+			j = (ssize_t)strlen(cut);
 
 			if (j <= 12) {
 				(ac->http -= 1)[0] = '*';
@@ -2285,7 +2289,7 @@ restart_dns_err:
 				cut = strchr(ac->http, '/');
 
 				if (cut == NULL)
-					cut = ac->http + (int)ac->diff;
+					cut = ac->http + (size_t)ac->diff;
 
 				if (cut - ac->http > 12 &&
 				    (
@@ -2324,12 +2328,12 @@ restart_dns_err:
 		 * sort by longest length first, subsort http alphabetically
 		 *           It makes it kinda look like a flower.
 		 */
-		qsort(array, se + 1, sizeof(MIRROR), diff_cmp_g);
+		qsort(array, (size_t)se + 1, sizeof(MIRROR), diff_cmp_g);
 
 		printf("\n\n");
 		printf("                        ");
 		printf("/* GENERATED CODE BEGINS HERE */\n\n\n");
-		printf("        const char *ftp_list[%d] = {\n\n", se + 1);
+		printf("        const char *ftp_list[%ld] = {\n\n", se + 1);
 
 
 		/* n = 0; */
@@ -2339,7 +2343,7 @@ restart_dns_err:
 			 *    3 is the size of the printed: "",
 			 */
 
-			if (((int)array[c].diff) + 3 > 80)
+			if (((size_t)array[c].diff) + 3 > 80)
 				printf("\"%s\",\n", array[first++].http);
 			else
 				break;
@@ -2355,7 +2359,7 @@ restart_dns_err:
 			 * if (c == se) it doesn't print the comma
 			 */
 
-			n += i = ((int)array[c].diff) + 3 - (c == se);
+			n += i = ((ssize_t)array[c].diff) + 3 - (c == se);
 
 			/*
 			 * overflow:
@@ -2385,7 +2389,7 @@ gen_skip1:
 		printf("\"%s\"\n\n", array[se].http);
 
 		printf("        };\n\n");
-		printf("        const int index = %d;\n\n\n\n", se + 1);
+		printf("        const size_t index = %ld;\n\n\n\n", se + 1);
 
 
 		/*
@@ -2396,7 +2400,7 @@ gen_skip1:
 		do {
 			cut = strchr(ac->http, '/');
 			if (cut == NULL)
-				cut = ac->http + (int)ac->diff;
+				cut = ac->http + (size_t)ac->diff;
 			if (cut - ac->http <= 12 ||
 			    (
 			     strncmp(cut - 12, ".openbsd.org", 12)
@@ -2415,11 +2419,11 @@ gen_skip1:
 		 * if diff > 0 then
 		 * subsort http alphabetically
 		 */
-		qsort(array, se0 + 1, sizeof(MIRROR), diff_cmp_g2);
+		qsort(array, (size_t)se0 + 1, sizeof(MIRROR), diff_cmp_g2);
 
 		printf("     /* Trusted OpenBSD.org subdomain ");
 		printf("mirrors for generating this section */\n\n");
-		printf("        const char *ftp_list_g[%d] = {\n\n", se + 1);
+		printf("        const char *ftp_list_g[%ld] = {\n\n", se + 1);
 
 
 		n = 0;
@@ -2431,7 +2435,7 @@ gen_skip1:
 			 *    3 is the size of the printed: "",
 			 */
 
-			if (((int)array[c].diff) + 3 > 80)
+			if (((size_t)array[c].diff) + 3 > 80)
 				printf("\"%s\",\n", array[first++].http);
 			else
 				break;
@@ -2447,7 +2451,7 @@ gen_skip1:
 			 * if (c == se) it doesn't print the comma
 			 */
 
-			n += i = ((int)array[c].diff) + 3 - (c == se);
+			n += i = ((ssize_t)array[c].diff) + 3 - (c == se);
 
 			/*
 			 * overflow:
@@ -2476,11 +2480,11 @@ gen_skip2:
 		printf("\"%s\"\n\n", array[se].http);
 
 		printf("        };\n\n");
-		printf("        const int index_g = %d;\n\n\n", se + 1);
+		printf("        const size_t index_g = %ld;\n\n\n", se + 1);
 		printf("                         ");
 		printf("/* GENERATED CODE ENDS HERE */\n\n\n\n");
-		printf("Replace section after line: %d, but ", entry_line);
-		printf("before line: %d with the code above.\n\n", exit_line);
+		printf("Replace section after line: %zu, but ", entry_line);
+		printf("before line: %zu with the code above.\n\n", exit_line);
 
 		ac = array + se0;
 		do {
@@ -2506,7 +2510,7 @@ generate_jump:
 		else
 			printf("\n\nSUCCESSFUL MIRRORS:\n\n");
 			
-		int diff_topper = 0;
+		size_t diff_topper = 0;
 		i = 1;
 		while (array[se].diff >= i) {
 			i *= 10;
@@ -2514,7 +2518,7 @@ generate_jump:
 				break;
 		}
 		
-		char *dt_str = strndup("    ", diff_topper);
+		char *dt_str = strndup("    ", (size_t)diff_topper);
 		if (dt_str == NULL)
 			errx(1, "strndup");
 		
@@ -2528,7 +2532,7 @@ generate_jump:
 		}
 		
 		
-		int pos_maxt = 0;
+		size_t pos_maxt = 0;
 		
 		if (te != -1) {
 			for (c = te; c >= ts; --c) {
@@ -2539,7 +2543,7 @@ generate_jump:
 		}
 		
 		
-		int pos_maxd = 0;
+		size_t pos_maxd = 0;
 
 		if (de != -1) {
 			for (c = de; c >= ds; --c) {
@@ -2549,22 +2553,22 @@ generate_jump:
 			}
 		}
 		
-		c = array_length;
+		c = (ssize_t)array_length;
 		ac = array + c;
 
 		while (array <= --ac) {
 
 			if (array_length >= 100)
-				printf("\n%3d : ", c);
+				printf("\n%3zd : ", c);
 			else
-				printf("\n%2d : ", c);
+				printf("\n%2zd : ", c);
 
-			i = strlen(ac->label);
+			i = (ssize_t)strlen(ac->label);
 			
 			if (--c <= se) {
 
-				j = (pos_maxl + 1 - i) / 2;
-				n = pos_maxl - (i + j);
+				j = ((ssize_t)pos_maxl + 1 - i) / 2;
+				n = (ssize_t)pos_maxl - (i + j);
 				while (j--)
 					printf(" ");
 
@@ -2606,8 +2610,8 @@ generate_jump:
 			
 			if (c <= te) {
 				
-				j = (pos_maxt + 1 - i) / 2;
-				n = pos_maxt - (i + j);
+				j = ((ssize_t)pos_maxt + 1 - i) / 2;
+				n = (ssize_t)pos_maxt - (i + j);
 				
 				while (j--)
 					printf(" ");
@@ -2625,8 +2629,8 @@ generate_jump:
 				continue;
 			}
 
-			j = (pos_maxd + 1 - i) / 2;
-			n = pos_maxd - (i + j);
+			j = ((ssize_t)pos_maxd + 1 - i) / 2;
+			n = (ssize_t)pos_maxd - (i + j);
 			
 			while (j--)
 				printf(" ");
@@ -2707,18 +2711,18 @@ no_good:
 
 	if (to_file) {
 
-		n = strlen(array->http);
+		n = (ssize_t)strlen(array->http);
 
-		i = write(write_pipe[STDOUT_FILENO], array->http, n);
+		i = write(write_pipe[STDOUT_FILENO], array->http, (size_t)n);
 
 		if (i < n) {
 			printf("\nnot all of mirror sent to write_pid\n");
 			restart(argc, argv, loop, verbose);
 		}
 
-		waitpid(write_pid, &n, 0);
+		waitpid(write_pid, &z, 0);
 
-		if (n) {
+		if (z) {
 			printf("\nwrite_pid error.\n");
 			restart(argc, argv, loop, verbose);
 		}
@@ -2733,6 +2737,7 @@ no_good:
 	if (debug) {
 		
 debug_display:
+
 		clock_gettime(CLOCK_REALTIME, &endD);
 
 
