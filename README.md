@@ -31,6 +31,9 @@ It uses several commandline options:
 
 -d causes the fork()ed DNS caching process to be skipped.
 
+-D is "Debug" mode. It makes the ftp calls after the initial one short circuit. and sets up a timer.
+   I use it along with -d to look at performance. It uses about a third of a second for me.
+
 -f prohibits a fork()ed process from writing the fastest mirror to file even if it has the power to do so as root.
 
 -g generates the large https list from which to retrieve and parse "ftplist", which you no doubt, noticed if
