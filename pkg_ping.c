@@ -49,13 +49,18 @@
  *	-ip -l79 -nbc -ncdb -ndj -ei -nfc1 -nlp -npcs -psl -sc -sob
  * 
  *
- *	cc pkg_ping.c -o pkg_ping
+ *	cc pkg_ping.c -o /usr/local/bin/pkg_ping
  *
  * 	If you want bleeding edge performance, you can try:
  *
- * 	cc pkg_ping.c -march=native -mtune=native -O3 -pipe -o pkg_ping
+	cc pkg_ping.c -march=native -mtune=native -pipe -static -flto=full -O3 \
+	-o /usr/local/bin/pkg_ping
  *
- * 	but, you ABSOLUTELY won't see ANY performance gain between the
+ *	the -static flag seems to shave off a slight amount of runtime
+ *	but adds a TREMENDOUS amount of size. It makes it near 864 KiB for me,
+ *	rather than 46.6 KiB; That's 18.54X the size.
+ *
+ * 	otherwise, you won't see ANY performance gain between the
  * 	getaddrinfo(3) and ftp(1) calls which fetch data over the network.
  * 	Everything else happens in likely less than third of a second
  * 	after the first ftp call starts to return its results.
@@ -108,7 +113,7 @@ static char *diff_string = NULL;
  * eg. 0.25 is printed: .25
  * it doesn't get here unless diff <1 and >0
  */
-static void
+static inline void
 print_sub_one(long double diff)
 {	
 	int i = snprintf(diff_string, 12, "%.9Lf", diff);
@@ -137,7 +142,7 @@ free_array()
 	free(diff_string);
 }
 
-static int
+static inline int
 usa_cmp(const void *a, const void *b)
 {
 	char *one_label = ((const MIRROR *) a)->label;
@@ -179,7 +184,7 @@ usa_cmp(const void *a, const void *b)
  * compare the labels alphabetically by proper decreasing
  * hierarchy which are in reverse order between commas.
  */
-static int
+static inline int
 label_cmp_minus_usa(const void *a, const void *b)
 {
 
@@ -266,7 +271,7 @@ blue_jump:
 	return ret;
 }
 
-static int
+static inline int
 diff_cmp_minus_usa(const void *a, const void *b)
 {
 	const long double one_diff = ((const MIRROR *) a)->diff;
@@ -281,7 +286,7 @@ diff_cmp_minus_usa(const void *a, const void *b)
 	return label_cmp_minus_usa(b, a);
 }
 
-static int
+static inline int
 diff_cmp(const void *a, const void *b)
 {
 	const long double one_diff = ((const MIRROR *) a)->diff;
@@ -309,7 +314,7 @@ diff_cmp(const void *a, const void *b)
  * stripped of the leading "http://" or "https://" and if it exists,
  * the trailing "/pub/OpenBSD".
  */
-static int
+static inline int
 diff_cmp_g(const void *a, const void *b)
 {
 	/* sort those with greater diff values first */
@@ -336,7 +341,7 @@ diff_cmp_g(const void *a, const void *b)
  * far more efficient to avoid the many unnecessary strcmp() for mirrors
  * which have been turned to diff == 0; to be excised from the output.
  */
-static int
+static inline int
 diff_cmp_g2(const void *a, const void *b)
 {
 	const int one_len = (int) ((const MIRROR *) a)->diff;
@@ -369,7 +374,7 @@ diff_cmp_g2(const void *a, const void *b)
 	return 0;
 }
 
-static int
+static inline int
 label_cmp(const void *a, const void *b)
 {
 	/* prioritize mirrors near to USA first */
@@ -810,7 +815,8 @@ file_cleanup:
 }
 
 static __attribute__((noreturn)) void
-restart(int argc, char *argv[], const size_t loop, const ssize_t verbose)
+restart(int argc, char *argv[], char *envp[],
+	const size_t loop, const ssize_t verbose)
 {
 
 	if (loop == 0)
@@ -841,8 +847,8 @@ restart(int argc, char *argv[], const size_t loop, const ssize_t verbose)
 		exit(1);
 	}
 
-	execvp(arg_v[0], arg_v);
-	err(1, "execvp failed, line: %d", __LINE__);
+	execve(arg_v[0], arg_v, envp);
+	err(1, "execvpe failed, line: %d", __LINE__);
 }
 
 static void
@@ -873,7 +879,7 @@ easy_ftp_kill(const int kq, struct kevent *ke, const pid_t ftp_pid)
 }
 
 int
-main(int argc, char *argv[])
+main(int argc, char *argv[], char *envp[])
 {
 
 	malloc_options = "CFGJJU";
@@ -904,6 +910,7 @@ main(int argc, char *argv[])
 	char *line_temp = NULL, *line0 = NULL, *line = NULL, *release = NULL;
 	char *tag = NULL, *time = NULL;
 	char v = '\0';
+	
 /*
 from: /usr/src/sys/sys/event.h
 struct kevent {
@@ -964,6 +971,9 @@ struct winsize {
 	diff_string = calloc(12, sizeof(char));
 	if (diff_string == NULL)
 		errx(1, "calloc");
+		
+	if (argc < 1)
+		printf("argc cannot be less than 1!\n");
 
 	for(c = 1; c < argc; ++c) {
 		if (strnlen(argv[c], 35) == 35)
@@ -1596,7 +1606,7 @@ struct winsize {
 			close(write_pipe[STDOUT_FILENO]);
 			waitpid(write_pid, NULL, 0);
 		}
-		restart(argc, argv, loop, verbose);
+		restart(argc, argv, envp, loop, verbose);
 	}
 
 
@@ -1779,7 +1789,7 @@ struct winsize {
 			close(write_pipe[STDOUT_FILENO]);
 			waitpid(write_pid, NULL, 0);
 		}
-		restart(argc, argv, loop, verbose);
+		restart(argc, argv, envp, loop, verbose);
 	}
 
 	/* if "secure", h = strlen("https://") instead of strlen("http://") */
@@ -2026,7 +2036,7 @@ restart_dns_err:
 					waitpid(write_pid, NULL, 0);
 				}
 				
-				restart(argc, argv, loop, verbose);
+				restart(argc, argv, envp, loop, verbose);
 			}
 			
 			if (six && v == '0') {
@@ -2717,14 +2727,14 @@ no_good:
 
 		if (i < n) {
 			printf("\nnot all of mirror sent to write_pid\n");
-			restart(argc, argv, loop, verbose);
+			restart(argc, argv, envp, loop, verbose);
 		}
 
 		waitpid(write_pid, &z, 0);
 
 		if (z) {
 			printf("\nwrite_pid error.\n");
-			restart(argc, argv, loop, verbose);
+			restart(argc, argv, envp, loop, verbose);
 		}
 
 	} else if ((!root_user && verbose != -1) || (root_user && !verbose)) {
