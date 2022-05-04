@@ -49,13 +49,15 @@
  *	-ip -l79 -nbc -ncdb -ndj -ei -nfc1 -nlp -npcs -psl -sc -sob
  * 
  *
- *	cc pkg_ping.c -o /usr/local/bin/pkg_ping
+ *	cc pkg_ping.c -o pkg_ping
  *
  * 	If you want bleeding edge performance, you can try:
  *
 	cc pkg_ping.c -march=native -mtune=native -pipe -static -flto=full -O3 \
-	-o /usr/local/bin/pkg_ping
- *
+	-o ./pkg_ping
+	
+	run with: ./pkg_ping
+
  *	the -static flag seems to shave off a slight amount of runtime
  *	but adds a TREMENDOUS amount of size. It makes it near 864 KiB for me,
  *	rather than 46.6 KiB; That's 18.54X the size.
@@ -815,8 +817,7 @@ file_cleanup:
 }
 
 static __attribute__((noreturn)) void
-restart(int argc, char *argv[], char *envp[],
-	const size_t loop, const ssize_t verbose)
+restart(int argc, char *argv[], const size_t loop, const ssize_t verbose)
 {
 
 	if (loop == 0)
@@ -847,7 +848,7 @@ restart(int argc, char *argv[], char *envp[],
 		exit(1);
 	}
 
-	execve(arg_v[0], arg_v, envp);
+	execv(arg_v[0], arg_v);
 	err(1, "execvpe failed, line: %d", __LINE__);
 }
 
@@ -879,7 +880,7 @@ easy_ftp_kill(const int kq, struct kevent *ke, const pid_t ftp_pid)
 }
 
 int
-main(int argc, char *argv[], char *envp[])
+main(int argc, char *argv[])
 {
 
 	malloc_options = "CFGJJU";
@@ -1606,7 +1607,7 @@ struct winsize {
 			close(write_pipe[STDOUT_FILENO]);
 			waitpid(write_pid, NULL, 0);
 		}
-		restart(argc, argv, envp, loop, verbose);
+		restart(argc, argv, loop, verbose);
 	}
 
 
@@ -1789,7 +1790,7 @@ struct winsize {
 			close(write_pipe[STDOUT_FILENO]);
 			waitpid(write_pid, NULL, 0);
 		}
-		restart(argc, argv, envp, loop, verbose);
+		restart(argc, argv, loop, verbose);
 	}
 
 	/* if "secure", h = strlen("https://") instead of strlen("http://") */
@@ -2036,7 +2037,7 @@ restart_dns_err:
 					waitpid(write_pid, NULL, 0);
 				}
 				
-				restart(argc, argv, envp, loop, verbose);
+				restart(argc, argv, loop, verbose);
 			}
 			
 			if (six && v == '0') {
@@ -2727,14 +2728,14 @@ no_good:
 
 		if (i < n) {
 			printf("\nnot all of mirror sent to write_pid\n");
-			restart(argc, argv, envp, loop, verbose);
+			restart(argc, argv, loop, verbose);
 		}
 
 		waitpid(write_pid, &z, 0);
 
 		if (z) {
 			printf("\nwrite_pid error.\n");
-			restart(argc, argv, envp, loop, verbose);
+			restart(argc, argv, loop, verbose);
 		}
 
 	} else if ((!root_user && verbose != -1) || (root_user && !verbose)) {
