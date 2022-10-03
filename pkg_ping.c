@@ -53,13 +53,13 @@
  *
  * 	If you want bleeding edge performance, you can try:
  *
-	cc pkg_ping.c -march=native -mtune=native -pipe -static -flto=full -O3 \
-	-o ./pkg_ping
+
+cc pkg_ping.c -march=native -mtune=native -pipe -static -flto -O3 -o pkg_ping
 	
 	run with: ./pkg_ping
 
  *	the -static flag seems to shave off a slight amount of runtime
- *	but adds a TREMENDOUS amount of size. It makes it near 864 KiB for me,
+ *	but adds a TREMENDOUS amount of size. It makes it 864 KiB for me,
  *	rather than 46.6 KiB; That's 18.54X the size.
  *
  * 	otherwise, you won't see ANY performance gain between the
@@ -1199,18 +1199,18 @@ struct winsize {
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
            "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
             "ftp.rnl.tecnico.ulisboa.pt","mirrors.gethosted.online",
-  "mirrors.ocf.berkeley.edu","mirror.hs-esslingen.de","mirrors.pidginhost.com",
-    "openbsd.cs.toronto.edu","*artfiles.org/openbsd","mirror.bytemark.co.uk",
+  "mirrors.ocf.berkeley.edu","mirror.hs-esslingen.de","mirror2.sandyriver.net",
+   "mirrors.pidginhost.com","openbsd.cs.toronto.edu","*artfiles.org/openbsd",
      "mirror.planetunix.net","www.mirrorservice.org","ftp4.usa.openbsd.org",
-      "mirror.aarnet.edu.au","openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org",
-       "ftp2.eu.openbsd.org","mirror.edgecast.com","mirror.leaseweb.com",
-        "mirror.telepoint.bg","mirrors.gigenet.com","ftp.eu.openbsd.org",
-         "ftp.fr.openbsd.org","ftp.lysator.liu.se","mirror.fsmg.org.nz",
-         "mirror.ungleich.ch","mirrors.dotsrc.org","openbsd.ipacct.com",
- "ftp.hostserver.de","mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.labkom.id",
-   "mirror.litnet.lt","mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org",
-    "ftp.jaist.ac.jp","mirror.esc7.net","mirror.ihost.md","mirror.ox.ac.uk",
-      "mirrors.mit.edu","ftp.icm.edu.pl","mirror.one.com","ftp.cc.uoc.gr",
+       "mirror.aarnet.edu.au","ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
+       "mirror.edgecast.com","mirror.leaseweb.com","mirror.telepoint.bg",
+        "mirrors.gigenet.com","openbsd.eu.paket.ua","ftp.fr.openbsd.org",
+         "ftp.lysator.liu.se","mirror.fsmg.org.nz","mirror.ungleich.ch",
+         "mirrors.aliyun.com","mirrors.dotsrc.org","openbsd.ipacct.com",
+ "ftp.hostserver.de","mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.litnet.lt",
+   "mirror.yandex.ru","openbsd.paket.ua","cdn.openbsd.org","ftp.OpenBSD.org",
+    "ftp.jaist.ac.jp","mirror.esc7.net","mirror.ihost.md","mirrors.mit.edu",
+       "ftp.icm.edu.pl","mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie",
   "ftp.spline.de","www.ftp.ne.jp","ftp.nluug.nl","ftp.riken.jp","ftp.psnc.pl",
                      "ftp.bit.nl","ftp.fau.de","ftp.fsn.hu"
 
@@ -1222,15 +1222,14 @@ struct winsize {
 
      /* Trusted OpenBSD.org subdomain mirrors for generating this section */
 
-        const char *ftp_list_g[8] = {
+        const char *ftp_list_g[7] = {
 
    "cloudflare.cdn.openbsd.org","ftp4.usa.openbsd.org","ftp.usa.openbsd.org",
-        "ftp2.eu.openbsd.org","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
-                       "cdn.openbsd.org","ftp.OpenBSD.org"
+ "ftp2.eu.openbsd.org","ftp.fr.openbsd.org","cdn.openbsd.org","ftp.OpenBSD.org"
 
         };
 
-        const size_t index_g = 8;
+        const size_t index_g = 7;
 
 
                          /* GENERATED CODE ENDS HERE */
@@ -2051,9 +2050,17 @@ restart_dns_err:
 				array[c].diff = s + 3;
 				continue;
 			} else if (v == 'u') {
-				if (verbose >= 2)
-					printf("BLOCKED subdomain!\n");
-				array[c].diff = s + 4;
+				if (generate) {
+					if (verbose >= 2) {
+						printf("BLOCKED subdomain ");
+						printf("passes!\n");
+					}
+					array[c].diff = s / (long double)2.0;
+				} else {
+					if (verbose >= 2)
+						printf("BLOCKED subdomain!\n");
+					array[c].diff = s + 4;
+				}
 				continue;
 			}
 		}
