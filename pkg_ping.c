@@ -2438,7 +2438,8 @@ restart_dns_err:
 			} else {
 				printf("%.9Lf\n", array[c].diff);
 			}
-		} else if (average != 2 && !bandwidth && verbose <= 0 && array[c].diff < S) {
+		} else if (average != 2 && !bandwidth && verbose <= 0
+		    && array[c].diff < S) {
 			S = array[c].diff;
 			timeout.tv_sec = (time_t)(S + (long double).125);
 			timeout.tv_nsec =
@@ -2889,9 +2890,10 @@ generate_jump:
 			
 			
 
-		if (average)
-			qsort(array, (size_t)se + 1, sizeof(MIRROR), unified_cmp);
-		else if (bandwidth)
+		if (average) {
+			qsort(array, (size_t)se + 1,
+			    sizeof(MIRROR), unified_cmp);
+		} else if (bandwidth)
 			qsort(array, (size_t)se + 1, sizeof(MIRROR), diff_cmp);
 		
 
