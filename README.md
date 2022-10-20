@@ -13,7 +13,7 @@ Average is the default setting otherwise.
 
 -b: rate purely by bandwidth
 
--r: rate purely by resopnsiveness like before
+-r: rate purely by responsiveness like before
 
 
 
