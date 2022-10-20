@@ -1,3 +1,22 @@
+### Major update:
+It fork()s a 5th potential process to scrape the download speed from ftp(1), send it back to the parent process and uses that speed
+and the response speed to average out what mirrors are the best, not based upon the order alone,
+but based upon translating it to a linear equation for more equitable rankings so super fast and super responsive mirrors will be weighed stronger!
+However you may choose to purely rate by the most responsive or the fastest instead!
+
+responsiveness_ranking^2 + bandwidth_ranking^2 == unified_ranking
+
+New flags: -a, -b, and -r
+
+-a: makes -V or zero -v take it's time and not shorten the time out and evaluate average time. Otherwise for -vv and above, it has no effect.
+Average is the default setting otherwise.
+
+-b: rate purely by bandwidth
+
+-r: rate purely by resopnsiveness like before
+
+
+
 It determines and prints the fastest OpenBSD mirror(s) for your version and architecture for the /etc/installurl file and if run 
 as root, will write the fastest successful one to disk unless -f is used.
 
