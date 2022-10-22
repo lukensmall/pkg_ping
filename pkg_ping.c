@@ -843,7 +843,8 @@ file_d(const int write_pipe, const int secure,
 	}
 
 	/* unlink() to prevent possible symlinks by...root? */
-	unlink("/etc/installurl");
+	if (!debug)
+		unlink("/etc/installurl");
 	pkg_write = fopen("/etc/installurl", "w");
 
 	if (pledge("stdio", NULL) == -1) {
