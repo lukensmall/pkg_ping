@@ -452,7 +452,7 @@ manpage()
 	printf("[-6 (only return IPv6 compatible mirrors)]\n");
 
 	printf("[-a (rate by an Average of responsiveness and bandwidth!\n");
-	printf("        This is the default.)]\n");
+	printf("        This is the default when -v's and no -V are chosen)]\n");
 
 	printf("[-b (rate by the Bandwidth of the download!)]\n");
 
