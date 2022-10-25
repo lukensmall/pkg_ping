@@ -843,9 +843,10 @@ file_d(const int write_pipe, const int secure,
 	}
 
 	/* unlink() to prevent possible symlinks by...root? */
-	if (!debug)
+	if (!debug) {
 		unlink("/etc/installurl");
-	pkg_write = fopen("/etc/installurl", "w");
+		pkg_write = fopen("/etc/installurl", "w");
+	}
 
 	if (pledge("stdio", NULL) == -1) {
 		printf("%s ", strerror(errno));
@@ -856,7 +857,7 @@ file_d(const int write_pipe, const int secure,
 	if (verbose > 0)
 		printf("\n");
 
-	if (pkg_write == NULL) {
+	if (pkg_write == NULL && !debug) {
 		printf("%s ", strerror(errno));
 		printf("/etc/installurl not opened.\n");
 		goto file_cleanup;
@@ -864,15 +865,13 @@ file_d(const int write_pipe, const int secure,
 
 	if (!debug) {
 		i = (int)fwrite(file_w, 1, (size_t)received + 1, pkg_write);
+		fclose(pkg_write);
 		if (i < (int)received + 1) {
 			printf("write error occurred, line: %d\n", __LINE__);
-			fclose(pkg_write);
 			goto file_cleanup;
 		}
 	} else
 		printf("Debug mode: file not written.\n");
-
-	fclose(pkg_write);
 
 	if (verbose >= 0)
 		printf("/etc/installurl: %s", file_w);
