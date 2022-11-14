@@ -452,7 +452,8 @@ manpage()
 	printf("[-6 (only return IPv6 compatible mirrors)]\n");
 
 	printf("[-a (rate by an Average of responsiveness and bandwidth!\n");
-	printf("        This is the default when -v's and no -V are chosen)]\n");
+	printf("        This is the default when -v's");
+	printf(" and no -V are chosen.)]\n");
 
 	printf("[-b (rate by the Bandwidth of the download!)]\n");
 
@@ -1918,9 +1919,15 @@ struct winsize {
 	}
 
 	if (six) {
-		line0 = "-viM6o-";
+		if (verbose >= 3)
+			line0 = "-vim6o-";
+		else
+			line0 = "-viM6o-";
 	} else {
-		line0 = "-viMo-";
+		if (verbose >= 3)
+			line0 = "-vimo-";
+		else
+			line0 = "-viMo-";
 	}
 
 	timeout.tv_sec = (time_t) s;
