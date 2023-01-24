@@ -1,7 +1,7 @@
 /*
  * BSD 2-Clause License
  *
- * Copyright (c) 2016 - 2022, Luke N Small, lukensmall@gmail.com
+ * Copyright (c) 2016 - 2023, Luke N Small, lukensmall@gmail.com
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -91,16 +91,14 @@ cc pkg_ping.c -march=native -mtune=native -pipe -static -flto -O3 -o pkg_ping
 #include <unistd.h>
 
 typedef struct {
-	char *label;
-	char *http;
 	long double diff;
-	uint64_t speed;
-	u_char pad1[8];
-	int diff_rank;
-	int speed_rank;
-	u_char pad2[8];
 	long double diff_rating;
 	long double speed_rating;
+	char *label;
+	char *http;
+	uint64_t speed;
+	int diff_rank;
+	int speed_rank;
 } MIRROR;
 
 extern char *malloc_options;
@@ -115,7 +113,7 @@ static const struct timespec timeout_kill = { 0, 100000000 };
 /* 50 seconds for dns_cache_d to respond */
 static const struct timespec timeout_d = { 50, 0 };
 
-static char *diff_string = NULL;
+static char *diff_string = NULL;	// initialized later
 static int responsiveness = 0;
 static int bandwidth = 0;
 static int average = 1;
@@ -123,11 +121,14 @@ static int average = 1;
 /* 
  * print long double which is <1 and >0, without the leading '0'
  * eg. 0.25 is printed: .25
- * it doesn't get here unless diff <1 and >0
+ * it doesn't get here unless diff <1 and >= 0
  */
-static inline void
+static void
 sub_one_print(long double diff)
-{	
+{
+	if (diff >= 1 || diff < 0)
+		errx(1, "Shouldn't ever get here");
+		
 	int i = snprintf(diff_string, 12, "%.9Lf", diff);
 	if (i != 11) {
 		if (i < 0)
@@ -852,7 +853,7 @@ file_d(const int write_pipe, const int secure,
 	if (pledge("stdio", NULL) == -1) {
 		printf("%s ", strerror(errno));
 		printf("pledge, line: %d\n", __LINE__);
-		_exit(1);
+		goto file_cleanup;
 	}
 
 	if (verbose > 0)
@@ -1286,21 +1287,20 @@ struct winsize {
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
            "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
             "ftp.rnl.tecnico.ulisboa.pt","mirrors.gethosted.online",
-  "mirrors.ocf.berkeley.edu","mirror.hs-esslingen.de","mirror2.sandyriver.net",
-   "mirrors.pidginhost.com","openbsd.cs.toronto.edu","*artfiles.org/openbsd",
-     "mirror.planetunix.net","www.mirrorservice.org","ftp4.usa.openbsd.org",
-      "mirror.aarnet.edu.au","openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org",
-       "ftp2.eu.openbsd.org","mirror.edgecast.com","mirror.leaseweb.com",
-       "mirror.telepoint.bg","mirrors.gigenet.com","openbsd.eu.paket.ua",
-         "ftp.eu.openbsd.org","ftp.fr.openbsd.org","ftp.lysator.liu.se",
-         "mirror.fsmg.org.nz","mirror.ungleich.ch","mirrors.aliyun.com",
-         "mirrors.dotsrc.org","openbsd.ipacct.com","ftp.hostserver.de",
- "mirrors.sonic.net","mirrors.ucr.ac.cr","mirror.litnet.lt","mirror.yandex.ru",
-    "openbsd.paket.ua","cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp",
-     "mirror.esc7.net","mirror.ihost.md","mirrors.mit.edu","ftp.icm.edu.pl",
-        "mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de",
-    "www.ftp.ne.jp","ftp.nluug.nl","ftp.riken.jp","ftp.bit.nl","ftp.fau.de",
-                                  "ftp.fsn.hu"
+  "mirrors.ocf.berkeley.edu","mirror.hs-esslingen.de","mirrors.pidginhost.com",
+    "openbsd.cs.toronto.edu","*artfiles.org/openbsd","mirror.planetunix.net",
+     "www.mirrorservice.org","ftp4.usa.openbsd.org","mirror.aarnet.edu.au",
+       "openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
+       "mirror.edgecast.com","mirror.leaseweb.com","mirror.telepoint.bg",
+        "mirrors.gigenet.com","openbsd.eu.paket.ua","ftp.eu.openbsd.org",
+         "ftp.fr.openbsd.org","ftp.lysator.liu.se","mirror.fsmg.org.nz",
+         "mirror.ungleich.ch","mirrors.aliyun.com","mirrors.dotsrc.org",
+          "openbsd.ipacct.com","ftp.hostserver.de","mirrors.sonic.net",
+ "mirrors.ucr.ac.cr","openbsd.as250.net","mirror.litnet.lt","mirror.yandex.ru",
+    "cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.esc7.net",
+     "mirror.ihost.md","mirrors.mit.edu","ftp.icm.edu.pl","mirror.one.com",
+ "ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp","ftp.nluug.nl",
+       "ftp.riken.jp","ftp.psnc.pl","ftp.bit.nl","ftp.fau.de","ftp.fsn.hu"
 
         };
 
@@ -1668,8 +1668,7 @@ struct winsize {
 	    EV_ADD | EV_ONESHOT, 0, 0, NULL);
 	i = kevent(kq, &ke, 1, &ke, 1, &timeout0);
 
-	/* (verbose == 0 || verbose == 1) */
-	if ((verbose >> 1) == 0) {
+	if (verbose == 0 || verbose == 1) {
 		printf("\b \b");
 		fflush(stdout);
 	}
@@ -1978,9 +1977,9 @@ struct winsize {
 				pos_maxb = pos;
 		}
 
-		num1 = (w.ws_col - i >= (ushort)(pos_maxl + pos_max));
-		num2 = (w.ws_col - i >= (ushort)(pos_maxl + pos_maxh));
-		num3 = (w.ws_col - i >= (ushort)(pos_maxb));
+		num1 = (w.ws_col - i >= pos_maxl + pos_max);
+		num2 = (w.ws_col - i >= pos_maxl + pos_maxh);
+		num3 = (w.ws_col - i >= pos_maxb);
 	}
 				
 
@@ -2018,12 +2017,12 @@ struct winsize {
 				j = ((int)pos_maxl + 1 - i) / 2;
 				n =  (int)pos_maxl - (i + j);
 
-				while (j--)
+				while (j-- > 0)
 					printf(" ");
 				
 				printf("%s", array[c].label);
 				
-				while (n--)
+				while (n-- > 0)
 					printf(" ");
 				
 				if (num1)
@@ -2066,12 +2065,7 @@ struct winsize {
 			if (i < n)
 				goto restart_dns_err;
 
-			/*
-			 * (verbose >= 0 && verbose <= 3)
-			 * 0-3 need first 2 bits to store.
-			 * Other values require extra bits.
-			 */
-			if ((verbose >> 2) == 0) {
+			if (verbose >= 0 && verbose <= 3) {
 				printf("*");
 				fflush(stdout);
 			}
@@ -2086,7 +2080,7 @@ struct winsize {
 			    EV_ADD | EV_ONESHOT, 0, 0, NULL);
 			i = kevent(kq, &ke, 1, &ke, 1, &timeout_d);
 
-			if ((verbose >> 2) == 0) {
+			if (verbose >= 0 && verbose <= 3) {
 				printf("\b \b");
 				fflush(stdout);
 			}
@@ -2439,7 +2433,7 @@ restart_dns_err:
 			if (array[c].diff >= s) {
 				array[c].diff = s;
 				printf("Timeout\n");
-			} else if (array[c].diff < 1 && array[c].diff > 0) {
+			} else if (array[c].diff < 1 && array[c].diff >= 0) {
 				sub_one_print(array[c].diff);
 				printf("\n");
 			} else {
@@ -2466,8 +2460,7 @@ restart_dns_err:
 	if (pledge("stdio exec", NULL) == -1)
 		err(1, "pledge, line: %d", __LINE__);
 
-	/* (verbose == 0 || verbose == 1) */
-	if ((verbose >> 1) == 0) {
+	if (verbose == 0 || verbose == 1) {
 		printf("\b \b");
 		fflush(stdout);
 	}
@@ -2539,9 +2532,7 @@ restart_dns_err:
 				t *= 100;
 				t /= array[se].diff - array[0].diff;
 				
-				t = (long double)100 - t;
-				
-				array[c].diff_rating = t;
+				array[c].diff_rating = (long double)100 - t;
 			}
 			
 			qsort(array, (size_t)se + 1,
@@ -2715,7 +2706,7 @@ restart_dns_err:
 			if (n > 80) {
 
 				/* center the printed mirrors. Err to right */
-				for (j = (81 - (n - i)) / 2; j; --j)
+				for (j = (81 - (n - i)) / 2; j > 0; --j)
 					printf(" ");
 				do {
 					printf("\"%s\",", array[first].http);
@@ -2727,7 +2718,7 @@ restart_dns_err:
 		}
 
 		/* center the printed mirrors. Err to right */
-		for (j = (81 - n) / 2; j; --j)
+		for (j = (81 - n) / 2; j > 0; --j)
 			printf(" ");
 		while (first < se)
 			printf("\"%s\",", array[first++].http);
@@ -2808,7 +2799,7 @@ gen_skip1:
 			if (n > 80) {
 
 				/* center the printed mirrors. Err to right */
-				for (j = (81 - (n - i)) / 2; j; --j)
+				for (j = (81 - (n - i)) / 2; j > 0; --j)
 					printf(" ");
 				do {
 					printf("\"%s\",", array[first].http);
@@ -2819,7 +2810,7 @@ gen_skip1:
 		}
 
 		/* center the printed mirrors. Err to right */
-		for (j = (81 - n) / 2; j; --j)
+		for (j = (81 - n) / 2; j > 0; --j)
 			printf(" ");
 		while (first < se)
 			printf("\"%s\",", array[first++].http);
@@ -2830,8 +2821,8 @@ gen_skip2:
 		printf("        const int index_g = %d;\n\n\n", se + 1);
 		printf("                         ");
 		printf("/* GENERATED CODE ENDS HERE */\n\n\n\n");
-		printf("Replace section after line: %u, but ", entry_line);
-		printf("before line: %u with the code above.\n\n", exit_line);
+		printf("Replace section after line: %d, but ", entry_line);
+		printf("before line: %d with the code above.\n\n", exit_line);
 
 		ac = array + se0;
 		do {
@@ -2890,9 +2881,7 @@ generate_jump:
 			t *= 100;
 			t /= array[se].diff - array[0].diff;
 			
-			t = (long double)100 - t;
-			
-			array[c].diff_rating = t;
+			array[c].diff_rating = (long double)100 - t;
 		}
 			
 			
@@ -3007,17 +2996,17 @@ generate_jump:
 
 				j = ((int)pos_maxl + 1 - i) / 2;
 				n = (int)pos_maxl - (i + j);
-				while (j--)
+				while (j-- > 0)
 					printf(" ");
 
 				printf("%s", ac->label);
 				
-				while (n--)
+				while (n-- > 0)
 					printf(" ");
 					
 				printf(" : ");
 
-				if (ac->diff < 1 && ac->diff > 0) {
+				if (ac->diff < 1 && ac->diff >= 0) {
 					printf("%s", dt_str);
 					sub_one_print(ac->diff);
 				} else {
@@ -3051,7 +3040,7 @@ generate_jump:
 
 				n = p - j;
 				
-				while(n--)
+				while(n-- > 0)
 					printf(" ");
 
 				if (t >= (long double)(1024 * 1024)) {
@@ -3071,7 +3060,7 @@ generate_jump:
 					
 				i += 3 + pos_maxl;
 				
-				while (i--)
+				while (i-- > 0)
 					printf(" ");
 					
 				printf(" : ");
@@ -3089,7 +3078,7 @@ generate_jump:
 						
 					n = i = (diff_topper + 18 + 1 - j) / 2;
 					
-					while (i--)
+					while (i-- > 0)
 						printf(" ");
 					
 					printf("time rank: %3d",
@@ -3097,7 +3086,7 @@ generate_jump:
 					
 					n = diff_topper + 18 - (n + j);
 					
-					while (n--)
+					while (n-- > 0)
 						printf(" ");
 					
 					printf(" : speed rank: %3d",
@@ -3114,7 +3103,7 @@ generate_jump:
 						
 					n = i = (diff_topper + 18 + 1 - j) / 2;
 					
-					while (i--)
+					while (i-- > 0)
 						printf(" ");
 					
 					printf("time rank: %2d",
@@ -3122,7 +3111,7 @@ generate_jump:
 					
 					n = diff_topper + 18 - (n + j);
 					
-					while (n--)
+					while (n-- > 0)
 						printf(" ");
 					
 					printf(" : speed rank: %2d",
@@ -3139,7 +3128,7 @@ generate_jump:
 						
 					n = i = (diff_topper + 18 + 1 - j) / 2;
 					
-					while (i--)
+					while (i-- > 0)
 						printf(" ");
 					
 					printf("time rank: %d",
@@ -3147,7 +3136,7 @@ generate_jump:
 					
 					n = diff_topper + 18 - (n + j);
 					
-					while (n--)
+					while (n-- > 0)
 						printf(" ");
 					
 					printf(" : speed rank: %d",
@@ -3162,7 +3151,7 @@ generate_jump:
 					
 				i += 3 + pos_maxl;
 				
-				while (i--)
+				while (i-- > 0)
 					printf(" ");
 					
 				printf(" : ");
@@ -3205,12 +3194,12 @@ generate_jump:
 				j = ((int)pos_maxt + 1 - i) / 2;
 				n = (int)pos_maxt - (i + j);
 				
-				while (j--)
+				while (j-- > 0)
 					printf(" ");
 
 				printf("%s", ac->label);
 				
-				while (n--)
+				while (n-- > 0)
 					printf(" ");
 				
 				printf(" : ");
@@ -3224,21 +3213,21 @@ generate_jump:
 			j = ((int)pos_maxd + 1 - i) / 2;
 			n = (int)pos_maxd - (i + j);
 			
-			while (j--)
+			while (j-- > 0)
 				printf(" ");
 
 			printf("%s", ac->label);
 			
-			while (n--)
+			while (n-- > 0)
 				printf(" ");
 			
 			printf(" : ");
 			
-			if (ac->diff == s + 1)
+			if (ac->diff == s + 1)	// assigned this value
 				printf("Download Error");
-			else if (ac->diff == s + 2)
+			else if (ac->diff == s + 2)	// assigned this value
 				printf("IPv6 DNS record not found");
-			else if (ac->diff == s + 3)
+			else if (ac->diff == s + 3)	// assigned this value
 				printf("DNS record not found");
 			else
 				printf("BLOCKED subdomain!");
@@ -3343,7 +3332,7 @@ debug_display:
 		    (long double) (endD.tv_nsec - startD.tv_nsec) /
 		    (long double) 1000000000;
 
-		if (S < 1 && S > 0) {
+		if (S < 1 && S >= 0) {
 			sub_one_print(S);
 			printf("\n");
 		} else
