@@ -603,7 +603,10 @@ dns_loop:
 			if (res->ai_family == AF_INET) {
 
 				// sa4 = (struct sockaddr_in *) res->ai_addr;
-				memcpy(&sa4, &res->ai_addr, sizeof(struct sockaddr_in *));
+				
+				memcpy(&sa4, &res->ai_addr,
+				    sizeof(struct sockaddr_in *));
+				    
 				sui4 = sa4->sin_addr.s_addr;
 
 				/* 
@@ -643,13 +646,17 @@ dns_loop:
 		if (res->ai_family == AF_INET) {
 
 			// sa4 = (struct sockaddr_in *) res->ai_addr;
-			memcpy(&sa4, &res->ai_addr, sizeof(struct sockaddr_in *));
+			
+			memcpy(&sa4, &res->ai_addr,
+			    sizeof(struct sockaddr_in *));
+			    
 			sui4 = sa4->sin_addr.s_addr;
 
 			/* 
 			 * I have an unbound blocklist where I
 			 * force unwanted domains to resolve to
 			 * 0.0.0.0 which translates to sui4 == 0
+			 * This won't impact functionality for others.
 			 */
 			if (six_available == 'u' && sui4)
 				six_available = '0';
@@ -2239,15 +2246,28 @@ restart_dns_err:
 	 *	    meg ? "M" : "K");
 	 */
 					char *g = strchr(line, ' ');
+					if (g == NULL)
+						break;
 					
-					*g++ = '\0';
+					*g = '\0';
 					
-					long double t = strtold(line, NULL);
+					char *endptr;
 					
-					if (*g == 'M')
+					errno = 0;
+					long double t = strtold(line, &endptr);
+					if (errno || t <= 0 || endptr != g)
+					{
+						if (endptr != g)
+							printf("endptr != g\n");
+						break;
+					}
+					
+					if (*++g == 'M')
 						t *= (long double)(1024 * 1024);
-					else /* if (*g == 'K') */
+					else if (*g == 'K')
 						t *= (long double)1024;
+					else
+						break;
 					
 					uint64_t temp = (uint64_t)t;
 					z = ftp_helper_out[STDOUT_FILENO];
@@ -2255,28 +2275,30 @@ restart_dns_err:
 					i = (int)write(z, &temp,
 					    sizeof(uint64_t));
 					
-					if (i < (int)sizeof(uint64_t)) {
-						errx(1,
-						"bad write, line %d",
+					if (i != (int)sizeof(uint64_t)) {
+						printf("bad write, line %d",
 						__LINE__);
+						break;
 					}
 					
 					z = ftp_2_ftp_helper[STDIN_FILENO];
 					
-					if (verbose < 2)
-						break;
-						
-					while (read(z, &v, 1) == 1) {
-						printf("%c", v);
-						fflush(stdout);
+					if (verbose >= 2)
+					{
+						while (read(z, &v, 1) == 1) {
+							printf("%c", v);
+							fflush(stdout);
+						}
 					}
-					break;
+					close(ftp_helper_out[STDOUT_FILENO]);
+					close(z);
+					free(line);
+					_exit(0);
 				}
 				close(ftp_helper_out[STDOUT_FILENO]);
 				close(z);
 				free(line);
-
-				_exit(0);
+				_exit(1);
 			}
 			if (ftp_helper_pid == -1)
 				err(1, "ftp 1 fork, line: %d", __LINE__);
@@ -2630,7 +2652,7 @@ restart_dns_err:
 				    (
 				     !strncmp(cut - 12, ".openbsd.org", 12)
 
-				     ||
+						      ||
 
 				     !strncmp(cut - 12, ".OpenBSD.org", 12)
 				    )
@@ -2740,7 +2762,7 @@ gen_skip1:
 			    (
 			     strncmp(cut - 12, ".openbsd.org", 12)
 
-			     &&
+					     &&
 
 			     strncmp(cut - 12, ".OpenBSD.org", 12)
 			    )
@@ -2952,7 +2974,7 @@ generate_jump:
 		if (bbuf == NULL)
 			errx(1, "malloc");
 		
-		int p = 0;
+		int speed_shift = 0;
 		long double t;
 		
 		ac = array + se + 1;
@@ -2969,8 +2991,8 @@ generate_jump:
 				    t / (long double)1024);
 			}
 			
-			if (j > p)
-				p = j;
+			if (j > speed_shift)
+				speed_shift = j;
 			
 		}
 		
@@ -3025,7 +3047,7 @@ generate_jump:
 				}
 				printf(" seconds : ");
 				
-				t = ac->speed;
+				t = (long double)ac->speed;
 				
 
 				if (t >= (long double)(1024 * 1024)) {
@@ -3036,7 +3058,7 @@ generate_jump:
 					    t / (long double)1024);
 				}
 
-				n = p - j;
+				n = speed_shift - j;
 				
 				while(n-- > 0)
 					printf(" ");
