@@ -310,9 +310,6 @@ diff_cmp_pure(const void *a, const void *b)
 static int
 diff_cmp(const void *a, const void *b)
 {
-	const long double one_diff = ((const MIRROR *) a)->diff;
-	const long double two_diff = ((const MIRROR *) b)->diff;
-
 	const uint64_t one_speed = ((const MIRROR *) a)->speed;
 	const uint64_t two_speed = ((const MIRROR *) b)->speed;
 
@@ -320,6 +317,9 @@ diff_cmp(const void *a, const void *b)
 		return -1;
 	if (one_speed < two_speed)
 		return 1;
+
+	const long double one_diff = ((const MIRROR *) a)->diff;
+	const long double two_diff = ((const MIRROR *) b)->diff;
 
 	if (one_diff < two_diff)
 		return -1;
@@ -436,8 +436,7 @@ unified_cmp(const void *a, const void *b)
 	    two_diff_rating  * two_diff_rating
 			     +
 	    two_speed_rating * two_speed_rating;
-
-
+	    
 
 
 	if (one_unified_rank > two_unified_rank)
@@ -603,13 +602,15 @@ dns_loop:
 			
 			if (res->ai_family == AF_INET) {
 
-				sa4 = (struct sockaddr_in *) res->ai_addr;
+				// sa4 = (struct sockaddr_in *) res->ai_addr;
+				memcpy(&sa4, &res->ai_addr, sizeof(struct sockaddr_in *));
 				sui4 = sa4->sin_addr.s_addr;
 
 				/* 
 				 * I have an unbound blocklist where I
 				 * force unwanted domains to resolve to
 				 * 0.0.0.0 which translates to sui4 == 0
+				 * This won't impact functionality for others.
 				 */
 				if (sui4 == 0)
 					continue;
@@ -641,7 +642,8 @@ dns_loop:
 
 		if (res->ai_family == AF_INET) {
 
-			sa4 = (struct sockaddr_in *) res->ai_addr;
+			// sa4 = (struct sockaddr_in *) res->ai_addr;
+			memcpy(&sa4, &res->ai_addr, sizeof(struct sockaddr_in *));
 			sui4 = sa4->sin_addr.s_addr;
 
 			/* 
@@ -673,7 +675,8 @@ dns_loop:
 
 		printf("       ");
 
-		sa6 = (struct sockaddr_in6 *) res->ai_addr;
+		// sa6 = (struct sockaddr_in6 *) res->ai_addr;
+		memcpy(&sa6, &res->ai_addr, sizeof(struct sockaddr_in6 *));
 		suc6 = sa6->sin6_addr.s6_addr;
 
 		c = max = 0;
@@ -685,7 +688,7 @@ dns_loop:
 		 */
 		for (i = 0; i < 16; i += 2) {
 
-			if ( suc6[i] | suc6[i|1] ) {
+			if ( suc6[i] || suc6[i + 1] ) {
 				c = 0;
 				continue;
 			}
@@ -702,13 +705,6 @@ dns_loop:
 			}
 		}
 
-		/*
-		 *                    ">> 4" == "/ 16"
-		 *                "max << 1" == "2 * max"
-		 *              "& 15" == "& 0x0f" == "% 16"
-		 *    'i' is even so I can use "i|1" instead of "i+1"
-		 * which may be more efficient. I think it's prettier too
-		 */
 		for (i = 0; i < 16; i += 2) {
 
 			if (i)
@@ -719,31 +715,33 @@ dns_loop:
 					printf("::");
 				else
 					printf(":");
-				i += max << 1;
-				if (i > 14)
+				i += max * 2;
+				if (i >= 16)
 					break;
 			}
+			
+			int g = i + 1;
 
-			if (suc6[i  ] >> 4) {
+			if (suc6[i] / 16) {
 				printf("%c%c%c%c",
-				    hexadec[suc6[i  ] >> 4],
-				    hexadec[suc6[i  ] & 15],
-				    hexadec[suc6[i|1] >> 4],
-				    hexadec[suc6[i|1] & 15]);
+				    hexadec[suc6[i] / 16],
+				    hexadec[suc6[i] % 16],
+				    hexadec[suc6[g] / 16],
+				    hexadec[suc6[g] % 16]);
 
-			} else if (suc6[i  ]) {
+			} else if (suc6[i]) {	// Here: suc6[i] == suc6[i] % 16
 				printf("%c%c%c",
-				    hexadec[suc6[i  ]     ],
-				    hexadec[suc6[i|1] >> 4],
-				    hexadec[suc6[i|1] & 15]);
+				    hexadec[suc6[i]     ],
+				    hexadec[suc6[g] / 16],
+				    hexadec[suc6[g] % 16]);
 
-			} else if (suc6[i|1] >> 4) {
+			} else if (suc6[g] / 16) {
 				printf("%c%c",
-				    hexadec[suc6[i|1] >> 4],
-				    hexadec[suc6[i|1] & 15]);
+				    hexadec[suc6[g] / 16],
+				    hexadec[suc6[g] % 16]);
 			} else {
-				printf("%c",
-				    hexadec[suc6[i|1]     ]);
+				printf("%c",	// Here: suc6[g] == suc6[g] % 16 
+				    hexadec[suc6[g]     ]);
 			}
 		}
 		printf("\n");
