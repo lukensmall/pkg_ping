@@ -17,8 +17,7 @@ Average is the default setting otherwise.
 
 
 
-It determines and prints the fastest OpenBSD mirror(s) for your version and architecture for the /etc/installurl file and if run 
-as root, will write the fastest successful one to disk unless -f is used.
+### It determines and prints the fastest OpenBSD mirror(s) for your version and architecture for the /etc/installurl file and if run as root, will write the fastest successful one to disk unless -f is used.
 
 Perhaps some of you may be put off by the source code containing a hard-coded mirror snippet array.
 If you don't trust the array, you can run it with the -g flag and it will print out another hard-coded
