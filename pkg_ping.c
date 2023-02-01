@@ -2355,7 +2355,6 @@ restart_dns_err:
 
 			execl("/usr/bin/ftp", "ftp", line0, line, NULL);
 
-			/* make ftp_helper print out the error */
 			dprintf(std_err, "%s ", strerror(errno));
 			dprintf(std_err, "ftp 2 execl() failed, ");
 			dprintf(std_err, "line: %d\n", __LINE__);
