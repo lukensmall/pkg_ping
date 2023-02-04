@@ -228,23 +228,25 @@ label_cmp_minus_usa(const void *a, const void *b)
 		 * found in the previous iteration
 		 */
 
-		while (one_label <= --red) {
+		for (;;) {
+			if (one_label > --red) {
+				--red;
+				i = 1;
+				break;
+			}
 			if (*red == ',')
-				goto red_jump;
+				break;
 		}
-		--red;
-		i = 1;
-
-red_jump:
-
-		while (two_label <= --blue) {
+		
+		for (;;) {
+			if (two_label > --blue) {
+				--blue;
+				--i;
+				break;
+			}
 			if (*blue == ',')
-				goto blue_jump;
+				break;
 		}
-		--blue;
-		--i;
-
-blue_jump:
 
 		ret = strcmp(red + 2, blue + 2);
 
@@ -2355,6 +2357,7 @@ restart_dns_err:
 
 			execl("/usr/bin/ftp", "ftp", line0, line, NULL);
 
+			/* I nullified stdout, so printf won't work */
 			dprintf(std_err, "%s ", strerror(errno));
 			dprintf(std_err, "ftp 2 execl() failed, ");
 			dprintf(std_err, "line: %d\n", __LINE__);
