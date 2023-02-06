@@ -131,12 +131,12 @@ If the timeout is too short, it could cause many loops which may both exhaust th
 which may cause a needless failure and may needlessly and repeatedly beat up on the mirrors.
 
 
-cc pkg_ping.c -o pkg_ping
+cc pkg_ping.c -o /usr/local/bin/pkg_ping
 
-cc pkg_ping.c -march=native -mtune=native -O2 -pipe -o pkg_ping
+cc pkg_ping.c -march=native -mtune=native -O3 -flto -pipe -o /usr/local/bin/pkg_ping
 
 Example usages:
 
-./pkg_ping -vs1.5 -vvu
+pkg_ping -vs1.5 -vvu
 
-./pkg_ping -vSvs 2
+/usr/local/bin/pkg_ping -vSvs 2
