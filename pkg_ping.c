@@ -48,21 +48,21 @@
  *	indent pkg_ping.c -bap -br -ce -ci4 -cli0 -d0 -di0 -i8 \
  *	-ip -l79 -nbc -ncdb -ndj -ei -nfc1 -nlp -npcs -psl -sc -sob
  * 
- *
- *	cc pkg_ping.c -o pkg_ping
+ *	As root:
+ *	cc pkg_ping.c -o /usr/local/bin/pkg_ping
  *
  * 	If you want bleeding edge performance, you can try:
  *
 
-cc pkg_ping.c -march=native -mtune=native -pipe -static -flto -O3 -o pkg_ping
+As root:
+cc pkg_ping.c -march=native -mtune=native -flto -O3 -o /usr/local/bin/pkg_ping
 	
-	run with: ./pkg_ping
-
- *	the -static flag seems to shave off a slight amount of runtime
- *	but adds a TREMENDOUS amount of size. It makes it 864 KiB for me,
- *	rather than 46.6 KiB; That's 18.54X the size.
+ *	run with: /usr/local/bin/pkg_ping
+ *	
+ *	if there are no other pkg_ping files in your execution path:
+ *	you can run with: pkg_ping
  *
- * 	otherwise, you won't see ANY performance gain between the
+ * 	You won't see ANY appreciable performance gain between the
  * 	getaddrinfo(3) and ftp(1) calls which fetch data over the network.
  * 	Everything else happens in likely less than third of a second
  * 	after the first ftp call starts to return its results.
@@ -911,6 +911,10 @@ restart(int argc, char *argv[], const int loop, const int verbose)
 		errx(1, "calloc");
 
 	memcpy(arg_v, argv, (size_t)n * sizeof(char *));
+	
+	arg_v[0] = strdup("/usr/local/bin/pkg_ping");
+	if (arg_v[0] == NULL)
+		errx(1, "strdup");
 
 	const int len = 10;
 	arg_v[n] = calloc(len, sizeof(char));
@@ -1034,7 +1038,7 @@ struct winsize {
 	if (unveil("/usr/bin/ftp", "x") == -1)
 		err(1, "unveil, line: %d", __LINE__);
 
-	if (unveil(argv[0], "x") == -1)
+	if (unveil("/usr/local/bin/pkg_ping", "x") == -1)
 		err(1, "unveil, line: %d", __LINE__);
 
 	if (to_file) {
@@ -1056,16 +1060,15 @@ struct winsize {
 	if (argc < 1)
 		printf("argc cannot be less than 1!\n");
 
-	for(c = 1; c < argc; ++c) {
-		if (strnlen(argv[c], 35) == 35)
-			errx(1, "keep argument lengths under 35");
-	}
-
-
 	if (argc >= 30) {
 		i = !strncmp(argv[argc - 1], "-l", 2);
 		if (argc - i >= 30)
 			errx(1, "keep argument count under 30");
+	}
+
+	for(c = 1; c < argc; ++c) {
+		if (strnlen(argv[c], 35) == 35)
+			errx(1, "keep argument lengths under 35");
 	}
 
 
@@ -1289,12 +1292,12 @@ struct winsize {
                         /* GENERATED CODE BEGINS HERE */
 
 
-        const char *ftp_list[55] = {
+        const char *ftp_list[56] = {
 
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
            "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
-            "ftp.rnl.tecnico.ulisboa.pt","mirrors.gethosted.online",
-  "mirrors.ocf.berkeley.edu","mirror.hs-esslingen.de","mirrors.pidginhost.com",
+            "ftp.rnl.tecnico.ulisboa.pt","mirrors.ocf.berkeley.edu",
+   "mirror.hs-esslingen.de","mirror2.sandyriver.net","mirrors.pidginhost.com",
     "openbsd.cs.toronto.edu","*artfiles.org/openbsd","mirror.planetunix.net",
      "www.mirrorservice.org","ftp4.usa.openbsd.org","mirror.aarnet.edu.au",
        "openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
@@ -1304,14 +1307,15 @@ struct winsize {
          "mirror.ungleich.ch","mirrors.aliyun.com","mirrors.dotsrc.org",
           "openbsd.ipacct.com","ftp.hostserver.de","mirrors.sonic.net",
  "mirrors.ucr.ac.cr","openbsd.as250.net","mirror.litnet.lt","mirror.yandex.ru",
-    "cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.esc7.net",
-     "mirror.ihost.md","mirrors.mit.edu","ftp.icm.edu.pl","mirror.one.com",
- "ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp","ftp.nluug.nl",
-       "ftp.riken.jp","ftp.psnc.pl","ftp.bit.nl","ftp.fau.de","ftp.fsn.hu"
+    "openbsd.paket.ua","cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp",
+     "mirror.esc7.net","mirror.ihost.md","mirrors.mit.edu","ftp.icm.edu.pl",
+        "mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de",
+    "www.ftp.ne.jp","ftp.nluug.nl","ftp.riken.jp","ftp.psnc.pl","ftp.bit.nl",
+                            "ftp.fau.de","ftp.fsn.hu"
 
         };
 
-        const int index = 55;
+        const int index = 56;
 
 
 
@@ -1375,7 +1379,7 @@ struct winsize {
 		} else {
 
 			i = (int)arc4random_uniform(index);
-
+			
 			if (ftp_list[i][0] == '*') {
 				i = snprintf(line, (ulong)n,
 				    "https://%s/ftplist",
