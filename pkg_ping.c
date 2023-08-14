@@ -129,7 +129,7 @@ sub_one_print(long double diff)
 	if (diff >= 1 || diff < 0)
 		errx(1, "Shouldn't ever get here");
 		
-	int i = snprintf(diff_string, 12, "%.9Lf", diff);
+	const int i = snprintf(diff_string, 12, "%.9Lf", diff);
 	if (i != 11) {
 		if (i < 0)
 			 printf("%s", strerror(errno));
@@ -301,7 +301,7 @@ diff_cmp_pure(const void *a, const void *b)
 	 *    Prioritize mirrors near to USA next.
 	 * They most likely didn't succeed past here.
 	 */
-	int ret = usa_cmp(a, b);
+	const int ret = usa_cmp(a, b);
 	if (ret)
 		return ret;
 
@@ -332,7 +332,7 @@ diff_cmp(const void *a, const void *b)
 	 *    Prioritize mirrors near to USA next.
 	 * They most likely didn't succeed past here.
 	 */
-	int ret = usa_cmp(a, b);
+	const int ret = usa_cmp(a, b);
 	if (ret)
 		return ret;
 
@@ -350,10 +350,10 @@ diff_cmp_g(const void *a, const void *b)
 {
 	/* sort those with greater diff values first */
 
-	int diff = (
-		    (int) ((const MIRROR *) b)->diff
+	const int diff = (
+		    (const int) ((const MIRROR *) b)->diff
 		                 -
-		    (int) ((const MIRROR *) a)->diff
+		    (const int) ((const MIRROR *) a)->diff
 		   );
 
 	if (!diff) {
@@ -375,8 +375,8 @@ diff_cmp_g(const void *a, const void *b)
 static int
 diff_cmp_g2(const void *a, const void *b)
 {
-	const int one_len = (int) ((const MIRROR *) a)->diff;
-	const int two_len = (int) ((const MIRROR *) b)->diff;
+	const int one_len = (const int) ((const MIRROR *) a)->diff;
+	const int two_len = (const int) ((const MIRROR *) b)->diff;
 
 	/*
 	 * If either are an OpenBSD.org mirror...
@@ -391,7 +391,7 @@ diff_cmp_g2(const void *a, const void *b)
 
 		/* sort those with greater len values first */
 
-		int diff = two_len - one_len;
+		const int diff = two_len - one_len;
 		if (!diff) {
 
 			return strcmp(
@@ -409,7 +409,7 @@ static int
 label_cmp(const void *a, const void *b)
 {
 	/* prioritize mirrors near to USA first */
-	int ret = usa_cmp(a, b);
+	const int ret = usa_cmp(a, b);
 	if (ret)
 		return ret;
 
@@ -802,14 +802,20 @@ file_d(const int write_pipe, const int secure,
 
 	char *file_w = NULL;
 	FILE *pkg_write = NULL;
+	const size_t max_file_length = 1302;
+	
+	if (max_file_length <= 7 + (const size_t)secure + 2 + 1)
+		errx(1, "max_file_length is too short");
 
-	file_w = calloc(1302, sizeof(char));
+	file_w = malloc(max_file_length);
 	if (file_w == NULL) {
-		printf("calloc\n");
+		printf("malloc\n");
 		_exit(1);
 	}
+	
+	const size_t received_max = 1 + max_file_length - 2;
 
-	ssize_t received = read(write_pipe, file_w, 1301);
+	const ssize_t received = read(write_pipe, file_w, received_max);
 
 	if (received == -1) {
 		printf("%s ", strerror(errno));
@@ -827,13 +833,13 @@ file_d(const int write_pipe, const int secure,
 		goto file_cleanup;
 	}
 	
-	if (received == 1301) {
+	if (received == received_max) {
 		printf("received mirror is too large\n");
 		printf("/etc/installurl not written.\n");
 		goto file_cleanup;
 	}
 
-	file_w[received] = '\n';
+	memcpy(file_w + received, "\n", 1 + 1);
 
 	if (secure) {
 		if (strncmp(file_w, "https://", 8)) {
@@ -912,15 +918,11 @@ restart(int argc, char *argv[], const int loop, const int verbose)
 
 	memcpy(arg_v, argv, (size_t)n * sizeof(char *));
 	
-	arg_v[0] = strdup("/usr/local/bin/pkg_ping");
-	if (arg_v[0] == NULL)
-		errx(1, "strdup");
-
 	const int len = 10;
 	arg_v[n] = calloc(len, sizeof(char));
 	if (arg_v[n] == NULL)
 		errx(1, "calloc");
-	int c = snprintf(arg_v[n], len, "-l%d", loop - 1);
+	const int c = snprintf(arg_v[n], len, "-l%d", loop - 1);
 	if (c >= len || c < 0) {
 		if (c < 0)
 			printf("%s", strerror(errno));
@@ -930,7 +932,10 @@ restart(int argc, char *argv[], const int loop, const int verbose)
 		exit(1);
 	}
 
-	execv(arg_v[0], arg_v);
+
+	/* hard-code to /usr/local/bin/pkg_ping */
+	
+	execv("/usr/local/bin/pkg_ping", arg_v);
 	err(1, "execv failed, line: %d", __LINE__);
 }
 
@@ -1292,44 +1297,42 @@ struct winsize {
                         /* GENERATED CODE BEGINS HERE */
 
 
-        const char *ftp_list[56] = {
+        const char *ftp_list[52] = {
 
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
            "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
-            "ftp.rnl.tecnico.ulisboa.pt","mirrors.ocf.berkeley.edu",
-   "mirror.hs-esslingen.de","mirror2.sandyriver.net","mirrors.pidginhost.com",
+            "ftp.rnl.tecnico.ulisboa.pt","mirrors.gethosted.online",
+  "mirrors.ocf.berkeley.edu","mirror.hs-esslingen.de","mirror2.sandyriver.net",
     "openbsd.cs.toronto.edu","*artfiles.org/openbsd","mirror.planetunix.net",
-     "www.mirrorservice.org","ftp4.usa.openbsd.org","mirror.aarnet.edu.au",
-       "openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
-       "mirror.edgecast.com","mirror.leaseweb.com","mirror.telepoint.bg",
-        "mirrors.gigenet.com","openbsd.eu.paket.ua","ftp.eu.openbsd.org",
-         "ftp.fr.openbsd.org","ftp.lysator.liu.se","mirror.fsmg.org.nz",
-         "mirror.ungleich.ch","mirrors.aliyun.com","mirrors.dotsrc.org",
-          "openbsd.ipacct.com","ftp.hostserver.de","mirrors.sonic.net",
- "mirrors.ucr.ac.cr","openbsd.as250.net","mirror.litnet.lt","mirror.yandex.ru",
-    "openbsd.paket.ua","cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp",
-     "mirror.esc7.net","mirror.ihost.md","mirrors.mit.edu","ftp.icm.edu.pl",
+     "www.mirrorservice.org","mirror.aarnet.edu.au","openbsd.c3sl.ufpr.br",
+       "ftp.usa.openbsd.org","ftp2.eu.openbsd.org","mirror.edgecast.com",
+       "mirror.leaseweb.com","mirror.telepoint.bg","mirrors.gigenet.com",
+        "openbsd.eu.paket.ua","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
+         "ftp.lysator.liu.se","mirror.fsmg.org.nz","mirror.ungleich.ch",
+         "mirrors.aliyun.com","mirrors.dotsrc.org","openbsd.ipacct.com",
+"ftp.hostserver.de","mirrors.sonic.net","mirrors.ucr.ac.cr","openbsd.as250.net",
+   "mirror.litnet.lt","mirror.yandex.ru","cdn.openbsd.org","ftp.OpenBSD.org",
+     "ftp.jaist.ac.jp","mirror.ihost.md","mirrors.mit.edu","ftp.icm.edu.pl",
         "mirror.one.com","ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de",
     "www.ftp.ne.jp","ftp.nluug.nl","ftp.riken.jp","ftp.psnc.pl","ftp.bit.nl",
-                            "ftp.fau.de","ftp.fsn.hu"
+                                  "ftp.fau.de"
 
         };
 
-        const int index = 56;
+        const int index = 52;
 
 
 
      /* Trusted OpenBSD.org subdomain mirrors for generating this section */
 
-        const char *ftp_list_g[8] = {
+        const char *ftp_list_g[7] = {
 
-   "cloudflare.cdn.openbsd.org","ftp4.usa.openbsd.org","ftp.usa.openbsd.org",
-        "ftp2.eu.openbsd.org","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
-                       "cdn.openbsd.org","ftp.OpenBSD.org"
+    "cloudflare.cdn.openbsd.org","ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
+  "ftp.eu.openbsd.org","ftp.fr.openbsd.org","cdn.openbsd.org","ftp.OpenBSD.org"
 
         };
 
-        const int index_g = 8;
+        const int index_g = 7;
 
 
                          /* GENERATED CODE ENDS HERE */
@@ -3249,11 +3252,12 @@ generate_jump:
 			
 			printf(" : ");
 			
-			if (ac->diff == s + 1)	// assigned this value
+	// If assigned this value.... If -Wfloat-equal warnings, ignore it.
+			if (ac->diff == s + 1)	
 				printf("Download Error");
-			else if (ac->diff == s + 2)	// assigned this value
+			else if (ac->diff == s + 2)
 				printf("IPv6 DNS record not found");
-			else if (ac->diff == s + 3)	// assigned this value
+			else if (ac->diff == s + 3)
 				printf("DNS record not found");
 			else
 				printf("BLOCKED subdomain!");
