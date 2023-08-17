@@ -1,6 +1,5 @@
 ### Major update:
-It fork()s a 5th potential process to scrape the download speed from ftp(1), send it back to the parent process and uses that speed
-and the response speed to average out what mirrors are the best, not based upon the order alone,
+It fork()s a 5th potential process to scrape the download speed from ftp(1), send it back to the parent process and uses that bandwidth and the response speed to average out what mirrors are the best, not based upon the order alone,
 but based upon translating it to a linear equation for more equitable rankings so super fast and super responsive mirrors will be weighed stronger!
 However you may choose to purely rate by the most responsive or the fastest instead!
 
