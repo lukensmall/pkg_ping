@@ -780,12 +780,7 @@ dns_exit1:
  * if there's a possibility of the main() getting overrun,
  * this process performs some sanity checks to, among
  * other things, prevent /etc/installurl from becoming a
- * massive file which fills up the partition. That
- * scenario is perhaps possible if the program is
- * called with doas so that the program has root privileges
- * but the caller isn't root, so they don't have full
- * access to fill up the partition in which /etc/ resides
- * all by themselves.
+ * massive file which fills up the partition.
  */
 static __attribute__((noreturn)) void
 file_d(const int write_pipe, const int secure,
