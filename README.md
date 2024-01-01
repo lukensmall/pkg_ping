@@ -3,18 +3,7 @@ It fork()s a 5th potential process to scrape the download speed from ftp(1), sen
 but based upon translating it to a linear equation for more equitable rankings so super fast and super responsive mirrors will be weighed stronger!
 However you may choose to purely rate by the most responsive or the fastest instead!
 
-responsiveness_ranking^2 + bandwidth_ranking^2 == unified_ranking
-
 New flags: -a, -b, and -r
-
--a: makes -V or zero -v take it's time and not shorten the time out and evaluate average time. Otherwise for -vv and above, it has no effect.
-Average is the default setting otherwise.
-
--b: rate purely by bandwidth
-
--r: rate purely by responsiveness like before
-
-
 
 ### It determines and prints the fastest OpenBSD mirror(s) for your version and architecture for the /etc/installurl file and if run as root, will write the fastest successful one to disk unless -f is used.
 
@@ -46,6 +35,11 @@ It uses several commandline options:
 -6 causes it to only lookup ipv6 addresses on mirrors.
    Maybe you want to make an ipv6 only box, but want to test it with ipv4 connected first?
 
+-a: makes -V or zero -v take it's time and not shorten the time out and evaluate average time. Otherwise for -vv and above, it has no effect.
+Average is the default setting otherwise.
+
+-b: rate purely by bandwidth
+
 -d causes the fork()ed DNS caching process to be skipped.
 
 -D is "Debug" mode. It makes the ftp calls after the initial one short circuit. and sets up a timer.
@@ -76,6 +70,8 @@ It uses several commandline options:
 -n searches for next release package folders! It adds .1 to your version and searches for the release.
 
 If both -n and -p are specified, it will default to the last argument specified.
+
+-r: rate purely by responsiveness like before
 
 -s will accept floating-point timeout like 1.5 seconds using strtold() and handrolled validation, eg. "-s 1.5" . Default 5.
    If -g is specified -s defaults to 10.
