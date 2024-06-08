@@ -1220,7 +1220,7 @@ struct kevent {
 	long double s = 5L;
 
 	/* 10 seconds and 0 nanoseconds to download ftplist */
-	struct timespec timeout_ftp_list = { 5, 0 };
+	struct timespec timeout_ftp_list = { 10, 0 };
 
 
 /*
