@@ -1,7 +1,7 @@
 /*
  * BSD 2-Clause License
  *
- * Copyright (c) 2016 - 2024, Luke N Small, lukensmall@gmail.com
+ * Copyright (c) 2016 - 2024, Luke N Small, thinkitdoitdone@gmail.com
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -159,7 +159,8 @@ static char *line = NULL;
 static char *line0 = NULL;
 
 /* Called once with atexit. It's the only function called with atexit. */
-static void free_array(void)
+static void
+free_array(void)
 {
 	MIRROR *ac = array + array_length;
 
@@ -195,7 +196,7 @@ sub_one_print(long double diff)
 	const int i = snprintf(diff_string, 12, "%.9Lf", diff);
 	if (i != 11) {
 		if (i < 0) {
-			 (void)printf("%s", strerror(errno));
+			(void)printf("%s", strerror(errno));
 		} else {
 			(void)printf("'line': %s,", diff_string);
 		}
@@ -518,7 +519,8 @@ unified_cmp(const void *a, const void *b)
 	}
 }
 
-static void manpage(void)
+static void
+manpage(void)
 {
 	(void)printf("[-6 (only return IPv6 compatible mirrors)]\n");
 
@@ -1083,12 +1085,13 @@ easy_ftp_kill(const pid_t ftp_pid)
  * with something significantly slower
  * for very large arrays, but simple and super-verifiable
  */
-static void asimplesort(void *base0, size_t nmembs, size_t size,
-		       int (*compar)(const void *, const void *))
+static void
+selection_sort(void *base0, size_t nmembs, size_t size,
+		int (*compar)(const void *, const void *))
 {
 	u_char *base = (u_char*)base0;
 
-	if (nmembs <= 1) {
+	if (nmembs < 2) {
 		return;
 	}
 
@@ -1097,7 +1100,7 @@ static void asimplesort(void *base0, size_t nmembs, size_t size,
 		errx(1, "malloc");
 	}
 
-	for (size_t i = nmembs - 1; i > 0; --i) {
+	for (size_t i = nmembs - (size_t)1; i > 0; --i) {
 		u_char *b1 = base;
 		u_char *biggest = base;
 		for (size_t j = 1; j <= i; ++j) {
@@ -1220,7 +1223,7 @@ struct kevent {
 	long double s = 5L;
 
 	/* 10 seconds and 0 nanoseconds to download ftplist */
-	struct timespec timeout_ftp_list = { 10, 0 };
+	struct timespec timeout_ftp_list = { 5, 0 };
 
 
 /*
@@ -2236,15 +2239,15 @@ struct winsize {
 	 */
 	if (usa == 0) {
 		if (verbose > 1) {
-			asimplesort(array, (ulong)array_length,
+			selection_sort(array, (ulong)array_length,
 			    sizeof(MIRROR), label_cmp_minus_usa);
 		} /* else don't sort */
 	} else {
 		if (verbose < 1) {
-			asimplesort(array, (ulong)array_length,
+			selection_sort(array, (ulong)array_length,
 			    sizeof(MIRROR), usa_cmp);
 		} else if (verbose > 1) {
-			asimplesort(array, (ulong)array_length,
+			selection_sort(array, (ulong)array_length,
 			    sizeof(MIRROR), label_cmp);
 		}
 		/* else don't sort */
@@ -2896,7 +2899,7 @@ restart_dns_err:
 
 		/*
 		 * I chose to use a more efficient insertion sort
-		 * pass instead of doing a asimplesort() to load the
+		 * pass instead of doing a selection_sort() to load the
 		 * fastest mirror data into array[0] since the
 		 * rest of the data in the array is not used.
 		 */
@@ -2905,7 +2908,7 @@ restart_dns_err:
 
 			int se = -1;
 
-			asimplesort(array, (size_t)array_length,
+			selection_sort(array, (size_t)array_length,
 			    sizeof(MIRROR), diff_cmp);
 
 			c = (int)array_length;
@@ -2940,7 +2943,7 @@ restart_dns_err:
 				array[c].speed_rating = t;
 			}
 
-			asimplesort(array, (size_t)se + 1,
+			selection_sort(array, (size_t)se + 1,
 			    sizeof(MIRROR), diff_cmp_pure);
 
 			for (c = 0; c <= se; ++c) {
@@ -2962,7 +2965,7 @@ restart_dns_err:
 				array[c].diff_rating = (long double)100 - t;
 			}
 
-			asimplesort(array, (size_t)se + 1,
+			selection_sort(array, (size_t)se + 1,
 			    sizeof(MIRROR), unified_cmp);
 
 		} else {
@@ -2997,7 +3000,7 @@ restart_dns_err:
 		}
 
 	} else {
-		asimplesort(array, (size_t)array_length, sizeof(MIRROR),
+		selection_sort(array, (size_t)array_length, sizeof(MIRROR),
 		           diff_cmp);
 
 		int  ds = -1;
@@ -3113,7 +3116,7 @@ restart_dns_err:
 		 * sort by longest length first, subsort http alphabetically
 		 *           It makes it kinda look like a flower.
 		 */
-		asimplesort(array, (size_t)se + 1, sizeof(MIRROR), diff_cmp_g);
+		selection_sort(array, (size_t)se + 1, sizeof(MIRROR), diff_cmp_g);
 
 		(void)printf("\n\n");
 		(void)printf("                        ");
@@ -3215,7 +3218,7 @@ gen_skip1:
 		 * if diff > 0 then
 		 * subsort http alphabetically
 		 */
-		asimplesort(array, (size_t)se0 + 1, sizeof(MIRROR),
+		selection_sort(array, (size_t)se0 + 1, sizeof(MIRROR),
 		    diff_cmp_g2);
 
 		(void)printf("     /* Trusted OpenBSD.org subdomain ");
@@ -3303,6 +3306,7 @@ gen_skip2:
 		} while (array <= --ac);
 
 		free(current_time);
+		current_time = NULL;
 
 		if (debug) {
 			goto debug_display;
@@ -3334,7 +3338,7 @@ generate_jump:
 			array[c].speed_rating = t;
 		}
 
-		asimplesort(array, (size_t)se + 1, sizeof(MIRROR), diff_cmp_pure);
+		selection_sort(array, (size_t)se + 1, sizeof(MIRROR), diff_cmp_pure);
 
 		for (c = 0; c <= se; ++c) {
 			array[c].diff_rank = 1 + se - c;
@@ -3358,10 +3362,10 @@ generate_jump:
 
 
 		if (average) {
-			asimplesort(array, (size_t)se + 1,
+			selection_sort(array, (size_t)(se + 1),
 			    sizeof(MIRROR), unified_cmp);
 		} else if (bandwidth) {
-			asimplesort(array, (size_t)se + 1, sizeof(MIRROR), diff_cmp);
+			selection_sort(array, (size_t)(se + 1), sizeof(MIRROR), diff_cmp);
 		}
 
 
