@@ -84,8 +84,13 @@ If both -n and -p are specified, it will default to the last argument specified.
 -u will make it avoid loading mirrors with "USA" in the label for encryption export compliance
    (if that's still a thing) if you are searching from outside of the USA and Canada.
    I'm not sure if this eliminates all mirrors located in the USA. Mirrors with "(CDN)" label may be from the USA.
-   Use your best judgement. If -u is used, usa_cmp() won't be used which will sort USA mirrors followed by CDN mirrors
-   then followed by Canada mirrors.
+   Use your best judgement. If -u is used, usa_cmp() WILL NOT be used which will sort USA mirrors followed by
+   CDN mirrors then followed by Canada mirrors.
+
+
+-U will only load mirrors with "USA", "Canada", and "CDN" in the label. This can be used with -u to only get
+   Canada and CDN mirrors I suppose.
+
 
 -v will show when it is fetching "ftplist" from one of the many hard coded mirrors, prints out the results 
    sorted in reverse order by time or if it is timed out, or a download error,
