@@ -2145,12 +2145,9 @@ struct winsize {
 		if ((USA == 1) &&
 		
 		    (
-		     (
-		      (strstr(line, "USA"   ) != NULL) ||
-		      (strstr(line, "CDN"   ) != NULL) ||
-		      (strstr(line, "Canada") != NULL)
-		     )
-		     == 0
+		      (strstr(line, "USA"   ) == NULL) &&
+		      (strstr(line, "CDN"   ) == NULL) &&
+		      (strstr(line, "Canada") == NULL)
 		    )
 		    
 		) {
