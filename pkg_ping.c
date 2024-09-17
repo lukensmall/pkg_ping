@@ -43,11 +43,6 @@
  */
 
 /*
- * 	the following call is destructive:
- *
- *	indent pkg_ping.c -bap -br -ce -ci4 -cli0 -d0 -di0 -i8 \
- *	-ip -l79 -nbc -ncdb -ndj -ei -nfc1 -nlp -npcs -psl -sc -sob
- *
  *	As root:
  *	cc pkg_ping.c -o /usr/local/bin/pkg_ping
  *
@@ -186,11 +181,11 @@ static long double almost_zero = 0L;
 static void
 sub_one_print(long double diff)
 {
-	if (diff < almost_zero && diff >= 0) {
+	if ((diff < almost_zero) && (diff >= 0)) {
 		(void)printf("0");
 		return;
 	}
-	if (diff >= 1 || diff < 0) {
+	if ((diff >= 1) || (diff < 0)) {
 		errx(1, "Shouldn't ever get here line: %d", __LINE__);
 	}
 
@@ -205,16 +200,6 @@ sub_one_print(long double diff)
 		_exit(1);
 	}
 	(void)printf("%s", 1 + diff_string);
-}
-
-static int
-USA_func(const void *label)
-{
-	return (
-	        (strstr(label, "USA"   ) != NULL)
-	     || (strstr(label, "CDN"   ) != NULL)
-	     || (strstr(label, "Canada") != NULL)
-	       );
 }
 
 static int
@@ -293,7 +278,7 @@ label_cmp_minus_usa(const void *a, const void *b)
 
 	int ret = strcmp(red + 2, blue + 2);
 
-	while (ret == 0 && i == 3) {
+	while ((ret == 0) && (i == 3)) {
 
 		/*
 		 * search for a comma before the one
@@ -701,7 +686,7 @@ dns_loop:
 		}
 	}
 
-	if (verbose < 4 && six == 0) {
+	if ((verbose < 4) && (six == 0)) {
 		for (res = res0; res; res = res->ai_next) {
 
 			if (res->ai_family == AF_INET) {
@@ -768,7 +753,7 @@ dns_loop:
 			 * I don't expect a negative impact
 			 * to functionality for others.
 			 */
-			if (six_available == 'u' && sui4) {
+			if ((six_available == 'u') && sui4) {
 				six_available = '0';
 			}
 
@@ -1041,7 +1026,7 @@ restart(int argc, char *argv[], const int loop, const int verbose)
 		(void)printf("restarting...loop: %d\n", loop);
 	}
 
-	const int n = argc - (argc > 1 && !strncmp(argv[argc - 1], "-l", 2));
+	const int n = argc - ((argc > 1) && (!strncmp(argv[argc - 1], "-l", 2)));
 
 	char **arg_v = calloc((size_t)n + 1 + 1, sizeof(char *));
 	if (arg_v == NULL) {
@@ -1056,7 +1041,7 @@ restart(int argc, char *argv[], const int loop, const int verbose)
 		errx(1, "calloc");
 	}
 	const int c = snprintf(arg_v[n], len, "-l%d", loop - 1);
-	if (c >= len || c < 0) {
+	if ((c >= len) || (c < 0)) {
 		if (c < 0) {
 			(void)printf("%s", strerror(errno));
 		} else {
@@ -1127,7 +1112,7 @@ selection_sort(void *base0, size_t nmembs, size_t size,
 		errx(1, "malloc");
 	}
 
-	for (size_t i = nmembs - (size_t)1; i > 0; --i) {
+	for (size_t i = nmembs - 1ULL; i > 0; --i) {
 		u_char *b1 = base;
 		u_char *biggest = base;
 		for (size_t j = 1; j <= i; ++j) {
@@ -1154,19 +1139,6 @@ main(int argc, char *argv[])
 	#error Only run on OpenBSD
 #endif
 
-	kq = kqueue();
-	if (kq == -1) {
-		errx(1, "kqueue() error, line :%d", __LINE__);
-	}
-
-	malloc_options = "CFGJJjU";
-
-	errno = 0;
-	almost_zero = strtold(".000000001", NULL);
-	if (errno) {
-		err(1, "almost_zero == 0, line: %d", __LINE__);
-	}
-	
 	size_t tag_len = 0;
 
 	int responsiveness = 0;
@@ -1221,14 +1193,32 @@ main(int argc, char *argv[])
 	struct timespec end = { 0, 0 };
 
 	struct timespec timeout = { 0, 0 };
-	struct timespec startD = { 0, 0 };
-	struct timespec endD = { 0, 0};
+	struct timespec startD  = { 0, 0 };
+	struct timespec endD    = { 0, 0 };
 
 	char *line_temp = NULL;
 	char *release = NULL;
 
 	char *current_time = NULL;
 	char v = '\0';
+
+
+	malloc_options = strdup("CFGJJjU");
+	if (malloc_options == NULL) {
+		err(1, "malloc");
+	}
+
+	kq = kqueue();
+	if (kq == -1) {
+		errx(1, "kqueue() error, line :%d", __LINE__);
+	}
+
+	errno = 0;
+	almost_zero = strtold(".000000001", NULL);
+	if (errno) {
+		err(1, "almost_zero == 0, line: %d", __LINE__);
+	}
+	
 
 /*
 from: /usr/src/sys/sys/event.h
@@ -1304,8 +1294,8 @@ struct winsize {
 	}
 
 	if (argc >= 30) {
-		i = !strncmp(argv[argc - 1], "-l", 2);
-		if (argc - i >= 30) {
+		i = (!strncmp(argv[argc - 1], "-l", 2));
+		if ((argc - i) >= 30) {
 			errx(1, "keep argument count under 30");
 		}
 	}
@@ -1364,7 +1354,7 @@ struct winsize {
 			c = 0;
 			loop = 0;
 			do {
-				if (optarg[c] < '0' || optarg[c] > '9') {
+				if ((optarg[c] < '0') || (optarg[c] > '9')) {
 					(void)printf("-l argument ");
 					(void)printf("only accepts ");
 					(void)printf("numeric characters\n");
@@ -1407,11 +1397,11 @@ struct winsize {
 			i = 0;
 			c = 0;
 			do {
-				if (optarg[c] >= '0' && optarg[c] <= '9') {
+				if ((optarg[c] >= '0') && (optarg[c] <= '9')) {
 					continue;
 				}
 				++i;
-				if (optarg[c] == '.' && i == 1) {
+				if ((optarg[c] == '.') && (i == 1)) {
 					continue;
 				}
 
@@ -1426,7 +1416,7 @@ struct winsize {
 			errno = 0;
 			s = strtold(optarg, &line_temp);
 
-			if (errno || optarg == line_temp) {
+			if (errno || (optarg == line_temp)) {
 				(void)printf("\"%s\" is an invalid ", optarg);
 				(void)printf("argument for -s\n");
 				return 1;
@@ -1495,7 +1485,7 @@ struct winsize {
 		errx(1, "try an -s greater than or equal to 0.015625 (1/64)");
 	}
 
-	if (dns_cache == 0 && verbose == 4) {
+	if ((dns_cache == 0) && (verbose == 4)) {
 		verbose = 3;
 	}
 
@@ -1565,7 +1555,7 @@ struct winsize {
                         /* GENERATED CODE BEGINS HERE */
 
 
-        const char *ftp_list[55] = {
+        const char *ftp_list[54] = {
 
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
            "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
@@ -1579,15 +1569,15 @@ struct winsize {
          "mirror.freedif.org","mirror.fsmg.org.nz","mirror.ungleich.ch",
          "mirrors.aliyun.com","mirrors.dotsrc.org","openbsd.ipacct.com",
 "ftp.hostserver.de","mirrors.sonic.net","mirrors.ucr.ac.cr","openbsd.as250.net",
-  "mirror.group.one","mirror.litnet.lt","mirror.yandex.ru","mirrors.ircam.fr",
-    "openbsd.paket.ua","cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp",
-    "mirror.ihost.md","mirror.ox.ac.uk","mirrors.mit.edu","repo.jing.rocks",
-        "ftp.icm.edu.pl","ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de",
-     "www.ftp.ne.jp","ftp.nluug.nl","ftp.psnc.pl","ftp.bit.nl","ftp.fau.de"
+  "mirror.group.one","mirror.litnet.lt","mirrors.ircam.fr","openbsd.paket.ua",
+    "cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.ihost.md",
+     "mirror.ox.ac.uk","mirrors.mit.edu","repo.jing.rocks","ftp.icm.edu.pl",
+ "ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp","ftp.nluug.nl",
+                     "ftp.psnc.pl","ftp.bit.nl","ftp.fau.de"
 
         };
 
-        const int ftp_list_index = 55;
+        const int ftp_list_index = 54;
 
 
 
@@ -1666,7 +1656,7 @@ struct winsize {
 			}
 		}
 
-		if (i >= n || i < 0) {
+		if ((i >= n) || (i < 0)) {
 			if (i < 0) {
 				(void)printf("%s", strerror(errno));
 			} else {
@@ -1742,7 +1732,7 @@ struct winsize {
 			errx(1, "malloc");
 		}
 		i = snprintf(current_time, (ulong)n, "%Lf", s);
-		if (i >= n || i < 0) {
+		if ((i >= n) || (i < 0)) {
 			if (i < 0) {
 				(void)printf("%s", strerror(errno));
 			} else {
@@ -1882,14 +1872,14 @@ struct winsize {
 			n = (int)strlen(release) + 1;
 			double f_temp;
 
-			if (n == 3 + 1)
+			if (n == (3 + 1))
 			{
 				if (
-					(release[0] < '0' || release[0] > '9')
+					((release[0] < '0') || (release[0] > '9'))
 					||
 					(release[1] != '.')
 					||
-					(release[2] < '0' || release[2] > '9')
+					((release[2] < '0') || (release[2] > '9'))
 				   ) {
 					errx(1, "%s%s%d",
 					"release is somehow ",
@@ -1900,16 +1890,16 @@ struct winsize {
 				f_temp = (release[0] - '0')
 				      + ((release[2] - '0') / (double)10);
 
-			} else if (n == 4 + 1)  {
+			} else if (n == (4 + 1))  {
 
 				if (
-					(release[0] < '0' || release[0] > '9')
+					((release[0] < '0') || (release[0] > '9'))
 					||
-					(release[1] < '0' || release[1] > '9')
+					((release[1] < '0') || (release[1] > '9'))
 					||
 					(release[2] != '.')
 					||
-					(release[3] < '0' || release[3] > '9')
+					((release[3] < '0') || (release[3] > '9'))
 				) {
 					errx(1, "%s%s%d",
 					"release is somehow ",
@@ -1917,7 +1907,7 @@ struct winsize {
 					__LINE__);
 				}
 				// eg. 10.0
-				f_temp = ((release[0] - '0') * (double)10.0) +
+				f_temp = ((release[0] - '0') * (double)10) +
 				          (release[1] - '0') +
 				          ((release[3] - '0') / (double)10);
 
@@ -1936,7 +1926,7 @@ struct winsize {
 
 			i = snprintf(release, (ulong)n, "%.1f", f_temp);
 
-			if (i >= n || i < 0) {
+			if ((i >= n) || (i < 0)) {
 				if (i < 0) {
 					(void)printf("%s", strerror(errno));
 				} else {
@@ -1977,9 +1967,9 @@ struct winsize {
 
 		explicit_bzero(&name, sizeof(struct utsname));
 		
-		size_t s_stemp = (size_t)i;
+		size_t s_temp = (size_t)i;
 
-		if (s_stemp >= tag_len + 1ULL || i < 0) {
+		if ((s_temp >= (tag_len + 1ULL)) || (i < 0)) {
 			if (i < 0) {
 				(void)printf("%s", strerror(errno));
 			} else {
@@ -2017,11 +2007,11 @@ struct winsize {
 	i = kevent(kq, &ke, 1, &ke, 1, &timeout_ftp_list);
 
 	if (i == -1) {
-		(void)printf("%s ", strerror(errno));
-
-		if (verbose == 0 || verbose == 1) {
-			(void)printf("\b \b");
+		if ( (verbose == 0) || (verbose == 1) ) {
+			(void)printf("\b \b%s ", strerror(errno));
 			(void)fflush(stdout);
+		} else {
+			(void)printf("%s ", strerror(errno));
 		}
 
 		(void)printf("kevent, timeout_ftp_list may be too large. ");
@@ -2030,7 +2020,7 @@ struct winsize {
 		return 1;
 	}
 
-	if (verbose == 0 || verbose == 1) {
+	if ( (verbose == 0) || (verbose == 1) ) {
 		(void)printf("\b \b");
 		(void)fflush(stdout);
 	}
@@ -2127,7 +2117,7 @@ struct winsize {
 			continue;
 		}
 
-		if (pos == 0 && v == ' ') {
+		if ((pos == 0) && (v == ' ')) {
 			continue;
 		}
 
@@ -2139,20 +2129,31 @@ struct winsize {
 
 
 		/* wipes out spaces at the end of the label */
-		while (pos > 0 && line[pos - 1] == ' ') {
+		while ((pos > 0) && (line[pos - 1] == ' ')) {
 			--pos;
 		}
 
 		line[pos] = '\0';
 		++pos;
 
-		if (usa == 0 && strstr(line, "USA")) {
+		if ((usa == 0) && strstr(line, "USA")) {
 			free(array[array_length].http);
 			pos = num = 0;
 			continue;
 		}
 		
-		if (USA == 1 && !USA_func(line)) {
+		if ((USA == 1) &&
+		
+		    (
+		     (
+		      (strstr(line, "USA"   ) != NULL) ||
+		      (strstr(line, "CDN"   ) != NULL) ||
+		      (strstr(line, "Canada") != NULL)
+		     )
+		     == 0
+		    )
+		    
+		) {
 			free(array[array_length].http);
 			pos = num = 0;
 			continue;
@@ -3131,7 +3132,7 @@ restart_dns_err:
 					cut = ac->http + (int)ac->diff;
 				}
 
-				if ((cut - ac->http > 12) &&
+				if (((cut - ac->http) > 12) &&
 				    (
 				     !strncmp(cut - 12, ".openbsd.org", 12)
 
