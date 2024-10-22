@@ -107,7 +107,6 @@ typedef struct {
 		 ];
 
 
-	/* these two are equal to length sizeof(size_t) */
 	char *label;
 	char *http;
 
@@ -116,6 +115,8 @@ typedef struct {
 			(sizeof(size_t) -
 				(
 					(
+						sizeof(char*) +
+						sizeof(char*) +
 						sizeof(uint64_t)
 					) % sizeof(size_t)
 				)
@@ -169,9 +170,10 @@ free_array(void)
 	free(line);
 	free(line0);
 	free(tag);
+	free(malloc_options);
 }
 
-static long double almost_zero = 0L;
+static long double almost_zero = 0.0L;
 
 /*
  * print long double which is <1 and >0, without the leading '0'
@@ -181,11 +183,11 @@ static long double almost_zero = 0L;
 static void
 sub_one_print(long double diff)
 {
-	if ((diff < almost_zero) && (diff >= 0)) {
+	if ((diff < almost_zero) && (diff >= 0.0L)) {
 		(void)printf("0");
 		return;
 	}
-	if ((diff >= 1) || (diff < 0)) {
+	if ((diff >= 1.0L) || (diff < 0.0L)) {
 		errx(1, "Shouldn't ever get here line: %d", __LINE__);
 	}
 
@@ -209,8 +211,8 @@ usa_cmp(const void *a, const void *b)
 	char *two_label = ((const MIRROR *) b)->label;
 
 	/* prioritize the USA mirrors first */
-	int temp  = (strstr(one_label, "USA") != NULL);
-	if (temp != (strstr(two_label, "USA") != NULL)) {
+	int temp  = (int)(strstr(one_label, "USA") != NULL);
+	if (temp != (int)(strstr(two_label, "USA") != NULL)) {
 		if (temp) {
 
 			return (-1);
@@ -223,8 +225,8 @@ usa_cmp(const void *a, const void *b)
 	}
 
         /* prioritize Content Delivery Network "CDN" mirrors next */
-        temp      = (strstr(one_label, "CDN") != NULL);
-        if (temp != (strstr(two_label, "CDN") != NULL)) {
+        temp      = (int)(strstr(one_label, "CDN") != NULL);
+        if (temp != (int)(strstr(two_label, "CDN") != NULL)) {
                 if (temp) {
 
                         return (-1);
@@ -237,8 +239,8 @@ usa_cmp(const void *a, const void *b)
 	}
 
 	/* prioritize Canada mirrors last */
-	temp      = (strstr(one_label, "Canada") != NULL);
-	if (temp != (strstr(two_label, "Canada") != NULL)) {
+	temp      = (int)(strstr(one_label, "Canada") != NULL);
+	if (temp != (int)(strstr(two_label, "Canada") != NULL)) {
 		if (temp) {
 
 			return (-1);
@@ -251,6 +253,8 @@ usa_cmp(const void *a, const void *b)
 /*
  * compare the labels alphabetically by proper decreasing
  * hierarchy which are in reverse order between commas.
+ * 
+ * any potential problems already checked for in main()
  */
 static int
 label_cmp_minus_usa(const void *a, const void *b)
@@ -259,26 +263,26 @@ label_cmp_minus_usa(const void *a, const void *b)
 	const char *one_label = ((const MIRROR *) a)->label;
 	const char *two_label = ((const MIRROR *) b)->label;
 
-	// bitfield of two
-	uint i = 3;
+	// full bitfield of two
+	uint i = 3U;
 
 	/* start with the last comma */
 
 	const char *red = strrchr(one_label, ',');
 	if (red == NULL) {
-		red = one_label - 2;
+		red = one_label - 2ULL;
 		i = 1;
 	}
 
 	const char *blue = strrchr(two_label, ',');
 	if (blue == NULL) {
-		blue = two_label - 2;
+		blue = two_label - 2ULL;
 		--i;
 	}
 
-	int ret = strcmp(red + 2, blue + 2);
+	int ret = strcmp(red + 2ULL, blue + 2ULL);
 
-	while ((ret == 0) && (i == 3)) {
+	while ((ret == 0) && (i == 3U)) {
 
 		/*
 		 * search for a comma before the one
@@ -309,7 +313,7 @@ label_cmp_minus_usa(const void *a, const void *b)
 			}
 		}
 
-		ret = strcmp(red + 2, blue + 2);
+		ret = strcmp(red + 2ULL, blue + 2ULL);
 
 	}
 
@@ -324,10 +328,10 @@ label_cmp_minus_usa(const void *a, const void *b)
 		 * The one with fewer commas is preferred first.
 		 * If red: i == 1, if blue: i == 2
 		 */
-		if (i == 1) {
+		if (i == 1U) {
 			return (-1);
 		}
-		if (i == 2) {
+		if (i == 2U) {
 			return 1;
 		}
 
@@ -414,7 +418,7 @@ diff_cmp(const void *a, const void *b)
 /*
  * at this time, diff values represent the length of their http char*
  * stripped of the leading "http://" or "https://" and if it exists,
- * the trailing "/pub/OpenBSD".
+ * stripped of the trailing "/pub/OpenBSD".
  */
 static int
 diff_cmp_g(const void *a, const void *b)
@@ -500,21 +504,23 @@ unified_cmp(const void *a, const void *b)
 
 
 	const long double one_unified_rank =
-	    (one_diff_rating + 1) * (one_speed_rating + 1);
+	    (one_diff_rating + 1.0L) * (one_speed_rating + 1.0L);
 
 
 	const long double two_unified_rank =
-	    (two_diff_rating + 1) * (two_speed_rating + 1);
+	    (two_diff_rating + 1.0L) * (two_speed_rating + 1.0L);
 
 
 
 	if (one_unified_rank > two_unified_rank) {
 		return (-1);
-	} else if (one_unified_rank < two_unified_rank) {
-		return 1;
-	} else {
-		return 0;
 	}
+	
+	if (one_unified_rank < two_unified_rank) {
+		return 1;
+	}
+		
+	return 0;
 }
 
 static void
@@ -567,9 +573,9 @@ manpage(void)
 	(void)printf("[-s timeout in Seconds (eg. -s 2.3) (default 10 if -g\n");
 	(void)printf("        is specified. Otherwise default 5)]\n");
 
-	(void)printf("[-U (USA, CDN and Canada mirrors Only. This ");
-	(void)printf("will likely be faster if you are in these areas.");
-	(void)printf(" The program will absolutely take less runtime.)]\n");
+	(void)printf("[-U (USA, CDN and Canada mirrors Only.\n    This ");
+	(void)printf("will likely be faster if you are in these areas.\n    ");
+	(void)printf("The program will absolutely take less runtime.)]\n");
 
 	(void)printf("[-u (no USA mirrors to comply ");
 	(void)printf("with USA encryption export laws.)]\n");
@@ -705,7 +711,7 @@ dns_loop:
 				 * This shouldn't impact functionality
 				 * for others.
 				 */
-				if (sui4 == 0) {
+				if (sui4 == 0U) {
 					continue;
 				}
 				break;
@@ -833,27 +839,27 @@ dns_loop:
 
 			int g = i + 1;
 
-			if (suc6[i] / 16) {
+			if (suc6[i] / (u_char)16) {
 				(void)printf("%c%c%c%c",
-				    hexadec[suc6[i] / 16],
-				    hexadec[suc6[i] % 16],
-				    hexadec[suc6[g] / 16],
-				    hexadec[suc6[g] % 16]);
+				    hexadec[suc6[i] / (u_char)16],
+				    hexadec[suc6[i] % (u_char)16],
+				    hexadec[suc6[g] / (u_char)16],
+				    hexadec[suc6[g] % (u_char)16]);
 
 			} else if (suc6[i]) {	// Here: suc6[i] == suc6[i] % 16
 				(void)printf("%c%c%c",
-				    hexadec[suc6[i]     ],
-				    hexadec[suc6[g] / 16],
-				    hexadec[suc6[g] % 16]);
+				    hexadec[suc6[i]             ],
+				    hexadec[suc6[g] / (u_char)16],
+				    hexadec[suc6[g] % (u_char)16]);
 
-			} else if (suc6[g] / 16) {
+			} else if (suc6[g] / (u_char)16) {
 				(void)printf("%c%c",
-				    hexadec[suc6[g] / 16],
-				    hexadec[suc6[g] % 16]);
+				    hexadec[suc6[g] / (u_char)16],
+				    hexadec[suc6[g] % (u_char)16]);
 			} else {
 					// Here: suc6[g] == suc6[g] % 16
 				(void)printf("%c",	
-				    hexadec[suc6[g]     ]);
+				    hexadec[suc6[g]             ]);
 			}
 		}
 		(void)printf("\n");
@@ -902,9 +908,9 @@ file_d(const int write_pipe, const int secure,
 
 	char *file_w = NULL;
 	FILE *pkg_write = NULL;
-	const size_t max_file_length = 1302;
+	const size_t max_file_length = 1302ULL;
 
-	if (max_file_length <= 7 + (const size_t)secure + 2 + 1) {
+	if (max_file_length <= 7ULL + (const size_t)secure + 2ULL + 1ULL) {
 		errx(1, "max_file_length is too short");
 	}
 
@@ -914,7 +920,7 @@ file_d(const int write_pipe, const int secure,
 		_exit(1);
 	}
 
-	const size_t received_max = 1 + max_file_length - 2;
+	const size_t received_max = 1ULL + max_file_length - 2ULL;
 
 	const ssize_t received = read(write_pipe, file_w, received_max);
 
@@ -934,7 +940,7 @@ file_d(const int write_pipe, const int secure,
 		goto file_cleanup;
 	}
 
-	if (received == received_max) {
+	if (received == (ssize_t)received_max) {
 		(void)printf("received mirror is too large\n");
 		(void)printf("/etc/installurl not written.\n");
 		goto file_cleanup;
@@ -987,7 +993,7 @@ file_d(const int write_pipe, const int secure,
 			goto file_cleanup;
 		}
 		
-		i = (int)fwrite(file_w, 1, (size_t)received + 1, pkg_write);
+		i = (int)fwrite(file_w, 1, (size_t)received + 1ULL, pkg_write);
 		(void)fclose(pkg_write);
 		if (i < (int)received + 1) {
 			(void)printf("write error occurred, line: %d\n",
@@ -1026,9 +1032,9 @@ restart(int argc, char *argv[], const int loop, const int verbose)
 		(void)printf("restarting...loop: %d\n", loop);
 	}
 
-	const int n = argc - ((argc > 1) && (!strncmp(argv[argc - 1], "-l", 2)));
+	const int n = argc - (int)((argc > 1) && (!strncmp(argv[argc - 1], "-l", 2)));
 
-	char **arg_v = calloc((size_t)n + 1 + 1, sizeof(char *));
+	char **arg_v = calloc((size_t)n + 1ULL + 1ULL, sizeof(char *));
 	if (arg_v == NULL) {
 		errx(1, "calloc");
 	}
@@ -1095,7 +1101,7 @@ easy_ftp_kill(const pid_t ftp_pid)
 /* 
  * replace the "dangerous" qsort which MISRA seems to not trust
  * with something significantly slower
- * for very large arrays, but simple and super-verifiable
+ * for very large arrays, but simple to understand and super-verifiable
  */
 static void
 selection_sort(void *base0, size_t nmembs, size_t size,
@@ -1103,32 +1109,32 @@ selection_sort(void *base0, size_t nmembs, size_t size,
 {
 	u_char *base = (u_char*)base0;
 
-	if (nmembs < 2) {
+	if (nmembs < 2ULL) {
 		return;
 	}
 
-	u_char *sort_buffer = (u_char*)malloc(size);
-	if (sort_buffer == NULL) {
+	u_char *swap_buffer = (u_char*)malloc(size);
+	if (swap_buffer == NULL) {
 		errx(1, "malloc");
 	}
 
-	for (size_t i = nmembs - 1ULL; i > 0; --i) {
-		u_char *b1 = base;
-		u_char *biggest = base;
-		for (size_t j = 1; j <= i; ++j) {
-			b1 += size;
-			if (compar(biggest, b1) < 0) {
-				biggest = b1;
+	for (size_t outer = nmembs - 1ULL; outer >= 1ULL; --outer) {
+		u_char *search_index  = base;
+		u_char *biggest_index = base;
+		for (size_t inner = 1ULL; inner <= outer; ++inner) {
+			search_index += size;
+			if (compar(biggest_index, search_index) < 0) {
+				biggest_index = search_index;
 			}
 		}
-		if (b1 != biggest) {
-			(void)memcpy(sort_buffer,      b1, size);
-			(void)memcpy(b1,          biggest, size);
-			(void)memcpy(biggest, sort_buffer, size);
+		if (search_index != biggest_index) {
+			(void)memcpy(swap_buffer,   search_index,  size);
+			(void)memcpy(search_index,  biggest_index, size);
+			(void)memcpy(biggest_index, swap_buffer,   size);
 		}
 	}
-	freezero(sort_buffer, size);
-	sort_buffer = NULL;
+	freezero(swap_buffer, size);
+	swap_buffer = NULL;
 }
 
 int
@@ -1162,7 +1168,7 @@ main(int argc, char *argv[])
 	int usa = 1;
 	int USA = 0;
 
-	long double S = 0L;
+	long double S = 0.0L;
 
 	pid_t ftp_pid = 0;
 	pid_t write_pid = 0;
@@ -1203,9 +1209,9 @@ main(int argc, char *argv[])
 	char v = '\0';
 
 
-	malloc_options = strdup("CFGJJjU");
+	malloc_options = strdup("CFGJJU");
 	if (malloc_options == NULL) {
-		err(1, "malloc");
+		errx(1, "malloc");
 	}
 
 	kq = kqueue();
@@ -1234,7 +1240,7 @@ struct kevent {
 	struct kevent ke = { 0, 0, 0, 0, 0, NULL };
 
 	/* 5 second default mirror timeout */
-	long double s = 5L;
+	long double s = 5.0L;
 
 	/* 10 seconds and 0 nanoseconds to download ftplist */
 	struct timespec timeout_ftp_list = { 5, 0 };
@@ -1294,14 +1300,14 @@ struct winsize {
 	}
 
 	if (argc >= 30) {
-		i = (!strncmp(argv[argc - 1], "-l", 2));
+		i = (int)(!strncmp(argv[argc - 1], "-l", 2));
 		if ((argc - i) >= 30) {
 			errx(1, "keep argument count under 30");
 		}
 	}
 
 	for(c = 1; c < argc; ++c) {
-		if (strnlen(argv[c], 35) == 35) {
+		if (strnlen(argv[c], 35) == 35ULL) {
 			errx(1, "keep argument lengths under 35");
 		}
 	}
@@ -1345,7 +1351,7 @@ struct winsize {
 			manpage();
 			return 0;
 		case 'l':
-			if (strlen(optarg) >= 5) {
+			if (strlen(optarg) >= 5ULL) {
 				(void)printf("keep -l argument under ");
 				(void)printf("5 characters long.\n");
 				return 1;
@@ -1388,7 +1394,7 @@ struct winsize {
 				errx(1, "-s argument should not be: \".\"");
 			}
 
-			if (strlen(optarg) >= 15) {
+			if (strlen(optarg) >= 15ULL) {
 				(void)printf("keep -s argument under ");
 				(void)printf("15 characters long\n");
 				return 1;
@@ -1461,18 +1467,21 @@ struct winsize {
 			verbose = 1;
 		}
 		secure = 1;
-		next = previous = override = to_file = 0;
+		next = 0;
+		previous = 0;
+		override = 0;
+		to_file = 0;
 		if (pledge("stdio exec proc dns id", NULL) == -1) {
 			err(1, "pledge, line: %d", __LINE__);
 		}
 
 		/* change default 's' value if not specified */
 		if (current_time == NULL) {
-			s = 10L;
+			s = 10.0L;
 		}
 	}
 
-	if (s > 1000) {
+	if (s > 1000.0L) {
 		errx(1, "try an -s less than, equal to 1000");
 	}
 
@@ -1481,7 +1490,7 @@ struct winsize {
 	 * 1/64th is represented exactly within
 	 * binary datatype long double
 	 */
-	if (s < (long double)0.015625) {
+	if (s < 0.015625L) {
 		errx(1, "try an -s greater than or equal to 0.015625 (1/64)");
 	}
 
@@ -1562,14 +1571,14 @@ struct winsize {
            "ftp.rnl.tecnico.ulisboa.pt","openbsd.mirrors.hoobly.com",
   "mirrors.ocf.berkeley.edu","mirror.hs-esslingen.de","openbsd.cs.toronto.edu",
     "*artfiles.org/openbsd","mirror.planetunix.net","www.mirrorservice.org",
-      "mirror.aarnet.edu.au","mirror.exonetric.net","openbsd.c3sl.ufpr.br",
-       "ftp.usa.openbsd.org","ftp2.eu.openbsd.org","mirror.edgecast.com",
-       "mirror.leaseweb.com","mirror.telepoint.bg","mirrors.gigenet.com",
-         "ftp.eu.openbsd.org","ftp.fr.openbsd.org","ftp.lysator.liu.se",
-         "mirror.freedif.org","mirror.fsmg.org.nz","mirror.ungleich.ch",
-         "mirrors.aliyun.com","mirrors.dotsrc.org","openbsd.ipacct.com",
-"ftp.hostserver.de","mirrors.sonic.net","mirrors.ucr.ac.cr","openbsd.as250.net",
-  "mirror.group.one","mirror.litnet.lt","mirrors.ircam.fr","openbsd.paket.ua",
+      "mirror.aarnet.edu.au","mirror.exonetric.net","ftp.usa.openbsd.org",
+       "ftp2.eu.openbsd.org","mirror.edgecast.com","mirror.leaseweb.com",
+       "mirror.telepoint.bg","mirrors.gigenet.com","openbsd.eu.paket.ua",
+         "ftp.eu.openbsd.org","ftp.fr.openbsd.org","mirror.freedif.org",
+         "mirror.fsmg.org.nz","mirror.ungleich.ch","mirrors.aliyun.com",
+         "mirrors.dotsrc.org","openbsd.ipacct.com","ftp.hostserver.de",
+ "mirrors.sonic.net","mirrors.ucr.ac.cr","openbsd.as250.net","mirror.group.one",
+  "mirror.litnet.lt","mirror.yandex.ru","mirrors.ircam.fr","openbsd.paket.ua",
     "cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.ihost.md",
      "mirror.ox.ac.uk","mirrors.mit.edu","repo.jing.rocks","ftp.icm.edu.pl",
  "ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp","ftp.nluug.nl",
@@ -1705,20 +1714,16 @@ struct winsize {
 	/* Let's do some work while ftp is downloading ftplist */
 
 
-	if (kq == -1) {
-		err(1, "kqueue! line: %d", __LINE__);
-	}
-
 	S = (long double) timeout_ftp_list.tv_sec +
-	    (long double) timeout_ftp_list.tv_nsec /
-	    (long double) 1000000000UL;
+	    (long double) timeout_ftp_list.tv_nsec / 1000000000.0L;
 
 	if (s > S) {
 		timeout_ftp_list.tv_sec  = (time_t) s;
 		timeout_ftp_list.tv_nsec =
-		    (long) ((s -
-		    (long double) timeout_ftp_list.tv_sec) *
-		    (long double) 1000000000UL);
+		    (long) (
+			    (s - (long double) timeout_ftp_list.tv_sec)
+		                 * 1000000000.0L
+		           );
 	}
 
 	S = s;
@@ -1751,9 +1756,10 @@ struct winsize {
 	 */
 	if (strchr(current_time, '.') != NULL) {
 		i = 0;
-		n = (int)strlen(current_time);
-		while (current_time[--n] == '0') {
+		n = (int)strlen(current_time) - 1;
+		while (current_time[n] == '0') {
 			i = n;
+			--n;
 		}
 
 		/* if they are all zeroes after '.' then remove '.' */
@@ -1875,11 +1881,11 @@ struct winsize {
 			if (n == (3 + 1))
 			{
 				if (
-					((release[0] < '0') || (release[0] > '9'))
+					(release[0] < '0') || (release[0] > '9')
 					||
 					(release[1] != '.')
 					||
-					((release[2] < '0') || (release[2] > '9'))
+					(release[2] < '0') || (release[2] > '9')
 				   ) {
 					errx(1, "%s%s%d",
 					"release is somehow ",
@@ -1893,13 +1899,13 @@ struct winsize {
 			} else if (n == (4 + 1))  {
 
 				if (
-					((release[0] < '0') || (release[0] > '9'))
+					(release[0] < '0') || (release[0] > '9')
 					||
-					((release[1] < '0') || (release[1] > '9'))
+					(release[1] < '0') || (release[1] > '9')
 					||
 					(release[2] != '.')
 					||
-					((release[3] < '0') || (release[3] > '9'))
+					(release[3] < '0') || (release[3] > '9')
 				) {
 					errx(1, "%s%s%d",
 					"release is somehow ",
@@ -2096,7 +2102,7 @@ struct winsize {
 				/* strlen("http") == 4 */
 				(void)memcpy(5 + array[array_length].http,
 				       4 + line,
-				       (ulong)pos - 5);
+				       (ulong)pos - 5ULL);
 
 			} else {
 
@@ -2213,14 +2219,14 @@ struct winsize {
 
 		if (array_length >= array_max) {
 
+			MIRROR *array_temp = array;
+			
 			array_max += 100;
 
 			if (array_max >= 5000) {
 				easy_ftp_kill(ftp_pid);
 				errx(1, "array_max got insanely large");
 			}
-			
-			MIRROR *array_temp = array;
 			
 			array = recallocarray(array_temp,
 					      (size_t)array_length,
@@ -2268,7 +2274,7 @@ struct winsize {
 	/* if "secure", h = strlen("https://") instead of strlen("http://") */
 	h += secure;
 
-	pos_max += tag_len;
+	pos_max += (int)tag_len;
 
 	if (pos_max > (int)sizeof(line)) {
 		free(line);
@@ -2321,9 +2327,10 @@ struct winsize {
 
 	timeout.tv_sec = (time_t) s;
 	timeout.tv_nsec =
-	    (long) ((s -
-	    (long double) timeout.tv_sec) *
-	    (long double) 1000000000UL);
+	    (long) (
+	            (s - (long double) timeout.tv_sec)
+	                    * 1000000000.0L
+	           );
 
 
 	std_err = dup(STDERR_FILENO);
@@ -2394,7 +2401,7 @@ struct winsize {
 	for (c = 0; c < (int)array_length; ++c) {
 
 		n = (int)strlcpy(host, array[c].http + h, (ulong)pos_max);
-		(void)memcpy(host + n, tag, (ulong)tag_len + 1);
+		(void)memcpy(host + n, tag, (ulong)tag_len + 1ULL);
 
 
 		/* strchr always succeeds. 'tag' starts with '/' */
@@ -2547,13 +2554,13 @@ restart_dns_err:
 					(void)printf("IPv6 DNS record ");
 					(void)printf("not found.\n");
 				}
-				array[c].diff = s + 2;
+				array[c].diff = s + 2.0L;
 				continue;
 			} else if (v == 'f') {
 				if (verbose >= 2) {
 					(void)printf("DNS record not found.\n");
 				}
-				array[c].diff = s + 3;
+				array[c].diff = s + 3.0L;
 				continue;
 			} else if (v == 'u') {
 				if (generate) {
@@ -2562,13 +2569,13 @@ restart_dns_err:
 						(void)printf("subdomain ");
 						(void)printf("passes!\n");
 					}
-					array[c].diff = s / (long double)2.0;
+					array[c].diff = s / 2.0L;
 				} else {
 					if (verbose >= 2) {
 						(void)printf("BLOCKED ");
 						(void)printf("subdomain!\n");
 					}
-					array[c].diff = s + 4;
+					array[c].diff = s + 4.0L;
 				}
 				continue;
 			}
@@ -2687,7 +2694,7 @@ restart_dns_err:
 
 					errno = 0;
 					long double t = strtold(line, &endptr);
-					if (errno || (t <= 0) || (endptr != g))
+					if (errno || t <= 0.0L || endptr != g)
 					{
 						if (endptr != g) {
 							(void)printf("endptr");
@@ -2696,10 +2703,12 @@ restart_dns_err:
 						break;
 					}
 
-					if (*++g == 'M') {
-						t *= 1024L * 1024L;
+					++g;
+					
+					if (*g == 'M') {
+						t *= 1024.0L * 1024.0L;
 					} else if (*g == 'K') {
-						t *= (long double)1024;
+						t *= 1024.0L;
 					} else {
 						break;
 					}
@@ -2876,7 +2885,7 @@ restart_dns_err:
 		(void)waitpid(ftp_pid, &z, 0);
 
 		if (z) {
-			array[c].diff = s + 1;
+			array[c].diff = s + 1.0L;
 			if (verbose >= 2) {
 				(void)printf("Download Error\n");
 			}
@@ -2897,16 +2906,15 @@ restart_dns_err:
 
 		array[c].diff =
 		    (long double) (end.tv_sec  - start.tv_sec ) +
-		    (long double) (end.tv_nsec - start.tv_nsec) /
-		    (long double) 1000000000UL;
+		    (long double) (end.tv_nsec - start.tv_nsec) / 1000000000L;
 
 		if (verbose >= 2) {
 			if (array[c].diff >= s) {
 				array[c].diff = s;
 				(void)printf("Timeout\n");
 			} else if (
-				   (array[c].diff < 1) &&
-			           (array[c].diff >= 0)
+				   (array[c].diff < 1.0L) &&
+			           (array[c].diff >= 0.0L)
 			          ) {
 				sub_one_print(array[c].diff);
 				(void)printf("\n");
@@ -2916,11 +2924,12 @@ restart_dns_err:
 		} else if ((average != 2) && !bandwidth && (verbose <= 0)
 		    && (array[c].diff < S)) {
 			S = array[c].diff;
-			timeout.tv_sec = (time_t)(S + (long double).125);
+			timeout.tv_sec = (time_t)(S + 0.125L);
 			timeout.tv_nsec =
-			    (long) (((S + (long double).125) -
-			    (long double) timeout.tv_sec) *
-			    (long double) 1000000000UL);
+			    (long) (
+			            ((S + 0.125L) - (long double)timeout.tv_sec)
+			            * 1000000000.0L
+			           );
 
 		} else if (array[c].diff > s) {
 			array[c].diff = s;
@@ -2989,13 +2998,13 @@ restart_dns_err:
 				 */
 				long double t;
 				t  = array[c].speed - array[se].speed;
-				t *= 100L;
+				t *= 100.0L;
 				t /= array[0].speed - array[se].speed;
 
 				array[c].speed_rating = t;
 			}
 
-			selection_sort(array, (size_t)se + 1,
+			selection_sort(array, (size_t)se + 1ULL,
 			    sizeof(MIRROR), diff_cmp_pure);
 
 			for (c = 0; c <= se; ++c) {
@@ -3011,13 +3020,13 @@ restart_dns_err:
 				 */
 				long double t;
 				t = array[c].diff - array[0].diff;
-				t *= 100L;
+				t *= 100.0L;
 				t /= array[se].diff - array[0].diff;
 
-				array[c].diff_rating = (long double)100 - t;
+				array[c].diff_rating = 100.0L - t;
 			}
 
-			selection_sort(array, (size_t)se + 1,
+			selection_sort(array, (size_t)se + 1ULL,
 			    sizeof(MIRROR), unified_cmp);
 
 		} else {
@@ -3052,8 +3061,6 @@ restart_dns_err:
 		}
 
 	} else {
-		selection_sort(array, (size_t)array_length, sizeof(MIRROR),
-		           diff_cmp);
 
 		int  ds = -1;
 		int  de = -1;
@@ -3062,12 +3069,20 @@ restart_dns_err:
 		int  te = -1;
 
 		int  se = -1;
+		int se0 = -1;
 
+		int first = 0;
+
+		selection_sort(array, (size_t)array_length, sizeof(MIRROR),
+		           diff_cmp);
+		           
+		           
 		c = (int)array_length;
 		do {
 
 			if (array[--c].diff < s) {
 				se = c;
+				se0 = c;
 				break;
 			}
 
@@ -3088,9 +3103,6 @@ restart_dns_err:
 			}
 
 		} while (c);
-
-		int first = 0;
-		int se0 = se;
 
 		if (se == -1) {
 			goto no_good;
@@ -3166,9 +3178,10 @@ restart_dns_err:
 
 		/*
 		 * sort by longest length first, subsort http alphabetically
-		 *           It makes it kinda look like a flower.
+		 *           It makes it kinda look like a tulip
+		 *                  flower without a stem.
 		 */
-		selection_sort(array, (size_t)se + 1, sizeof(MIRROR),
+		selection_sort(array, (size_t)se + 1ULL, sizeof(MIRROR),
 		               diff_cmp_g);
 
 		(void)printf("\n\n");
@@ -3271,7 +3284,7 @@ gen_skip1:
 		 * if diff > 0 then
 		 * subsort http alphabetically
 		 */
-		selection_sort(array, (size_t)se0 + 1, sizeof(MIRROR),
+		selection_sort(array, (size_t)se0 + 1ULL, sizeof(MIRROR),
 		    diff_cmp_g2);
 
 		(void)printf("     /* Trusted OpenBSD.org subdomain ");
@@ -3375,6 +3388,8 @@ generate_jump:
 
 
 		for (c = 0; c <= se; ++c) {
+			
+			long double t;
 			array[c].speed_rank = 1 + se - c;
 
 			/*
@@ -3385,18 +3400,19 @@ generate_jump:
 			 * good speeds stand out from the rest
 			 * and evaluated accordingly.
 			 */
-			long double t;
 			t = array[c].speed - array[se].speed;
-			t *= 100L;
+			t *= 100.0L;
 			t /= array[0].speed - array[se].speed;
 
 			array[c].speed_rating = t;
 		}
 
-		selection_sort(array, (size_t)se + 1, sizeof(MIRROR),
+		selection_sort(array, (size_t)se + 1ULL, sizeof(MIRROR),
 		               diff_cmp_pure);
 
 		for (c = 0; c <= se; ++c) {
+			
+			long double t;
 			array[c].diff_rank = 1 + se - c;
 
 			/*
@@ -3407,12 +3423,11 @@ generate_jump:
 			 * good speeds stand out from the rest
 			 * and evaluated accordingly.
 			 */
-			long double t;
 			t = array[c].diff - array[0].diff;
-			t *= 100L;
+			t *= 100.0L;
 			t /= array[se].diff - array[0].diff;
 
-			array[c].diff_rating = 100L - t;
+			array[c].diff_rating = 100.0L - t;
 		}
 
 
@@ -3445,7 +3460,7 @@ generate_jump:
 
 		int diff_topper = 0;
 		i = 1;
-		while (slowest->diff >= i) {
+		while (slowest->diff >= (long double)i) {
 			i *= 10;
 			if (++diff_topper == 4) {
 				break;
@@ -3506,12 +3521,12 @@ generate_jump:
 
 			t = ac->speed;
 
-			if (t >= (1024L * 1024L)) {
+			if (t >= (1024.0L * 1024.0L)) {
 				j = snprintf(bbuf, bbuf_size, "%.2Lf",
-				    t / (1024L * 1024L));
+				    t / (1024.0L * 1024.0L));
 			} else {
 				j = snprintf(bbuf, bbuf_size, "%.2Lf",
-				    t / (long double)1024);
+				    t / 1024.0L);
 			}
 
 			if (j > speed_shift) {
@@ -3537,7 +3552,8 @@ generate_jump:
 
 			i = (int)strlen(ac->label);
 
-			if (--c <= se) {
+			--c;
+			if (c <= se) {
 
 				j = ((int)pos_maxl + 1 - i) / 2;
 				n = (int)pos_maxl - (i + j);
@@ -3553,7 +3569,7 @@ generate_jump:
 
 				(void)printf(" : ");
 
-				if ((ac->diff < 1) && (ac->diff >= 0)) {
+				if ((ac->diff < 1.0L) && (ac->diff >= 0.0L)) {
 					(void)printf("%s", dt_str);
 					sub_one_print(ac->diff);
 				} else {
@@ -3581,12 +3597,12 @@ generate_jump:
 				t = (long double)ac->speed;
 
 
-				if (t >= (1024L * 1024L)) {
+				if (t >= (1024.0L * 1024.0L)) {
 					j = snprintf(bbuf, bbuf_size, "%.2Lf",
-					    t / (1024L * 1024L));
+					    t / (1024.0L * 1024.0L));
 				} else {
 					j = snprintf(bbuf, bbuf_size, "%.2Lf",
-					    t / 1024L);
+					    t / 1024.0L);
 				}
 
 				n = speed_shift - j;
@@ -3595,19 +3611,18 @@ generate_jump:
 					(void)printf(" ");
 				}
 
-				if (t >= (1024L * 1024L)) {
+				if (t >= (1024.0L * 1024.0L)) {
 					(void)printf("%.2Lf MB/s\n",
-					    t / (1024L * 1024L));
+					    t / (1024.0L * 1024.0L));
 				} else {
 					(void)printf("%.2Lf KB/s\n",
-					    t / (long double)1024);
+					    t / 1024.0L);
 				}
 
 
 
-				i = 2 + (array_length >= 100);
-
-				i += 3 + pos_maxl;
+				i = 2 + (int)(array_length >= 100)
+				           + 3 + pos_maxl;
 
 				while (i-- > 0) {
 					(void)printf(" ");
@@ -3799,11 +3814,11 @@ generate_jump:
 			(void)printf(" : ");
 
 	// If assigned this value.... If -Wfloat-equal warnings, ignore it.
-			if (ac->diff == (s + 1)) {
+			if (ac->diff == (s + 1.0L)) {
 				(void)printf("Download Error");
-			} else if (ac->diff == (s + 2)) {
+			} else if (ac->diff == (s + 2.0L)) {
 				(void)printf("IPv6 DNS record not found");
-			} else if (ac->diff == (s + 3)) {
+			} else if (ac->diff == (s + 3.0L)) {
 				(void)printf("DNS record not found");
 			} else {
 				(void)printf("BLOCKED subdomain!");
@@ -3895,7 +3910,7 @@ no_good:
 			restart(argc, argv, loop, verbose);
 		}
 
-	} else if ((!root_user && (verbose != -1)) || (root_user && !verbose)) {
+	} else if ((!root_user && (verbose != -1)) || (root_user && (verbose != 0))) {
 		if (verbose) {
 			(void)printf("\n");
 		}
@@ -3916,11 +3931,11 @@ debug_display:
 
 		(void)printf("Elapsed time: ");
 
-		S = (long double) (endD.tv_sec  - startD.tv_sec ) +
-		    (long double) (endD.tv_nsec - startD.tv_nsec) /
-		    (long double) 1000000000UL;
+		S = (long double)(endD.tv_sec  - startD.tv_sec) +
+		    (long double)(endD.tv_nsec - startD.tv_nsec) /
+		                  1000000000.0L;
 
-		if (  (S < (long double)1) && (S >= (long double)0)  ) {
+		if (  (S < 1.0L) && (S >= 0.0L)  ) {
 			sub_one_print(S);
 			(void)printf("\n");
 		} else {
