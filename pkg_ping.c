@@ -1,7 +1,7 @@
 /*
  * BSD 2-Clause License
  *
- * Copyright (c) 2016 - 2024, Luke N Small, thinkitdoitdone@gmail.com
+ * Copyright (c) 2016 - 2025, Luke N Small, thinkitdoitdone@gmail.com
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -92,12 +92,14 @@ cc pkg_ping.c -march=native -mtune=native -flto -O3 -o /usr/local/bin/pkg_ping
  */
 typedef struct {
 	long double diff;
+	long double speed;
 	long double diff_rating;
 	long double speed_rating;
 	char pad1[
 			(sizeof(size_t) -
 				(
 					(
+						sizeof(long double) +
 						sizeof(long double) +
 						sizeof(long double) +
 						sizeof(long double)
@@ -107,26 +109,13 @@ typedef struct {
 		 ];
 
 
+	/* these two are equal to length sizeof(size_t) */
 	char *label;
 	char *http;
 
-	uint64_t speed;
-	char pad2[
-			(sizeof(size_t) -
-				(
-					(
-						sizeof(char*) +
-						sizeof(char*) +
-						sizeof(uint64_t)
-					) % sizeof(size_t)
-				)
-			) % sizeof(size_t)
-		 ];
-
-
 	int diff_rank;
 	int speed_rank;
-	char pad3[
+	char pad2[
 			(sizeof(size_t) -
 				(
 					(
@@ -142,7 +131,8 @@ extern char *malloc_options;
 
 /* strlen("http://") == 7 */
 static int h = 7;
-static int array_length = 0;
+static size_t array_length = 0ULL;
+static size_t array_max = 100ULL;
 static MIRROR *array = NULL;
 
 /* .1 second for an ftp SIGINT to turn into a SIGKILL */
@@ -154,6 +144,9 @@ static int kq;
 static char *line = NULL;
 static char *line0 = NULL;
 static char *tag = NULL;
+static const size_t dns_socket_len = 1256;
+
+
 
 /* Called once with atexit. It's the only function called with atexit. */
 static void
@@ -253,8 +246,6 @@ usa_cmp(const void *a, const void *b)
 /*
  * compare the labels alphabetically by proper decreasing
  * hierarchy which are in reverse order between commas.
- * 
- * any potential problems already checked for in main()
  */
 static int
 label_cmp_minus_usa(const void *a, const void *b)
@@ -263,24 +254,24 @@ label_cmp_minus_usa(const void *a, const void *b)
 	const char *one_label = ((const MIRROR *) a)->label;
 	const char *two_label = ((const MIRROR *) b)->label;
 
-	// full bitfield of two
+	// full bitfield of size two
 	uint i = 3U;
 
 	/* start with the last comma */
 
 	const char *red = strrchr(one_label, ',');
 	if (red == NULL) {
-		red = one_label - 2ULL;
-		i = 1;
+		red = one_label - 2;
+		i = 1U;
 	}
 
 	const char *blue = strrchr(two_label, ',');
 	if (blue == NULL) {
-		blue = two_label - 2ULL;
+		blue = two_label - 2;
 		--i;
 	}
 
-	int ret = strcmp(red + 2ULL, blue + 2ULL);
+	int ret = strcmp(red + 2, blue + 2);
 
 	while ((ret == 0) && (i == 3U)) {
 
@@ -293,7 +284,7 @@ label_cmp_minus_usa(const void *a, const void *b)
 			--red;
 			if (one_label > red) {
 				--red;
-				i = 1;
+				i = 1U;
 				break;
 			}
 			if (*red == ',') {
@@ -313,7 +304,7 @@ label_cmp_minus_usa(const void *a, const void *b)
 			}
 		}
 
-		ret = strcmp(red + 2ULL, blue + 2ULL);
+		ret = strcmp(red + 2, blue + 2);
 
 	}
 
@@ -382,8 +373,8 @@ diff_cmp_pure(const void *a, const void *b)
 static int
 diff_cmp(const void *a, const void *b)
 {
-	const uint64_t one_speed = ((const MIRROR *) a)->speed;
-	const uint64_t two_speed = ((const MIRROR *) b)->speed;
+	const long double one_speed = ((const MIRROR *) a)->speed;
+	const long double two_speed = ((const MIRROR *) b)->speed;
 
 	if (one_speed > two_speed) {
 		return (-1);
@@ -514,13 +505,11 @@ unified_cmp(const void *a, const void *b)
 
 	if (one_unified_rank > two_unified_rank) {
 		return (-1);
-	}
-	
-	if (one_unified_rank < two_unified_rank) {
+	} else if (one_unified_rank < two_unified_rank) {
 		return 1;
+	} else {
+		return 0;
 	}
-		
-	return 0;
 }
 
 static void
@@ -573,9 +562,9 @@ manpage(void)
 	(void)printf("[-s timeout in Seconds (eg. -s 2.3) (default 10 if -g\n");
 	(void)printf("        is specified. Otherwise default 5)]\n");
 
-	(void)printf("[-U (USA, CDN and Canada mirrors Only.\n    This ");
-	(void)printf("will likely be faster if you are in these areas.\n    ");
-	(void)printf("The program will absolutely take less runtime.)]\n");
+	(void)printf("[-U (USA, CDN and Canada mirrors Only. This ");
+	(void)printf("will likely be faster if you are in these areas.");
+	(void)printf(" The program will absolutely take less runtime.)]\n");
 
 	(void)printf("[-u (no USA mirrors to comply ");
 	(void)printf("with USA encryption export laws.)]\n");
@@ -641,23 +630,23 @@ struct addrinfo {
 		_exit(1);
 	}
 
-	char *dns_line = (char*)calloc(1256, sizeof(char));
+	char *dns_line = (char*)calloc(dns_socket_len, sizeof(char));
 	if (dns_line == NULL) {
 		(void)printf("calloc\n");
 		goto dns_exit1;
 	}
-
+	
 dns_loop:
 
-	i = (int)read(dns_socket, dns_line, 1256);
+	i = (int)read(dns_socket, dns_line, dns_socket_len);
 	if (i == 0) {
 		free(dns_line);
 		(void)close(dns_socket);
 		_exit(0);
 	}
 
-	if (i == 1256) {
-		(void)printf("i > 1255, line: %d\n", __LINE__);
+	if (i == dns_socket_len) {
+		(void)printf("i == dns_socket_len, line: %d\n", __LINE__);
 		goto dns_exit1;
 	}
 
@@ -812,8 +801,10 @@ dns_loop:
 				c = 1;
 				continue;
 			}
+			
+			++c;
 
-			if (max < ++c) {
+			if (max < c) {
 				max = c;
 				i_max = i_temp;
 			}
@@ -993,7 +984,7 @@ file_d(const int write_pipe, const int secure,
 			goto file_cleanup;
 		}
 		
-		i = (int)fwrite(file_w, 1, (size_t)received + 1ULL, pkg_write);
+		i = (int)fwrite(file_w, 1, (size_t)received + 1, pkg_write);
 		(void)fclose(pkg_write);
 		if (i < (int)received + 1) {
 			(void)printf("write error occurred, line: %d\n",
@@ -1034,7 +1025,7 @@ restart(int argc, char *argv[], const int loop, const int verbose)
 
 	const int n = argc - (int)((argc > 1) && (!strncmp(argv[argc - 1], "-l", 2)));
 
-	char **arg_v = calloc((size_t)n + 1ULL + 1ULL, sizeof(char *));
+	char **arg_v = calloc((size_t)n + 1 + 1, sizeof(char *));
 	if (arg_v == NULL) {
 		errx(1, "calloc");
 	}
@@ -1100,14 +1091,15 @@ easy_ftp_kill(const pid_t ftp_pid)
 
 /* 
  * replace the "dangerous" qsort which MISRA seems to not trust
- * with something significantly slower
- * for very large arrays, but simple to understand and super-verifiable
+ * with something significantly slower for very large arrays
+ *           (which this program doesn't use),
+ * but it's simple to understand and is super-verifiable
  */
 static void
-selection_sort(void *base0, size_t nmembs, size_t size,
-		int (*compar)(const void *, const void *))
+selection_sort(void *base, size_t nmembs, size_t size,
+	       int (*compar)(const void *, const void *))
 {
-	u_char *base = (u_char*)base0;
+	u_char *base_u = (u_char*)base;
 
 	if (nmembs < 2ULL) {
 		return;
@@ -1119,18 +1111,25 @@ selection_sort(void *base0, size_t nmembs, size_t size,
 	}
 
 	for (size_t outer = nmembs - 1ULL; outer >= 1ULL; --outer) {
-		u_char *search_index  = base;
-		u_char *biggest_index = base;
+		u_char *search_index  = base_u;
+		u_char *biggest_index = base_u;
+		
+		// Search for the biggest index
 		for (size_t inner = 1ULL; inner <= outer; ++inner) {
 			search_index += size;
 			if (compar(biggest_index, search_index) < 0) {
 				biggest_index = search_index;
 			}
 		}
+		
+		/* 
+		 * swap the data in biggest index into the last position
+		 * which is the current search index
+		 */
 		if (search_index != biggest_index) {
-			(void)memcpy(swap_buffer,   search_index,  size);
-			(void)memcpy(search_index,  biggest_index, size);
-			(void)memcpy(biggest_index, swap_buffer,   size);
+			(void)memcpy(  swap_buffer,  search_index, size);
+			(void)memcpy( search_index, biggest_index, size);
+			(void)memcpy(biggest_index,   swap_buffer, size);
 		}
 	}
 	freezero(swap_buffer, size);
@@ -1145,48 +1144,54 @@ main(int argc, char *argv[])
 	#error Only run on OpenBSD
 #endif
 
+	malloc_options = strdup("CFGJJjU");
+	if (malloc_options == NULL) {
+		err(1, "malloc");
+	}
+
 	size_t tag_len = 0;
 
-	int responsiveness = 0;
-	int bandwidth = 0;
-	int average = 1;
 	int root_user = (int)(getuid() == 0);
-	int to_file = root_user;
-	int num = 0;
-	int current = 0;
-	int secure = 0;
-	int generate = 0;
-	int override = 0;
-	int six = 0;
-	int previous = 0;
-	int next = 0;
-	int s_set = 0;
-	int debug = 0;
-	int verbose = 0;
+	
+	int responsiveness = 0;
+	int      bandwidth = 0;
+	int        average = 1;
+	int        to_file = root_user;
+	int            num = 0;
+	int        current = 0;
+	int         secure = 0;
+	int       generate = 0;
+	int       override = 0;
+	int            six = 0;
+	int       previous = 0;
+	int           next = 0;
+	int          s_set = 0;
+	int          debug = 0;
+	int        verbose = 0;
 
 	int dns_cache = 1;
-	int usa = 1;
-	int USA = 0;
+	int       usa = 1;
+	int       USA = 0;
 
 	long double S = 0.0L;
 
-	pid_t ftp_pid = 0;
-	pid_t write_pid = 0;
 	pid_t dns_cache_d_pid = 0;
+	pid_t       write_pid = 0;
+	pid_t         ftp_pid = 0;
 
 	int std_err = 0;
-	int z = 0;
-	int i = 0;
-	int c = 0;
-	int n = 0;
-	int j = 0;
+	int       z = 0;
+	int       i = 0;
+	int       c = 0;
+	int       n = 0;
+	int       j = 0;
 
-	int loop = 20;
-	int array_max = 100;
-	int pos_max = 0;
-	int pos = 0;
 	int entry_line = 0;
-	int exit_line = 0;
+	int  exit_line = 0;
+	int    pos_max = 0;
+	int       loop = 20;
+	int        pos = 0;
+
 	size_t len = 0;
 
 	int dns_cache_d_socket[2] = { -1, -1 };
@@ -1207,12 +1212,6 @@ main(int argc, char *argv[])
 
 	char *current_time = NULL;
 	char v = '\0';
-
-
-	malloc_options = strdup("CFGJJU");
-	if (malloc_options == NULL) {
-		errx(1, "malloc");
-	}
 
 	kq = kqueue();
 	if (kq == -1) {
@@ -1394,7 +1393,7 @@ struct winsize {
 				errx(1, "-s argument should not be: \".\"");
 			}
 
-			if (strlen(optarg) >= 15ULL) {
+			if (strlen(optarg) >= 15) {
 				(void)printf("keep -s argument under ");
 				(void)printf("15 characters long\n");
 				return 1;
@@ -1466,11 +1465,11 @@ struct winsize {
 		if (verbose < 1) {
 			verbose = 1;
 		}
-		secure = 1;
-		next = 0;
+		secure   = 1;
+		next     = 0;
 		previous = 0;
 		override = 0;
-		to_file = 0;
+		to_file  = 0;
 		if (pledge("stdio exec proc dns id", NULL) == -1) {
 			err(1, "pledge, line: %d", __LINE__);
 		}
@@ -1518,9 +1517,9 @@ struct winsize {
 				/* function cannot return */
 				break;
 			default:
+				(void)close(dns_cache_d_socket[0]);
 				break;
 		}
-		(void)close(dns_cache_d_socket[0]);
 	}
 
 	if (to_file) {
@@ -1542,9 +1541,9 @@ struct winsize {
 				/* function cannot return */
 				break;
 			default:
+				(void)close(write_pipe[STDIN_FILENO]);
 				break;
 		}
-		(void)close(write_pipe[STDIN_FILENO]);
 	}
 
 
@@ -1564,29 +1563,30 @@ struct winsize {
                         /* GENERATED CODE BEGINS HERE */
 
 
-        const char *ftp_list[54] = {
+        const char *ftp_list[56] = {
 
-          "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
-           "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
-           "ftp.rnl.tecnico.ulisboa.pt","openbsd.mirrors.hoobly.com",
-  "mirrors.ocf.berkeley.edu","mirror.hs-esslingen.de","openbsd.cs.toronto.edu",
-    "*artfiles.org/openbsd","mirror.planetunix.net","www.mirrorservice.org",
-      "mirror.aarnet.edu.au","mirror.exonetric.net","ftp.usa.openbsd.org",
-       "ftp2.eu.openbsd.org","mirror.edgecast.com","mirror.leaseweb.com",
+          "mirrors.syringanetworks.net","openbsd.mirror.constant.com",
+           "plug-mirror.rcac.purdue.edu","cloudflare.cdn.openbsd.org",
+           "ftp.halifax.rwth-aachen.de","ftp.rnl.tecnico.ulisboa.pt",
+            "openbsd.mirrors.hoobly.com","mirror.raiolanetworks.com",
+  "mirrors.ocf.berkeley.edu","mirror.hs-esslingen.de","mirrors.pidginhost.com",
+    "openbsd.cs.toronto.edu","*artfiles.org/openbsd","mirror.planetunix.net",
+     "www.mirrorservice.org","mirror.aarnet.edu.au","openbsd.c3sl.ufpr.br",
+       "ftp.usa.openbsd.org","ftp2.eu.openbsd.org","mirror.leaseweb.com",
        "mirror.telepoint.bg","mirrors.gigenet.com","openbsd.eu.paket.ua",
-         "ftp.eu.openbsd.org","ftp.fr.openbsd.org","mirror.freedif.org",
-         "mirror.fsmg.org.nz","mirror.ungleich.ch","mirrors.aliyun.com",
-         "mirrors.dotsrc.org","openbsd.ipacct.com","ftp.hostserver.de",
- "mirrors.sonic.net","mirrors.ucr.ac.cr","openbsd.as250.net","mirror.group.one",
-  "mirror.litnet.lt","mirror.yandex.ru","mirrors.ircam.fr","openbsd.paket.ua",
-    "cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.ihost.md",
-     "mirror.ox.ac.uk","mirrors.mit.edu","repo.jing.rocks","ftp.icm.edu.pl",
- "ftp.cc.uoc.gr","ftp.heanet.ie","ftp.spline.de","www.ftp.ne.jp","ftp.nluug.nl",
+         "ftp.eu.openbsd.org","ftp.fr.openbsd.org","ftp.lysator.liu.se",
+         "mirror.freedif.org","mirror.fsmg.org.nz","mirror.ungleich.ch",
+         "mirrors.aliyun.com","mirrors.dotsrc.org","openbsd.ipacct.com",
+"ftp.hostserver.de","mirrors.chroot.ro","mirrors.sonic.net","mirrors.ucr.ac.cr",
+  "openbsd.as250.net","mirror.group.one","mirror.litnet.lt","mirror.yandex.ru",
+    "mirrors.ircam.fr","cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp",
+    "mirror.ihost.md","mirror.ox.ac.uk","mirrors.mit.edu","repo.jing.rocks",
+"ftp.icm.edu.pl","ftp.cc.uoc.gr","ftp.spline.de","www.ftp.ne.jp","ftp.nluug.nl",
                      "ftp.psnc.pl","ftp.bit.nl","ftp.fau.de"
 
         };
 
-        const int ftp_list_index = 54;
+        const int ftp_list_index = 56;
 
 
 
@@ -1714,6 +1714,10 @@ struct winsize {
 	/* Let's do some work while ftp is downloading ftplist */
 
 
+	if (kq == -1) {
+		err(1, "kqueue! line: %d", __LINE__);
+	}
+
 	S = (long double) timeout_ftp_list.tv_sec +
 	    (long double) timeout_ftp_list.tv_nsec / 1000000000.0L;
 
@@ -1721,8 +1725,9 @@ struct winsize {
 		timeout_ftp_list.tv_sec  = (time_t) s;
 		timeout_ftp_list.tv_nsec =
 		    (long) (
-			    (s - (long double) timeout_ftp_list.tv_sec)
-		                 * 1000000000.0L
+			       (
+		                  s - (long double)timeout_ftp_list.tv_sec
+		               ) * 1000000000.0L
 		           );
 	}
 
@@ -1876,16 +1881,16 @@ struct winsize {
 		if (i && (next || previous)) {
 
 			n = (int)strlen(release) + 1;
-			double f_temp;
+			long double f_temp;
 
 			if (n == (3 + 1))
 			{
 				if (
-					(release[0] < '0') || (release[0] > '9')
+					((release[0] < '0') || (release[0] > '9'))
 					||
 					(release[1] != '.')
 					||
-					(release[2] < '0') || (release[2] > '9')
+					((release[2] < '0') || (release[2] > '9'))
 				   ) {
 					errx(1, "%s%s%d",
 					"release is somehow ",
@@ -1894,18 +1899,27 @@ struct winsize {
 				}
 				// eg. 7.5
 				f_temp = (release[0] - '0')
-				      + ((release[2] - '0') / (double)10);
+				      + ((release[2] - '0') / 10.0L);
 
 			} else if (n == (4 + 1))  {
 
 				if (
-					(release[0] < '0') || (release[0] > '9')
+					(
+					 (release[0] < '0') ||
+					 (release[0] > '9')
+					)
 					||
-					(release[1] < '0') || (release[1] > '9')
+					(
+					 (release[1] < '0') ||
+					 (release[1] > '9')
+					)
 					||
 					(release[2] != '.')
 					||
-					(release[3] < '0') || (release[3] > '9')
+					(
+					 (release[3] < '0') ||
+					 (release[3] > '9')
+					)
 				) {
 					errx(1, "%s%s%d",
 					"release is somehow ",
@@ -1913,9 +1927,9 @@ struct winsize {
 					__LINE__);
 				}
 				// eg. 10.0
-				f_temp = ((release[0] - '0') * (double)10) +
-				          (release[1] - '0') +
-				          ((release[3] - '0') / (double)10);
+				f_temp = ((release[0] - '0') * 10.0L) +
+				         (long double) (release[1] - '0') +
+				         ((release[3] - '0') / 10.0L);
 
 			} else {
 				errx(1, "release got huge! line: %d", __LINE__);
@@ -1923,14 +1937,14 @@ struct winsize {
 
 			if (previous)
 			{
-				f_temp -= (double)1 / (double)10;
+				f_temp -= 0.1L;
 			}
 			else /* if (next) */
 			{
-				f_temp += (double)1 / (double)10;
+				f_temp += 0.1L;
 			}
 
-			i = snprintf(release, (ulong)n, "%.1f", f_temp);
+			i = snprintf(release, (ulong)n, "%.1Lf", f_temp);
 
 			if ((i >= n) || (i < 0)) {
 				if (i < 0) {
@@ -1989,13 +2003,13 @@ struct winsize {
 
 
 	/* if the index for line[] can exceed 1254, it will error out */
-	line = (char*)calloc(1255, sizeof(char));
+	line = (char*)calloc(dns_socket_len - 1, sizeof(char));
 	if (line == NULL) {
 		easy_ftp_kill(ftp_pid);
 		errx(1, "calloc");
 	}
 
-	array = (MIRROR*)calloc((size_t)array_max, sizeof(MIRROR));
+	array = (MIRROR*)calloc(array_max, sizeof(MIRROR));
 	if (array == NULL) {
 		easy_ftp_kill(ftp_pid);
 		errx(1, "calloc");
@@ -2055,7 +2069,7 @@ struct winsize {
 	}
 
 	while (read(z, &v, 1) == 1) {
-		if (pos == 1254) {
+		if (pos == (dns_socket_len - 2)) {
 			line[pos] = '\0';
 			(void)printf("'line': %s\n", line);
 			(void)printf("pos got too big! line: %d\n", __LINE__);
@@ -2102,7 +2116,7 @@ struct winsize {
 				/* strlen("http") == 4 */
 				(void)memcpy(5 + array[array_length].http,
 				       4 + line,
-				       (ulong)pos - 5ULL);
+				       (ulong)pos - 5);
 
 			} else {
 
@@ -2219,19 +2233,19 @@ struct winsize {
 
 		if (array_length >= array_max) {
 
-			MIRROR *array_temp = array;
-			
-			array_max += 100;
+			array_max += 100ULL;
 
-			if (array_max >= 5000) {
+			if (array_max >= 5000ULL) {
 				easy_ftp_kill(ftp_pid);
 				errx(1, "array_max got insanely large");
 			}
 			
+			MIRROR *array_temp = array;
+			
 			array = recallocarray(array_temp,
-					      (size_t)array_length,
-					      (size_t)array_max,
-						      sizeof(MIRROR));
+				              array_length,
+				              array_max,
+			                      sizeof(MIRROR));
 
 			if (array == NULL) {
 				free(array_temp);
@@ -2274,7 +2288,7 @@ struct winsize {
 	/* if "secure", h = strlen("https://") instead of strlen("http://") */
 	h += secure;
 
-	pos_max += (int)tag_len;
+	pos_max += tag_len;
 
 	if (pos_max > (int)sizeof(line)) {
 		free(line);
@@ -2327,11 +2341,8 @@ struct winsize {
 
 	timeout.tv_sec = (time_t) s;
 	timeout.tv_nsec =
-	    (long) (
-	            (s - (long double) timeout.tv_sec)
-	                    * 1000000000.0L
-	           );
-
+	    (long) ((s -
+	    (long double) timeout.tv_sec) * 1000000000.0L);
 
 	std_err = dup(STDERR_FILENO);
 	if (std_err == -1) {
@@ -2401,7 +2412,7 @@ struct winsize {
 	for (c = 0; c < (int)array_length; ++c) {
 
 		n = (int)strlcpy(host, array[c].http + h, (ulong)pos_max);
-		(void)memcpy(host + n, tag, (ulong)tag_len + 1ULL);
+		(void)memcpy(host + n, tag, (ulong)tag_len + 1);
 
 
 		/* strchr always succeeds. 'tag' starts with '/' */
@@ -2428,13 +2439,13 @@ struct winsize {
 				j = ((int)pos_maxl + 1 - i) / 2;
 				n =  (int)pos_maxl - (i + j);
 
-				while (j-- > 0) {
+				for (; j > 0; --j) {
 					(void)printf(" ");
 				}
 
 				(void)printf("%s", array[c].label);
 
-				while (n-- > 0) {
+				for (; n > 0; --n) {
 					(void)printf(" ");
 				}
 
@@ -2489,8 +2500,8 @@ struct winsize {
 
 
 
-			/* 50 seconds for dns_cache_d to respond */
-			const struct timespec timeout_d = { 50, 0 };
+			/* 2 minutes for dns_cache_d to respond */
+			const struct timespec timeout_d = { 120, 0 };
 
 			/*
 			 * I use kevent here, just so I can restart
@@ -2554,13 +2565,13 @@ restart_dns_err:
 					(void)printf("IPv6 DNS record ");
 					(void)printf("not found.\n");
 				}
-				array[c].diff = s + 2.0L;
+				array[c].diff = s + 2;
 				continue;
 			} else if (v == 'f') {
 				if (verbose >= 2) {
 					(void)printf("DNS record not found.\n");
 				}
-				array[c].diff = s + 3.0L;
+				array[c].diff = s + 3;
 				continue;
 			} else if (v == 'u') {
 				if (generate) {
@@ -2694,7 +2705,7 @@ restart_dns_err:
 
 					errno = 0;
 					long double t = strtold(line, &endptr);
-					if (errno || t <= 0.0L || endptr != g)
+					if (errno || (t <= 0) || (endptr != g))
 					{
 						if (endptr != g) {
 							(void)printf("endptr");
@@ -2704,7 +2715,6 @@ restart_dns_err:
 					}
 
 					++g;
-					
 					if (*g == 'M') {
 						t *= 1024.0L * 1024.0L;
 					} else if (*g == 'K') {
@@ -2713,13 +2723,11 @@ restart_dns_err:
 						break;
 					}
 
-					uint64_t temp = (uint64_t)t;
-
 					i = (int)write(
 					    ftp_helper_out[STDOUT_FILENO],
-					    &temp, sizeof(uint64_t));
+					    &t, sizeof(long double));
 
-					if (i != (int)sizeof(uint64_t)) {
+					if (i != (int)sizeof(long double)) {
 						(void)printf("bad write, line");
 						(void)printf(" %d", __LINE__);
 						break;
@@ -2783,8 +2791,9 @@ restart_dns_err:
 
 			(void)close(block_socket[STDOUT_FILENO]);
 			/*
-			 *     this read() is to ensure that the process
-			 *        is alive for the parent kevent call.
+			 *     the read() for this write() is to ensure
+			 *      that the process is alive for
+			 *           the parent kevent call.
 			 *   It standardizes the timing of the ftp calling
 			 *   process, and it is written as an efficient way
 			 * to signal the process to resume without ugly code.
@@ -2885,7 +2894,7 @@ restart_dns_err:
 		(void)waitpid(ftp_pid, &z, 0);
 
 		if (z) {
-			array[c].diff = s + 1.0L;
+			array[c].diff = s + 1;
 			if (verbose >= 2) {
 				(void)printf("Download Error\n");
 			}
@@ -2896,8 +2905,8 @@ restart_dns_err:
 
 		if (!debug) {
 			z = ftp_helper_out[STDIN_FILENO];
-			if (read(z, &array[c].speed, sizeof(uint64_t))
-			    < (ssize_t)sizeof(uint64_t)) {
+			if (read(z, &array[c].speed, sizeof(long double))
+			    < (ssize_t)sizeof(long double)) {
 				restart(argc, argv, loop, verbose);
 			 }
 		}
@@ -2906,15 +2915,15 @@ restart_dns_err:
 
 		array[c].diff =
 		    (long double) (end.tv_sec  - start.tv_sec ) +
-		    (long double) (end.tv_nsec - start.tv_nsec) / 1000000000L;
+		    (long double) (end.tv_nsec - start.tv_nsec) / 1000000000.0L;
 
 		if (verbose >= 2) {
 			if (array[c].diff >= s) {
 				array[c].diff = s;
 				(void)printf("Timeout\n");
 			} else if (
-				   (array[c].diff < 1.0L) &&
-			           (array[c].diff >= 0.0L)
+				   (array[c].diff < 1) &&
+			           (array[c].diff >= 0)
 			          ) {
 				sub_one_print(array[c].diff);
 				(void)printf("\n");
@@ -2927,9 +2936,11 @@ restart_dns_err:
 			timeout.tv_sec = (time_t)(S + 0.125L);
 			timeout.tv_nsec =
 			    (long) (
-			            ((S + 0.125L) - (long double)timeout.tv_sec)
-			            * 1000000000.0L
-			           );
+				(
+					(S + 0.125L) -
+					(long double) timeout.tv_sec
+				) * 1000000000.0L
+			    );
 
 		} else if (array[c].diff > s) {
 			array[c].diff = s;
@@ -2958,24 +2969,17 @@ restart_dns_err:
 
 	if (verbose <= 0) {
 
-		/*
-		 * I chose to use a more efficient insertion sort
-		 * pass instead of doing a selection_sort() to load the
-		 * fastest mirror data into array[0] since the
-		 * rest of the data in the array is not used.
-		 */
-
 		if (average == 2) {
 
 			int se = -1;
 
-			selection_sort(array, (size_t)array_length,
+			selection_sort(array, array_length,
 			    sizeof(MIRROR), diff_cmp);
 
 			c = (int)array_length;
 			do {
-
-				if (array[--c].diff < s) {
+				--c;
+				if (array[c].diff < s) {
 					se = c;
 					break;
 				}
@@ -3026,10 +3030,17 @@ restart_dns_err:
 				array[c].diff_rating = 100.0L - t;
 			}
 
-			selection_sort(array, (size_t)se + 1ULL,
+			selection_sort(array, (size_t)se + 1,
 			    sizeof(MIRROR), unified_cmp);
 
 		} else {
+
+		/*
+		 * I chose to use a more efficient selection sort
+		 * pass instead of doing a selection_sort() to load the
+		 * fastest mirror data into array[0] since the
+		 * rest of the data in the array is not used.
+		 */
 
 			ac = array + array_length - 1;
 			MIRROR *fastest = ac;
@@ -3061,6 +3072,8 @@ restart_dns_err:
 		}
 
 	} else {
+		selection_sort(array, (size_t)array_length, sizeof(MIRROR),
+		           diff_cmp);
 
 		int  ds = -1;
 		int  de = -1;
@@ -3069,20 +3082,12 @@ restart_dns_err:
 		int  te = -1;
 
 		int  se = -1;
-		int se0 = -1;
 
-		int first = 0;
-
-		selection_sort(array, (size_t)array_length, sizeof(MIRROR),
-		           diff_cmp);
-		           
-		           
 		c = (int)array_length;
 		do {
 
 			if (array[--c].diff < s) {
 				se = c;
-				se0 = c;
 				break;
 			}
 
@@ -3103,6 +3108,9 @@ restart_dns_err:
 			}
 
 		} while (c);
+
+		int first = 0;
+		int se0 = se;
 
 		if (se == -1) {
 			goto no_good;
@@ -3178,10 +3186,9 @@ restart_dns_err:
 
 		/*
 		 * sort by longest length first, subsort http alphabetically
-		 *           It makes it kinda look like a tulip
-		 *                  flower without a stem.
+		 *           It makes it kinda look like a flower.
 		 */
-		selection_sort(array, (size_t)se + 1ULL, sizeof(MIRROR),
+		selection_sort(array, (size_t)se + 1, sizeof(MIRROR),
 		               diff_cmp_g);
 
 		(void)printf("\n\n");
@@ -3284,7 +3291,7 @@ gen_skip1:
 		 * if diff > 0 then
 		 * subsort http alphabetically
 		 */
-		selection_sort(array, (size_t)se0 + 1ULL, sizeof(MIRROR),
+		selection_sort(array, (size_t)se0 + 1, sizeof(MIRROR),
 		    diff_cmp_g2);
 
 		(void)printf("     /* Trusted OpenBSD.org subdomain ");
@@ -3388,8 +3395,6 @@ generate_jump:
 
 
 		for (c = 0; c <= se; ++c) {
-			
-			long double t;
 			array[c].speed_rank = 1 + se - c;
 
 			/*
@@ -3400,6 +3405,7 @@ generate_jump:
 			 * good speeds stand out from the rest
 			 * and evaluated accordingly.
 			 */
+			long double t;
 			t = array[c].speed - array[se].speed;
 			t *= 100.0L;
 			t /= array[0].speed - array[se].speed;
@@ -3407,12 +3413,10 @@ generate_jump:
 			array[c].speed_rating = t;
 		}
 
-		selection_sort(array, (size_t)se + 1ULL, sizeof(MIRROR),
+		selection_sort(array, (size_t)se + 1, sizeof(MIRROR),
 		               diff_cmp_pure);
 
 		for (c = 0; c <= se; ++c) {
-			
-			long double t;
 			array[c].diff_rank = 1 + se - c;
 
 			/*
@@ -3423,6 +3427,7 @@ generate_jump:
 			 * good speeds stand out from the rest
 			 * and evaluated accordingly.
 			 */
+			long double t;
 			t = array[c].diff - array[0].diff;
 			t *= 100.0L;
 			t /= array[se].diff - array[0].diff;
@@ -3460,7 +3465,7 @@ generate_jump:
 
 		int diff_topper = 0;
 		i = 1;
-		while (slowest->diff >= (long double)i) {
+		while (slowest->diff >= i) {
 			i *= 10;
 			if (++diff_topper == 4) {
 				break;
@@ -3557,19 +3562,19 @@ generate_jump:
 
 				j = ((int)pos_maxl + 1 - i) / 2;
 				n = (int)pos_maxl - (i + j);
-				while (j-- > 0) {
+				for (; j > 0; --j) {
 					(void)printf(" ");
 				}
 
 				(void)printf("%s", ac->label);
 
-				while (n-- > 0) {
+				for (; n > 0; --n) {
 					(void)printf(" ");
 				}
 
 				(void)printf(" : ");
 
-				if ((ac->diff < 1.0L) && (ac->diff >= 0.0L)) {
+				if ((ac->diff < 1) && (ac->diff >= 0)) {
 					(void)printf("%s", dt_str);
 					sub_one_print(ac->diff);
 				} else {
@@ -3597,7 +3602,7 @@ generate_jump:
 				t = (long double)ac->speed;
 
 
-				if (t >= (1024.0L * 1024.0L)) {
+				if (t >= (1024L * 1024L)) {
 					j = snprintf(bbuf, bbuf_size, "%.2Lf",
 					    t / (1024.0L * 1024.0L));
 				} else {
@@ -3621,10 +3626,11 @@ generate_jump:
 
 
 
-				i = 2 + (int)(array_length >= 100)
-				           + 3 + pos_maxl;
+				i = 2 + (array_length >= 100);
 
-				while (i-- > 0) {
+				i += 3 + pos_maxl;
+
+				for (; i > 0; --i) {
 					(void)printf(" ");
 				}
 
@@ -3644,7 +3650,7 @@ generate_jump:
 					i = (diff_topper + 18 + 1 - j) / 2;
 					n = i;
 
-					while (i-- > 0) {
+					for (; i > 0; --i) {
 						(void)printf(" ");
 					}
 
@@ -3653,7 +3659,7 @@ generate_jump:
 
 					n = diff_topper + 18 - (n + j);
 
-					while (n-- > 0) {
+					for (; n > 0; --n) {
 						(void)printf(" ");
 					}
 
@@ -3672,7 +3678,7 @@ generate_jump:
 					i = (diff_topper + 18 + 1 - j) / 2;
 					n = i;
 
-					while (i-- > 0) {
+					for (; i > 0; --i) {
 						(void)printf(" ");
 					}
 
@@ -3681,7 +3687,7 @@ generate_jump:
 
 					n = diff_topper + 18 - (n + j);
 
-					while (n-- > 0) {
+					for (; n > 0; --n) {
 						(void)printf(" ");
 					}
 
@@ -3700,7 +3706,7 @@ generate_jump:
 					i = (diff_topper + 18 + 1 - j) / 2;
 					n = i;
 
-					while (i-- > 0) {
+					for (; i > 0; --i) {
 						(void)printf(" ");
 					}
 
@@ -3709,7 +3715,7 @@ generate_jump:
 
 					n = diff_topper + 18 - (n + j);
 
-					while (n-- > 0) {
+					for (; n > 0; --n) {
 						(void)printf(" ");
 					}
 
@@ -3728,7 +3734,7 @@ generate_jump:
 
 				i += 3 + pos_maxl;
 
-				while (i-- > 0) {
+				for (; i > 0; --i) {
 					(void)printf(" ");
 				}
 
@@ -3744,7 +3750,7 @@ generate_jump:
 				i = (diff_topper + 18 + 1 - j) / 2;
 				n = i;
 
-				while (i-- > 0) {
+				for (; i > 0; --i) {
 					(void)printf(" ");
 				}
 
@@ -3753,7 +3759,7 @@ generate_jump:
 
 				n = diff_topper + 18 - (n + j);
 
-				while (n-- > 0) {
+				for (; n > 0; --n) {
 					(void)printf(" ");
 				}
 
@@ -3776,13 +3782,13 @@ generate_jump:
 				j = ((int)pos_maxt + 1 - i) / 2;
 				n = (int)pos_maxt - (i + j);
 
-				while (j-- > 0) {
+				for (; j > 0; --j) {
 					(void)printf(" ");
 				}
 
 				(void)printf("%s", ac->label);
 
-				while (n-- > 0) {
+				for (; n > 0; --n) {
 					(void)printf(" ");
 				}
 
@@ -3801,24 +3807,24 @@ generate_jump:
 			j = ((int)pos_maxd + 1 - i) / 2;
 			n = (int)pos_maxd - (i + j);
 
-			while (j-- > 0) {
+			for (; j > 0; --j) {
 				(void)printf(" ");
 			}
 
 			(void)printf("%s", ac->label);
 
-			while (n-- > 0) {
+			for (; n > 0; --n) {
 				(void)printf(" ");
 			}
 
 			(void)printf(" : ");
 
 	// If assigned this value.... If -Wfloat-equal warnings, ignore it.
-			if (ac->diff == (s + 1.0L)) {
+			if (ac->diff == (s + 1)) {
 				(void)printf("Download Error");
-			} else if (ac->diff == (s + 2.0L)) {
+			} else if (ac->diff == (s + 2)) {
 				(void)printf("IPv6 DNS record not found");
-			} else if (ac->diff == (s + 3.0L)) {
+			} else if (ac->diff == (s + 3)) {
 				(void)printf("DNS record not found");
 			} else {
 				(void)printf("BLOCKED subdomain!");
@@ -3910,7 +3916,7 @@ no_good:
 			restart(argc, argv, loop, verbose);
 		}
 
-	} else if ((!root_user && (verbose != -1)) || (root_user && (verbose != 0))) {
+	} else if ((!root_user && (verbose != -1)) || (root_user && !verbose)) {
 		if (verbose) {
 			(void)printf("\n");
 		}
@@ -3931,9 +3937,9 @@ debug_display:
 
 		(void)printf("Elapsed time: ");
 
-		S = (long double)(endD.tv_sec  - startD.tv_sec) +
-		    (long double)(endD.tv_nsec - startD.tv_nsec) /
-		                  1000000000.0L;
+		S = (long double) (endD.tv_sec  - startD.tv_sec ) +
+		    (long double) (endD.tv_nsec - startD.tv_nsec) /
+		    (long double) 1000000000.0L;
 
 		if (  (S < 1.0L) && (S >= 0.0L)  ) {
 			sub_one_print(S);
