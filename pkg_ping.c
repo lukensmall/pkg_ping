@@ -686,9 +686,12 @@ dns_loop:
 
 			if (res->ai_family == AF_INET) {
 
+				/*
+				 * compiler complains of potential misalignment
+				 */
 				// sa4 = (struct sockaddr_in *) res->ai_addr;
 
-				(void)memcpy(&sa4, &res->ai_addr,
+				memcpy(&sa4, &res->ai_addr,
 				    sizeof(struct sockaddr_in *));
 
 				sui4 = sa4->sin_addr.s_addr;
@@ -734,9 +737,12 @@ dns_loop:
 
 		if (res->ai_family == AF_INET) {
 
+			/*
+			 * compiler complains of potential misalignment
+			 */
 			// sa4 = (struct sockaddr_in *) res->ai_addr;
 
-			(void)memcpy(&sa4, &res->ai_addr,
+			memcpy(&sa4, &res->ai_addr,
 			    sizeof(struct sockaddr_in *));
 
 			sui4 = sa4->sin_addr.s_addr;
@@ -776,10 +782,13 @@ dns_loop:
 
 		(void)printf("       ");
 
+		/*
+		 * compiler complains of potential misalignment
+		 */
 		// sa6 = (struct sockaddr_in6 *) res->ai_addr;
-		(void)memcpy(&sa6,
-			     &res->ai_addr,
-			     sizeof(struct sockaddr_in6 *));
+
+		memcpy(&sa6, &res->ai_addr, sizeof(struct sockaddr_in6 *));
+		
 		suc6 = sa6->sin6_addr.s6_addr;
 
 		c = max = 0;
@@ -1023,7 +1032,8 @@ restart(int argc, char *argv[], const int loop, const int verbose)
 		(void)printf("restarting...loop: %d\n", loop);
 	}
 
-	const int n = argc - (int)((argc > 1) && (!strncmp(argv[argc - 1], "-l", 2)));
+	const int n
+	    = argc - (int)((argc > 1) && (!strncmp(argv[argc - 1], "-l", 2)));
 
 	char **arg_v = calloc((size_t)n + 1 + 1, sizeof(char *));
 	if (arg_v == NULL) {
@@ -1099,8 +1109,6 @@ static void
 selection_sort(void *base, size_t nmembs, size_t size,
 	       int (*compar)(const void *, const void *))
 {
-	u_char *base_u = (u_char*)base;
-
 	if (nmembs < 2ULL) {
 		return;
 	}
@@ -1111,10 +1119,12 @@ selection_sort(void *base, size_t nmembs, size_t size,
 	}
 
 	for (size_t outer = nmembs - 1ULL; outer >= 1ULL; --outer) {
-		u_char *search_index  = base_u;
-		u_char *biggest_index = base_u;
+		u_char *search_index  = (u_char*)base;
+		u_char *biggest_index = search_index;
 		
-		// Search for the biggest index
+		/*
+		 *  Search for the biggest index
+		 */
 		for (size_t inner = 1ULL; inner <= outer; ++inner) {
 			search_index += size;
 			if (compar(biggest_index, search_index) < 0) {
@@ -1132,8 +1142,7 @@ selection_sort(void *base, size_t nmembs, size_t size,
 			(void)memcpy(biggest_index,   swap_buffer, size);
 		}
 	}
-	freezero(swap_buffer, size);
-	swap_buffer = NULL;
+	free(swap_buffer);
 }
 
 int
@@ -1201,7 +1210,7 @@ main(int argc, char *argv[])
 	int       block_socket[2] = { -1, -1 };
 
 	struct timespec start = { 0, 0 };
-	struct timespec end = { 0, 0 };
+	struct timespec   end = { 0, 0 };
 
 	struct timespec timeout = { 0, 0 };
 	struct timespec startD  = { 0, 0 };
@@ -1563,7 +1572,7 @@ struct winsize {
                         /* GENERATED CODE BEGINS HERE */
 
 
-        const char *ftp_list[56] = {
+        const char *ftp_list[55] = {
 
           "mirrors.syringanetworks.net","openbsd.mirror.constant.com",
            "plug-mirror.rcac.purdue.edu","cloudflare.cdn.openbsd.org",
@@ -1576,17 +1585,17 @@ struct winsize {
        "mirror.telepoint.bg","mirrors.gigenet.com","openbsd.eu.paket.ua",
          "ftp.eu.openbsd.org","ftp.fr.openbsd.org","ftp.lysator.liu.se",
          "mirror.freedif.org","mirror.fsmg.org.nz","mirror.ungleich.ch",
-         "mirrors.aliyun.com","mirrors.dotsrc.org","openbsd.ipacct.com",
-"ftp.hostserver.de","mirrors.chroot.ro","mirrors.sonic.net","mirrors.ucr.ac.cr",
-  "openbsd.as250.net","mirror.group.one","mirror.litnet.lt","mirror.yandex.ru",
-    "mirrors.ircam.fr","cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp",
-    "mirror.ihost.md","mirror.ox.ac.uk","mirrors.mit.edu","repo.jing.rocks",
-"ftp.icm.edu.pl","ftp.cc.uoc.gr","ftp.spline.de","www.ftp.ne.jp","ftp.nluug.nl",
-                     "ftp.psnc.pl","ftp.bit.nl","ftp.fau.de"
+         "mirrors.aliyun.com","openbsd.ipacct.com","ftp.hostserver.de",
+"mirrors.chroot.ro","mirrors.sonic.net","mirrors.ucr.ac.cr","openbsd.as250.net",
+  "mirror.group.one","mirror.litnet.lt","mirror.yandex.ru","mirrors.ircam.fr",
+    "cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.ihost.md",
+     "mirror.ox.ac.uk","mirrors.mit.edu","repo.jing.rocks","ftp.icm.edu.pl",
+  "ftp.cc.uoc.gr","ftp.spline.de","www.ftp.ne.jp","ftp.nluug.nl","ftp.psnc.pl",
+                            "ftp.bit.nl","ftp.fau.de"
 
         };
 
-        const int ftp_list_index = 56;
+        const int ftp_list_index = 55;
 
 
 
@@ -1886,11 +1895,13 @@ struct winsize {
 			if (n == (3 + 1))
 			{
 				if (
-					((release[0] < '0') || (release[0] > '9'))
+					((release[0] < '0') ||
+					 (release[0] > '9'))
 					||
 					(release[1] != '.')
 					||
-					((release[2] < '0') || (release[2] > '9'))
+					((release[2] < '0') ||
+					 (release[2] > '9'))
 				   ) {
 					errx(1, "%s%s%d",
 					"release is somehow ",
@@ -2208,14 +2219,37 @@ struct winsize {
 			 *          this will surgically remove it.
 			 */
 			if (line_temp) {
-				if (!strncmp(line_temp + 2, "The ", 4)) {
-					(void)memmove(line_temp + 2,
-					              line_temp + 6,
+				if (!strncmp(line_temp + 2ULL, "The ", 4ULL)) {
+					(void)memmove(line_temp + 2ULL,
+					              line_temp + 6ULL,
 					    (size_t)
-					    (line + pos - (line_temp + 6))
+					    ((line + pos) - (line_temp + 6ULL))
 					    );
 				}
-			} else if (!strncmp(line, "The ", 4)) {
+				
+				// verify that every ',' is followed by a ' '
+				do
+				{
+					char *comma_saver = line_temp;
+					*comma_saver = '\0';
+					line_temp = strrchr(line, ',');
+					*comma_saver = ',';
+					if ( line_temp &&
+					    (line_temp[1] != ' ')
+					   ) {
+						free(array[array_length].http);
+						(void)printf("label ");
+						(void)printf("malformation: ");
+						(void)printf("%s ", line);
+						(void)printf("line: ");
+						(void)printf("%d\n", __LINE__);
+						easy_ftp_kill(ftp_pid);
+						return 1;
+					}
+				} while (line_temp);
+				
+				
+			} else if (!strncmp(line, "The ", 4ULL)) {
 				(void)memmove(line, line + 4ULL,
 				              (size_t)pos - 4ULL
 				             );
@@ -3067,6 +3101,9 @@ restart_dns_err:
 				(void)memcpy(&array[0], fastest,
 				             sizeof(MIRROR));
 
+				/*
+				 * wipe out duplicate array entries
+				 */
 				(void)memset(fastest, 0, sizeof(MIRROR));
 			}
 		}
@@ -3939,7 +3976,7 @@ debug_display:
 
 		S = (long double) (endD.tv_sec  - startD.tv_sec ) +
 		    (long double) (endD.tv_nsec - startD.tv_nsec) /
-		    (long double) 1000000000.0L;
+				  1000000000.0L;
 
 		if (  (S < 1.0L) && (S >= 0.0L)  ) {
 			sub_one_print(S);
