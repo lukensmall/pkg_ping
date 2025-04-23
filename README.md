@@ -18,7 +18,7 @@ run-time; everything else happens in the blink of an eye.
 
 pledge() is updated throughout. Because of how unveil() is designed, unveil() limits are created up front and
 immediately takes away the possibility to unveil() any further. To run smoothly, this program may need to call itself.
-If it is called from another program such as a C program, it will need to be able to call the program passed by the exec family of functions into argv[0]
+If it is called from another program such as a C program. it is intended to run from /usr/local/bin/pkg_ping . This solves many problems including needing to be root to install it.
 
 It automatically discovers whether you are running a release vs a current or beta snapshot!
 
