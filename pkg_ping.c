@@ -131,8 +131,8 @@ extern char *malloc_options;
 
 /* strlen("http://") == 7 */
 static int h = 7;
-static size_t array_length = 0ULL;
-static size_t array_max = 100ULL;
+static size_t array_length = 0;
+static size_t array_max = 100;
 static MIRROR *array = NULL;
 
 /* .1 second for an ftp SIGINT to turn into a SIGKILL */
@@ -154,7 +154,8 @@ free_array(void)
 {
 	MIRROR *ac = array + array_length;
 
-	while (array <= --ac) {
+	while (array < ac) {
+		--ac;
 		free(ac->label);
 		free(ac->http);
 	}
@@ -908,9 +909,9 @@ file_d(const int write_pipe, const int secure,
 
 	char *file_w = NULL;
 	FILE *pkg_write = NULL;
-	const size_t max_file_length = 1302ULL;
+	const size_t max_file_length = 1302;
 
-	if (max_file_length <= 7ULL + (const size_t)secure + 2ULL + 1ULL) {
+	if (max_file_length <= 7 + (const size_t)secure + 2 + 1) {
 		errx(1, "max_file_length is too short");
 	}
 
@@ -920,7 +921,7 @@ file_d(const int write_pipe, const int secure,
 		_exit(1);
 	}
 
-	const size_t received_max = 1ULL + max_file_length - 2ULL;
+	const size_t received_max = 1 + max_file_length - 2;
 
 	const ssize_t received = read(write_pipe, file_w, received_max);
 
@@ -1109,7 +1110,7 @@ static void
 selection_sort(void *base, size_t nmembs, size_t size,
 	       int (*compar)(const void *, const void *))
 {
-	if (nmembs < 2ULL) {
+	if (nmembs < 2) {
 		return;
 	}
 
@@ -1118,14 +1119,14 @@ selection_sort(void *base, size_t nmembs, size_t size,
 		errx(1, "malloc");
 	}
 
-	for (size_t outer = nmembs - 1ULL; outer >= 1ULL; --outer) {
+	for (size_t outer = nmembs - 1; outer >= 1; --outer) {
 		u_char *search_index  = (u_char*)base;
 		u_char *biggest_index = search_index;
 		
 		/*
 		 *  Search for the biggest index
 		 */
-		for (size_t inner = 1ULL; inner <= outer; ++inner) {
+		for (size_t inner = 1; inner <= outer; ++inner) {
 			search_index += size;
 			if (compar(biggest_index, search_index) < 0) {
 				biggest_index = search_index;
@@ -1251,7 +1252,7 @@ struct kevent {
 	long double s = 5.0L;
 
 	/* 10 seconds and 0 nanoseconds to download ftplist */
-	struct timespec timeout_ftp_list = { 5, 0 };
+	struct timespec timeout_ftp_list = { 10, 0 };
 
 
 /*
@@ -1298,7 +1299,7 @@ struct winsize {
 		}
 	}
 
-	diff_string = (char*)calloc(12, sizeof(char));
+	diff_string = (char*)calloc(11 + 1, sizeof(char));
 	if (diff_string == NULL) {
 		errx(1, "calloc");
 	}
@@ -1315,7 +1316,7 @@ struct winsize {
 	}
 
 	for(c = 1; c < argc; ++c) {
-		if (strnlen(argv[c], 35) == 35ULL) {
+		if (strnlen(argv[c], 35) == 35) {
 			errx(1, "keep argument lengths under 35");
 		}
 	}
@@ -1359,7 +1360,7 @@ struct winsize {
 			manpage();
 			return 0;
 		case 'l':
-			if (strlen(optarg) >= 5ULL) {
+			if (strlen(optarg) >= 5) {
 				(void)printf("keep -l argument under ");
 				(void)printf("5 characters long.\n");
 				return 1;
@@ -1375,7 +1376,8 @@ struct winsize {
 					return 1;
 				}
 				loop = (loop * 10) + (int)(optarg[c] - '0');
-			} while (optarg[++c] != '\0');
+				++c;
+			} while (optarg[c] != '\0');
 			break;
 		case 'n':
 			previous = 0;
@@ -1412,10 +1414,12 @@ struct winsize {
 			c = 0;
 			do {
 				if ((optarg[c] >= '0') && (optarg[c] <= '9')) {
+					++c;
 					continue;
 				}
 				++i;
 				if ((optarg[c] == '.') && (i == 1)) {
+					++c;
 					continue;
 				}
 
@@ -1425,7 +1429,7 @@ struct winsize {
 				(void)printf("of one decimal point\n");
 				return 1;
 
-			} while (optarg[++c] != '\0');
+			} while (optarg[c] != '\0');
 
 			errno = 0;
 			s = strtold(optarg, &line_temp);
@@ -1572,30 +1576,29 @@ struct winsize {
                         /* GENERATED CODE BEGINS HERE */
 
 
-        const char *ftp_list[55] = {
+        const char *ftp_list[54] = {
 
-          "mirrors.syringanetworks.net","openbsd.mirror.constant.com",
-           "plug-mirror.rcac.purdue.edu","cloudflare.cdn.openbsd.org",
-           "ftp.halifax.rwth-aachen.de","ftp.rnl.tecnico.ulisboa.pt",
-            "openbsd.mirrors.hoobly.com","mirror.raiolanetworks.com",
-  "mirrors.ocf.berkeley.edu","mirror.hs-esslingen.de","mirrors.pidginhost.com",
-    "openbsd.cs.toronto.edu","*artfiles.org/openbsd","mirror.planetunix.net",
-     "www.mirrorservice.org","mirror.aarnet.edu.au","openbsd.c3sl.ufpr.br",
-       "ftp.usa.openbsd.org","ftp2.eu.openbsd.org","mirror.leaseweb.com",
-       "mirror.telepoint.bg","mirrors.gigenet.com","openbsd.eu.paket.ua",
+          "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
+           "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
+           "ftp.rnl.tecnico.ulisboa.pt","openbsd.mirrors.hoobly.com",
+"mirror.raiolanetworks.com","mirrors.ocf.berkeley.edu","mirror.hs-esslingen.de",
+   "mirrors.pidginhost.com","openbsd.cs.toronto.edu","*artfiles.org/openbsd",
+     "mirror.planetunix.net","www.mirrorservice.org","mirror.aarnet.edu.au",
+       "openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
+       "mirror.leaseweb.com","mirrors.gigenet.com","openbsd.eu.paket.ua",
          "ftp.eu.openbsd.org","ftp.fr.openbsd.org","ftp.lysator.liu.se",
          "mirror.freedif.org","mirror.fsmg.org.nz","mirror.ungleich.ch",
-         "mirrors.aliyun.com","openbsd.ipacct.com","ftp.hostserver.de",
-"mirrors.chroot.ro","mirrors.sonic.net","mirrors.ucr.ac.cr","openbsd.as250.net",
-  "mirror.group.one","mirror.litnet.lt","mirror.yandex.ru","mirrors.ircam.fr",
-    "cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.ihost.md",
-     "mirror.ox.ac.uk","mirrors.mit.edu","repo.jing.rocks","ftp.icm.edu.pl",
-  "ftp.cc.uoc.gr","ftp.spline.de","www.ftp.ne.jp","ftp.nluug.nl","ftp.psnc.pl",
-                            "ftp.bit.nl","ftp.fau.de"
+         "mirrors.aliyun.com","mirrors.dotsrc.org","openbsd.ipacct.com",
+"ftp.hostserver.de","mirrors.chroot.ro","mirrors.sonic.net","mirrors.ucr.ac.cr",
+  "openbsd.as250.net","mirror.group.one","mirror.litnet.lt","mirror.yandex.ru",
+    "mirrors.ircam.fr","cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp",
+    "mirror.ihost.md","mirror.ox.ac.uk","mirrors.mit.edu","repo.jing.rocks",
+"ftp.icm.edu.pl","ftp.cc.uoc.gr","ftp.spline.de","www.ftp.ne.jp","ftp.nluug.nl",
+                     "ftp.psnc.pl","ftp.bit.nl","ftp.fau.de"
 
         };
 
-        const int ftp_list_index = 55;
+        const int ftp_list_index = 54;
 
 
 
@@ -1636,6 +1639,10 @@ struct winsize {
 			}
 		}
 
+		if (pledge("stdio exec", NULL) == -1) {
+			err(1, "pledge, line: %d", __LINE__);
+		}
+		
 		(void)close(ftp_out[STDIN_FILENO]);
 
 		n = 1300;
@@ -1973,26 +1980,26 @@ struct winsize {
 			tag_len = strlen("/snapshots/") +
 			    strlen(name.machine) + strlen("/SHA256");
 
-			tag = (char*)malloc(tag_len + 1ULL);
+			tag = (char*)malloc(tag_len + 1);
 			if (tag == NULL) {
 				easy_ftp_kill(ftp_pid);
 				errx(1, "malloc");
 			}
 
-			i = snprintf(tag, tag_len + 1ULL,
+			i = snprintf(tag, tag_len + 1,
 			    "/snapshots/%s/SHA256", name.machine);
 		} else {
 			tag_len = strlen("/") + strlen(release) +
 			    strlen("/") + strlen(name.machine) +
 			    strlen("/SHA256");
 
-			tag = (char*)malloc(tag_len + 1ULL);
+			tag = (char*)malloc(tag_len + 1);
 			if (tag == NULL) {
 				easy_ftp_kill(ftp_pid);
 				errx(1, "malloc");
 			}
 
-			i = snprintf(tag, tag_len + 1ULL,
+			i = snprintf(tag, tag_len + 1,
 			    "/%s/%s/SHA256", release, name.machine);
 		}
 
@@ -2000,7 +2007,7 @@ struct winsize {
 		
 		size_t s_temp = (size_t)i;
 
-		if ((s_temp >= (tag_len + 1ULL)) || (i < 0)) {
+		if ((s_temp >= (tag_len + 1)) || (i < 0)) {
 			if (i < 0) {
 				(void)printf("%s", strerror(errno));
 			} else {
@@ -2109,7 +2116,8 @@ struct winsize {
 
 			if (secure) {
 
-				if (pos_max < ++pos) {
+				++pos;
+				if (pos_max < pos) {
 					pos_max = pos;
 				}
 
@@ -2219,11 +2227,11 @@ struct winsize {
 			 *          this will surgically remove it.
 			 */
 			if (line_temp) {
-				if (!strncmp(line_temp + 2ULL, "The ", 4ULL)) {
-					(void)memmove(line_temp + 2ULL,
-					              line_temp + 6ULL,
+				if (!strncmp(line_temp + 2, "The ", 4)) {
+					(void)memmove(line_temp + 2,
+					              line_temp + 6,
 					    (size_t)
-					    ((line + pos) - (line_temp + 6ULL))
+					    ((line + pos) - (line_temp + 6))
 					    );
 				}
 				
@@ -2249,9 +2257,9 @@ struct winsize {
 				} while (line_temp);
 				
 				
-			} else if (!strncmp(line, "The ", 4ULL)) {
-				(void)memmove(line, line + 4ULL,
-				              (size_t)pos - 4ULL
+			} else if (!strncmp(line, "The ", 4)) {
+				(void)memmove(line, line + 4,
+				              (size_t)pos - 4
 				             );
 			}
 		}
@@ -2267,9 +2275,9 @@ struct winsize {
 
 		if (array_length >= array_max) {
 
-			array_max += 100ULL;
+			array_max += 100;
 
-			if (array_max >= 5000ULL) {
+			if (array_max >= 5000) {
 				easy_ftp_kill(ftp_pid);
 				errx(1, "array_max got insanely large");
 			}
@@ -2405,8 +2413,8 @@ struct winsize {
 		ac = array + array_length;
 		i = (array_length >= 100) + 10;
 
-		while (array <= --ac) {
-
+		while (array < ac) {
+			--ac;
 			pos = (int)strlen(ac->label);
 			if (pos > pos_maxl) {
 				pos_maxl = pos;
@@ -3042,7 +3050,7 @@ restart_dns_err:
 				array[c].speed_rating = t;
 			}
 
-			selection_sort(array, (size_t)se + 1ULL,
+			selection_sort(array, (size_t)se + 1,
 			    sizeof(MIRROR), diff_cmp_pure);
 
 			for (c = 0; c <= se; ++c) {
@@ -3243,7 +3251,8 @@ restart_dns_err:
 			 */
 
 			if ((((int)array[c].diff) + 3) > 80) {
-				(void)printf("\"%s\",\n", array[first++].http);
+				(void)printf("\"%s\",\n", array[first].http);
+				++first;
 			} else {
 				break;
 			}
@@ -3277,7 +3286,8 @@ restart_dns_err:
 				do {
 					(void)printf("\"%s\",",
 					             array[first].http);
-				} while (++first < c);
+					++first;
+				} while (first < c);
 				(void)printf("\n");
 				n = i;
 
@@ -3289,7 +3299,8 @@ restart_dns_err:
 			(void)printf(" ");
 		}
 		while (first < se) {
-			(void)printf("\"%s\",", array[first++].http);
+			(void)printf("\"%s\",", array[first].http);
+			++first;
 		}
 gen_skip1:
 		(void)printf("\"%s\"\n\n", array[se].http);
@@ -3347,7 +3358,8 @@ gen_skip1:
 			 */
 
 			if ((((int)array[c].diff) + 3) > 80) {
-				(void)printf("\"%s\",\n", array[first++].http);
+				(void)printf("\"%s\",\n", array[first].http);
+				++first;
 			} else {
 				break;
 			}
@@ -3381,7 +3393,8 @@ gen_skip1:
 				do {
 					(void)printf("\"%s\",",
 					             array[first].http);
-				} while (++first < c);
+					++first;
+				} while (first < c);
 				(void)printf("\n");
 				n = i;
 			}
@@ -3392,7 +3405,8 @@ gen_skip1:
 			(void)printf(" ");
 		}
 		while (first < se) {
-			(void)printf("\"%s\",", array[first++].http);
+			(void)printf("\"%s\",", array[first].http);
+			++first;
 		}
 gen_skip2:
 		(void)printf("\"%s\"\n\n", array[se].http);
@@ -3504,7 +3518,8 @@ generate_jump:
 		i = 1;
 		while (slowest->diff >= i) {
 			i *= 10;
-			if (++diff_topper == 4) {
+			++diff_topper;
+			if (diff_topper == 4) {
 				break;
 			}
 		}
