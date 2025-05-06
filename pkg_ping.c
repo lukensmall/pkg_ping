@@ -236,7 +236,6 @@ usa_cmp(const void *a, const void *b)
 	temp      = (int)(strstr(one_label, "Canada") != NULL);
 	if (temp != (int)(strstr(two_label, "Canada") != NULL)) {
 		if (temp) {
-
 			return (-1);
 		}
 		return 1;
@@ -247,6 +246,8 @@ usa_cmp(const void *a, const void *b)
 /*
  * compare the labels alphabetically by proper decreasing
  * hierarchy which are in reverse order between commas.
+ * 
+ * checks to make sure these procedures are safe, are performed in main
  */
 static int
 label_cmp_minus_usa(const void *a, const void *b)
@@ -256,57 +257,74 @@ label_cmp_minus_usa(const void *a, const void *b)
 	const char *two_label = ((const MIRROR *) b)->label;
 
 	// full bitfield of size two
-	uint i = 3U;
+	uint i = 3;
 
 	/* start with the last comma */
 
 	const char *red = strrchr(one_label, ',');
 	if (red == NULL) {
-		red = one_label - 2;
-		i = 1U;
+		red = one_label;
+		i = 1;
 	}
 
 	const char *blue = strrchr(two_label, ',');
 	if (blue == NULL) {
-		blue = two_label - 2;
+		blue = two_label;
 		--i;
 	}
+	
+	int ret;
 
-	int ret = strcmp(red + 2, blue + 2);
+	if (i == 3) {
+		ret = strcmp(red + 2, blue + 2);
+	} else if (i == 2) {
+		ret = strcmp(red + 2, blue);
+	} else if (i == 1) {
+		ret = strcmp(red    , blue + 2);
+	} else /* if (i == 0) */ {
+		ret = strcmp(red    , blue);
+	}
 
-	while ((ret == 0) && (i == 3U)) {
+	while ((ret == 0) && (i == 3)) {
 
 		/*
 		 * search for a comma before the one
 		 * found in the previous iteration
 		 */
-
+		 
 		for (;;) {
-			--red;
-			if (one_label > red) {
-				--red;
-				i = 1U;
+			if (one_label == red) {
+				i = 1;
 				break;
 			}
+			--red;
 			if (*red == ',') {
 				break;
 			}
 		}
 
+
 		for (;;) {
-			--blue;
-			if (two_label > blue) {
-				--blue;
+			if (two_label == blue) {
 				--i;
 				break;
 			}
+			--blue;
 			if (*blue == ',') {
 				break;
 			}
 		}
 
-		ret = strcmp(red + 2, blue + 2);
 
+		if (i == 3) {
+			ret = strcmp(red + 2, blue + 2);
+		} else if (i == 2) {
+			ret = strcmp(red + 2, blue);
+		} else if (i == 1) {
+			ret = strcmp(red    , blue + 2);
+		} else /* if (i == 0) */ {
+			ret = strcmp(red    , blue);
+		}
 	}
 
 	if (ret == 0) {
@@ -586,6 +604,7 @@ dns_cache_d(const int dns_socket, const int secure,
 	     const int six, const int verbose)
 {
 	int i = 0;
+	int g = 0;
 	int c = 0;
 	struct addrinfo *res0 = NULL;
 	struct addrinfo *res = NULL;
@@ -838,7 +857,7 @@ dns_loop:
 				}
 			}
 
-			int g = i + 1;
+			g = i + 1;
 
 			if (suc6[i] / (u_char)16) {
 				(void)printf("%c%c%c%c",
@@ -898,12 +917,6 @@ file_d(const int write_pipe, const int secure,
        const int verbose, const int debug)
 {
 
-	if (pledge("stdio cpath wpath", NULL) == -1) {
-		(void)printf("%s ", strerror(errno));
-		(void)printf("pledge, line: %d\n", __LINE__);
-		_exit(1);
-	}
-
 	int i = 0;
 	int ret = 1;
 
@@ -911,17 +924,23 @@ file_d(const int write_pipe, const int secure,
 	FILE *pkg_write = NULL;
 	const size_t max_file_length = 1302;
 
+	if (pledge("stdio cpath wpath", NULL) == -1) {
+		(void)printf("%s ", strerror(errno));
+		(void)printf("pledge, line: %d\n", __LINE__);
+		_exit(1);
+	}
+
 	if (max_file_length <= 7 + (const size_t)secure + 2 + 1) {
 		errx(1, "max_file_length is too short");
 	}
+
+	const size_t received_max = 1 + max_file_length - 2;
 
 	file_w = (char*)malloc(max_file_length);
 	if (file_w == NULL) {
 		(void)printf("malloc\n");
 		_exit(1);
 	}
-
-	const size_t received_max = 1 + max_file_length - 2;
 
 	const ssize_t received = read(write_pipe, file_w, received_max);
 
@@ -1580,12 +1599,12 @@ struct winsize {
 
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
            "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
-           "ftp.rnl.tecnico.ulisboa.pt","openbsd.mirrors.hoobly.com",
-"mirror.raiolanetworks.com","mirrors.ocf.berkeley.edu","mirror.hs-esslingen.de",
-   "mirrors.pidginhost.com","openbsd.cs.toronto.edu","*artfiles.org/openbsd",
-     "mirror.planetunix.net","www.mirrorservice.org","mirror.aarnet.edu.au",
-       "openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
-       "mirror.leaseweb.com","mirrors.gigenet.com","openbsd.eu.paket.ua",
+            "openbsd.mirrors.hoobly.com","mirror.raiolanetworks.com",
+  "mirrors.ocf.berkeley.edu","mirror.hs-esslingen.de","mirrors.pidginhost.com",
+    "openbsd.cs.toronto.edu","*artfiles.org/openbsd","mirror.planetunix.net",
+     "www.mirrorservice.org","mirror.aarnet.edu.au","openbsd.c3sl.ufpr.br",
+       "ftp.usa.openbsd.org","ftp2.eu.openbsd.org","mirror.leaseweb.com",
+       "mirror.telepoint.bg","mirrors.gigenet.com","openbsd.eu.paket.ua",
          "ftp.eu.openbsd.org","ftp.fr.openbsd.org","ftp.lysator.liu.se",
          "mirror.freedif.org","mirror.fsmg.org.nz","mirror.ungleich.ch",
          "mirrors.aliyun.com","mirrors.dotsrc.org","openbsd.ipacct.com",
@@ -3088,13 +3107,15 @@ restart_dns_err:
 			MIRROR *fastest = ac;
 
 			if (responsiveness || average) {
-				while (array <= --ac) {
+				while (array < ac) {
+					--ac;
 					if (diff_cmp_pure(ac, fastest) < 0) {
 						fastest = ac;
 					}
 				}
 			} else {
-				while (array <= --ac) {
+				while (array < ac) {
+					--ac;
 					if (diff_cmp(ac, fastest) < 0) {
 						fastest = ac;
 					}
@@ -3110,7 +3131,7 @@ restart_dns_err:
 				             sizeof(MIRROR));
 
 				/*
-				 * wipe out duplicate array entries
+				 * nullify duplicate array entries
 				 */
 				(void)memset(fastest, 0, sizeof(MIRROR));
 			}
@@ -3206,7 +3227,8 @@ restart_dns_err:
 					n = 0;
 				}
 			}
-		} while (array <= --ac);
+			--ac;
+		} while (array <= ac);
 
 
 
@@ -3222,7 +3244,8 @@ restart_dns_err:
 				} else {
 					ac->http -= h;
 				}
-			} while (array <= --ac);
+				--ac;
+			} while (array <= ac);
 
 			free(current_time);
 
@@ -3332,7 +3355,8 @@ gen_skip1:
 				ac->diff = 0;
 				--se;
 			}
-		} while (array <= --ac);
+			--ac;
+		} while (array <= ac);
 
 		/*
 		 * sort by longest length first,
@@ -3428,8 +3452,8 @@ gen_skip2:
 			} else {
 				ac->http -= h;
 			}
-
-		} while (array <= --ac);
+			--ac;
+		} while (array <= ac);
 
 		free(current_time);
 		current_time = NULL;
@@ -3508,7 +3532,8 @@ generate_jump:
 		MIRROR *slowest = array + se;
 		ac = slowest;
 
-		while (array <= --ac) {
+		while (array < ac) {
+			--ac;
 			if (diff_cmp_pure(ac, slowest) > 0) {
 				slowest = ac;
 			}
@@ -3532,7 +3557,8 @@ generate_jump:
 		ac = array + se;
 		pos_maxl = (int)strlen(ac->label);
 
-		while (array <= --ac) {
+		while (array < ac) {
+			--ac;
 			pos = (int)strlen(ac->label);
 			if (pos > pos_maxl) {
 				pos_maxl = pos;
@@ -3574,7 +3600,8 @@ generate_jump:
 
 		ac = array + se + 1;
 
-		while (array <= --ac) {
+		while (array < ac) {
+			--ac;
 
 			t = ac->speed;
 
@@ -3589,7 +3616,6 @@ generate_jump:
 			if (j > speed_shift) {
 				speed_shift = j;
 			}
-
 		}
 
 
@@ -3599,7 +3625,8 @@ generate_jump:
 		c = (int)array_length;
 		ac = array + c;
 
-		while (array <= --ac) {
+		while (array < ac) {
+			--ac;
 
 			if (array_length >= 100) {
 				(void)printf("\n%3d : ", c);
