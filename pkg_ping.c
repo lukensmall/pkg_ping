@@ -138,9 +138,9 @@ static MIRROR *array = NULL;
 /* .1 second for an ftp SIGINT to turn into a SIGKILL */
 static const struct timespec timeout_kill = { 0, 100000000 };
 
-static char *diff_string = NULL;	// initialized later
-
 static int kq;
+
+static char *diff_string = NULL;	// initialized later
 static char *line = NULL;
 static char *line0 = NULL;
 static char *tag = NULL;
@@ -188,12 +188,11 @@ sub_one_print(long double diff)
 	const int i = snprintf(diff_string, 12, "%.9Lf", diff);
 	if (i != 11) {
 		if (i < 0) {
-			(void)printf("%s", strerror(errno));
+			err(1, "snprintf, line: %d\n", __LINE__);
 		} else {
-			(void)printf("'line': %s,", diff_string);
+			err(1, "'line': %s, snprintf, line: %d\n",
+			    diff_string, __LINE__);
 		}
-		(void)printf(" snprintf, line: %d\n", __LINE__);
-		_exit(1);
 	}
 	(void)printf("%s", 1 + diff_string);
 }
@@ -248,6 +247,7 @@ usa_cmp(const void *a, const void *b)
  * hierarchy which are in reverse order between commas.
  * 
  * checks to make sure these procedures are safe, are performed in main
+ * It can assume all commas in the labels are followed by a space
  */
 static int
 label_cmp_minus_usa(const void *a, const void *b)
@@ -256,36 +256,27 @@ label_cmp_minus_usa(const void *a, const void *b)
 	const char *one_label = ((const MIRROR *) a)->label;
 	const char *two_label = ((const MIRROR *) b)->label;
 
-	// full bitfield of size two
-	uint i = 3;
+	// strlen(", ") == 2
+	int rc = 2;
+	int bc = 2;
 
 	/* start with the last comma */
 
 	const char *red = strrchr(one_label, ',');
+	const char *blu = strrchr(two_label, ',');
+	
 	if (red == NULL) {
 		red = one_label;
-		i = 1;
+		rc = 0;
 	}
-
-	const char *blue = strrchr(two_label, ',');
-	if (blue == NULL) {
-		blue = two_label;
-		--i;
+	if (blu == NULL) {
+		blu = two_label;
+		bc = 0;
 	}
 	
-	int ret;
+	int ret = strcmp(red + rc, blu + bc);
 
-	if (i == 3) {
-		ret = strcmp(red + 2, blue + 2);
-	} else if (i == 2) {
-		ret = strcmp(red + 2, blue);
-	} else if (i == 1) {
-		ret = strcmp(red    , blue + 2);
-	} else /* if (i == 0) */ {
-		ret = strcmp(red    , blue);
-	}
-
-	while ((ret == 0) && (i == 3)) {
+	while ((ret == 0) && rc && bc) {
 
 		/*
 		 * search for a comma before the one
@@ -294,7 +285,7 @@ label_cmp_minus_usa(const void *a, const void *b)
 		 
 		for (;;) {
 			if (one_label == red) {
-				i = 1;
+				rc = 0;
 				break;
 			}
 			--red;
@@ -305,43 +296,34 @@ label_cmp_minus_usa(const void *a, const void *b)
 
 
 		for (;;) {
-			if (two_label == blue) {
-				--i;
+			if (two_label == blu) {
+				bc = 0;
 				break;
 			}
-			--blue;
-			if (*blue == ',') {
+			--blu;
+			if (*blu == ',') {
 				break;
 			}
 		}
 
 
-		if (i == 3) {
-			ret = strcmp(red + 2, blue + 2);
-		} else if (i == 2) {
-			ret = strcmp(red + 2, blue);
-		} else if (i == 1) {
-			ret = strcmp(red    , blue + 2);
-		} else /* if (i == 0) */ {
-			ret = strcmp(red    , blue);
-		}
+		ret = strcmp(red + rc, blu + bc);
 	}
 
 	if (ret == 0) {
 
-		/* i equals 0, 1, or 2 */
-
 		/*
-		 * if (i):
-		 * Either red or blue has no more comma
+		 * rc and bc are NOT both non-zero here
+		 * 
+		 * if (rc || bc):
+		 * Either red or blu has no more comma
 		 * separated entries while remaining, equal.
 		 * The one with fewer commas is preferred first.
-		 * If red: i == 1, if blue: i == 2
 		 */
-		if (i == 1U) {
+		if (bc) {
 			return (-1);
 		}
-		if (i == 2U) {
+		if (rc) {
 			return 1;
 		}
 
@@ -401,6 +383,7 @@ diff_cmp(const void *a, const void *b)
 	if (one_speed < two_speed) {
 		return 1;
 	}
+
 
 	const long double one_diff = ((const MIRROR *) a)->diff;
 	const long double two_diff = ((const MIRROR *) b)->diff;
@@ -1055,27 +1038,26 @@ restart(int argc, char *argv[], const int loop, const int verbose)
 	const int n
 	    = argc - (int)((argc > 1) && (!strncmp(argv[argc - 1], "-l", 2)));
 
-	char **arg_v = calloc((size_t)n + 1 + 1, sizeof(char *));
-	if (arg_v == NULL) {
+	char **new_args = calloc((size_t)n + 1 + 1, sizeof(char *));
+	if (new_args == NULL) {
 		errx(1, "calloc");
 	}
 
-	(void)memcpy(arg_v, argv, (size_t)n * sizeof(char *));
+	(void)memcpy(new_args, argv, (size_t)n * sizeof(char *));
 
 	const int len = 10;
-	arg_v[n] = (char*)calloc(len, sizeof(char));
-	if (arg_v[n] == NULL) {
+	new_args[n] = (char*)calloc(len, sizeof(char));
+	if (new_args[n] == NULL) {
 		errx(1, "calloc");
 	}
-	const int c = snprintf(arg_v[n], len, "-l%d", loop - 1);
+	const int c = snprintf(new_args[n], len, "-l%d", loop - 1);
 	if ((c >= len) || (c < 0)) {
 		if (c < 0) {
-			(void)printf("%s", strerror(errno));
+			err(1, "snprintf, line: %d\n", __LINE__);
 		} else {
-			(void)printf("arg_v[n]: %s,", arg_v[n]);
+			err(1, "new_args[n]: %s, snprintf, line: %d\n",
+			    new_args[n], __LINE__);
 		}
-		(void)printf(" snprintf, line: %d\n", __LINE__);
-		_exit(1);
 	}
 
 	(void)close(kq);
@@ -1083,7 +1065,7 @@ restart(int argc, char *argv[], const int loop, const int verbose)
 
 	/* hard-code to /usr/local/bin/pkg_ping */
 
-	(void)execv("/usr/local/bin/pkg_ping", arg_v);
+	(void)execv("/usr/local/bin/pkg_ping", new_args);
 	err(1, "execv failed, line: %d", __LINE__);
 }
 
@@ -1119,52 +1101,6 @@ easy_ftp_kill(const pid_t ftp_pid)
  	(void)waitpid(ftp_pid, NULL, 0);
 }
 
-/* 
- * replace the "dangerous" qsort which MISRA seems to not trust
- * with something significantly slower for very large arrays
- *           (which this program doesn't use),
- * but it's simple to understand and is super-verifiable
- */
-static void
-selection_sort(void *base, size_t nmembs, size_t size,
-	       int (*compar)(const void *, const void *))
-{
-	if (nmembs < 2) {
-		return;
-	}
-
-	u_char *swap_buffer = (u_char*)malloc(size);
-	if (swap_buffer == NULL) {
-		errx(1, "malloc");
-	}
-
-	for (size_t outer = nmembs - 1; outer >= 1; --outer) {
-		u_char *search_index  = (u_char*)base;
-		u_char *biggest_index = search_index;
-		
-		/*
-		 *  Search for the biggest index
-		 */
-		for (size_t inner = 1; inner <= outer; ++inner) {
-			search_index += size;
-			if (compar(biggest_index, search_index) < 0) {
-				biggest_index = search_index;
-			}
-		}
-		
-		/* 
-		 * swap the data in biggest index into the last position
-		 * which is the current search index
-		 */
-		if (search_index != biggest_index) {
-			(void)memcpy(  swap_buffer,  search_index, size);
-			(void)memcpy( search_index, biggest_index, size);
-			(void)memcpy(biggest_index,   swap_buffer, size);
-		}
-	}
-	free(swap_buffer);
-}
-
 int
 main(int argc, char *argv[])
 {
@@ -1173,12 +1109,9 @@ main(int argc, char *argv[])
 	#error Only run on OpenBSD
 #endif
 
-	malloc_options = strdup("CFGJJjU");
-	if (malloc_options == NULL) {
-		err(1, "malloc");
-	}
-
 	size_t tag_len = 0;
+	
+	int sort_ret = 0;
 
 	int root_user = (int)(getuid() == 0);
 	
@@ -1241,17 +1174,6 @@ main(int argc, char *argv[])
 
 	char *current_time = NULL;
 	char v = '\0';
-
-	kq = kqueue();
-	if (kq == -1) {
-		errx(1, "kqueue() error, line :%d", __LINE__);
-	}
-
-	errno = 0;
-	almost_zero = strtold(".000000001", NULL);
-	if (errno) {
-		err(1, "almost_zero == 0, line: %d", __LINE__);
-	}
 	
 
 /*
@@ -1284,6 +1206,23 @@ struct winsize {
 };
 */
 	struct winsize w = { 0, 0, 0, 0 };
+
+
+	malloc_options = strdup("CFGJJjU");
+	if (malloc_options == NULL) {
+		err(1, "malloc");
+	}
+
+	kq = kqueue();
+	if (kq == -1) {
+		errx(1, "kqueue() error, line :%d", __LINE__);
+	}
+
+	errno = 0;
+	almost_zero = strtold(".000000001", NULL);
+	if (errno) {
+		err(1, "almost_zero == 0, line: %d", __LINE__);
+	}
 
 	i = pledge("stdio exec proc cpath wpath dns id unveil tty", NULL);
 	if (i == -1) {
@@ -1479,7 +1418,8 @@ struct winsize {
 			if (verbose == -1) {
 				break;
 			}
-			if (++verbose > 4) {
+			++verbose;
+			if (verbose > 4) {
 				verbose = 4;
 			}
 			break;
@@ -1541,17 +1481,15 @@ struct winsize {
 			case -1:
 				err(1, "dns_cache_d fork, line: %d\n",
 				                 __LINE__);
-				break;
 			case 0:
 				(void)close(dns_cache_d_socket[1]);
 				dns_cache_d(dns_cache_d_socket[0], secure,
 						six, verbose);
 				/* function cannot return */
-				break;
 			default:
-				(void)close(dns_cache_d_socket[0]);
 				break;
 		}
+		(void)close(dns_cache_d_socket[0]);
 	}
 
 	if (to_file) {
@@ -1564,18 +1502,16 @@ struct winsize {
 		switch(write_pid) {
 			case -1:
 				err(1, "file_d fork, line: %d\n", __LINE__);
-				break;
 			case 0:
 				(void)close(dns_cache_d_socket[1]);
 				(void)close(write_pipe[STDOUT_FILENO]);
 				file_d(write_pipe[STDIN_FILENO],
 					secure, verbose, debug);
 				/* function cannot return */
-				break;
 			default:
-				(void)close(write_pipe[STDIN_FILENO]);
 				break;
 		}
+		(void)close(write_pipe[STDIN_FILENO]);
 	}
 
 
@@ -1595,29 +1531,30 @@ struct winsize {
                         /* GENERATED CODE BEGINS HERE */
 
 
-        const char *ftp_list[54] = {
+        const char *ftp_list[55] = {
 
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
            "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
-            "openbsd.mirrors.hoobly.com","mirror.raiolanetworks.com",
-  "mirrors.ocf.berkeley.edu","mirror.hs-esslingen.de","mirrors.pidginhost.com",
-    "openbsd.cs.toronto.edu","*artfiles.org/openbsd","mirror.planetunix.net",
-     "www.mirrorservice.org","mirror.aarnet.edu.au","openbsd.c3sl.ufpr.br",
-       "ftp.usa.openbsd.org","ftp2.eu.openbsd.org","mirror.leaseweb.com",
-       "mirror.telepoint.bg","mirrors.gigenet.com","openbsd.eu.paket.ua",
-         "ftp.eu.openbsd.org","ftp.fr.openbsd.org","ftp.lysator.liu.se",
-         "mirror.freedif.org","mirror.fsmg.org.nz","mirror.ungleich.ch",
-         "mirrors.aliyun.com","mirrors.dotsrc.org","openbsd.ipacct.com",
-"ftp.hostserver.de","mirrors.chroot.ro","mirrors.sonic.net","mirrors.ucr.ac.cr",
-  "openbsd.as250.net","mirror.group.one","mirror.litnet.lt","mirror.yandex.ru",
-    "mirrors.ircam.fr","cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp",
-    "mirror.ihost.md","mirror.ox.ac.uk","mirrors.mit.edu","repo.jing.rocks",
-"ftp.icm.edu.pl","ftp.cc.uoc.gr","ftp.spline.de","www.ftp.ne.jp","ftp.nluug.nl",
-                     "ftp.psnc.pl","ftp.bit.nl","ftp.fau.de"
+           "ftp.rnl.tecnico.ulisboa.pt","openbsd.mirrors.hoobly.com",
+"mirror.raiolanetworks.com","mirrors.ocf.berkeley.edu","mirror.hs-esslingen.de",
+   "mirrors.pidginhost.com","openbsd.cs.toronto.edu","*artfiles.org/openbsd",
+     "mirror.planetunix.net","www.mirrorservice.org","mirror.aarnet.edu.au",
+       "openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
+       "mirror.leaseweb.com","mirror.telepoint.bg","mirrors.gigenet.com",
+        "openbsd.eu.paket.ua","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
+         "ftp.lysator.liu.se","mirror.freedif.org","mirror.fsmg.org.nz",
+         "mirror.ungleich.ch","mirrors.aliyun.com","mirrors.dotsrc.org",
+          "openbsd.ipacct.com","ftp.hostserver.de","mirrors.chroot.ro",
+ "mirrors.sonic.net","mirrors.ucr.ac.cr","openbsd.as250.net","mirror.group.one",
+   "mirror.litnet.lt","mirror.yandex.ru","mirrors.ircam.fr","cdn.openbsd.org",
+    "ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.ihost.md","mirror.ox.ac.uk",
+      "mirrors.mit.edu","repo.jing.rocks","ftp.icm.edu.pl","ftp.cc.uoc.gr",
+   "ftp.spline.de","www.ftp.ne.jp","ftp.nluug.nl","ftp.psnc.pl","ftp.bit.nl",
+                                  "ftp.fau.de"
 
         };
 
-        const int ftp_list_index = 54;
+        const int ftp_list_index = 55;
 
 
 
@@ -2369,19 +2306,27 @@ struct winsize {
 	 */
 	if (usa == 0) {
 		if (verbose > 1) {
-			selection_sort(array, (ulong)array_length,
+			sort_ret = heapsort(array, (ulong)array_length,
 			    sizeof(MIRROR), label_cmp_minus_usa);
-		} /* else don't sort */
+		} else {
+			/* else don't sort */
+			sort_ret = 0;
+		}
 	} else {
 		if (verbose < 1) {
-			selection_sort(array, (ulong)array_length,
+			sort_ret = heapsort(array, (ulong)array_length,
 			    sizeof(MIRROR), usa_cmp);
 		} else if (verbose > 1) {
-			selection_sort(array, (ulong)array_length,
+			sort_ret = heapsort(array, (ulong)array_length,
 			    sizeof(MIRROR), label_cmp);
+		} else {
+			/* else don't sort */
+			sort_ret = 0;
 		}
-		/* else don't sort */
 	}
+	
+	if (sort_ret)
+		err(1, "sort failed, line %d", __LINE__);
 
 	if (six) {
 		if (verbose >= 3) {
@@ -2781,6 +2726,8 @@ restart_dns_err:
 					} else if (*g == 'K') {
 						t *= 1024.0L;
 					} else {
+						(void)printf("bad read, line");
+						(void)printf(" %d", __LINE__);
 						break;
 					}
 
@@ -2814,9 +2761,9 @@ restart_dns_err:
 				err(1, "ftp 1 fork, line: %d", __LINE__);
 			}
 
-			(void)close(ftp_helper_out[STDOUT_FILENO]);
-			(void)close(ftp_helper_out[STDIN_FILENO]);
 			(void)close(ftp_2_ftp_helper[STDIN_FILENO]);
+			(void)close(ftp_helper_out[STDIN_FILENO]);
+			(void)close(ftp_helper_out[STDOUT_FILENO]);
 
 
 			if (root_user) {
@@ -2895,9 +2842,9 @@ restart_dns_err:
 		    EV_ONESHOT, NOTE_EXIT, 0, NULL);
 		if (kevent(kq, &ke, 1, NULL, 0, NULL) == -1) {
 			(void)printf("%s ", strerror(errno));
-			(void)kill(ftp_pid, SIGKILL);
 			(void)printf("kevent register fail,");
 			(void)printf(" line: %d\n", __LINE__);
+			easy_ftp_kill(ftp_pid);
 			return 1;
 		}
 
@@ -2913,8 +2860,8 @@ restart_dns_err:
 
 		if (i == -1) {
 			(void)printf("%s ", strerror(errno));
-			(void)kill(ftp_pid, SIGKILL);
 			(void)printf("kevent, line: %d", __LINE__);
+			easy_ftp_kill(ftp_pid);
 			return 1;
 		}
 
@@ -3034,8 +2981,12 @@ restart_dns_err:
 
 			int se = -1;
 
-			selection_sort(array, array_length,
-			    sizeof(MIRROR), diff_cmp);
+			if (
+				heapsort(array, array_length, sizeof(MIRROR),
+				    diff_cmp)
+			   ) {
+				err(1, "sort failed, line %d", __LINE__);
+			    }
 
 			c = (int)array_length;
 			do {
@@ -3069,8 +3020,12 @@ restart_dns_err:
 				array[c].speed_rating = t;
 			}
 
-			selection_sort(array, (size_t)se + 1,
-			    sizeof(MIRROR), diff_cmp_pure);
+			if (
+				heapsort(array, (size_t)se + 1,
+				    sizeof(MIRROR), diff_cmp_pure)
+			   ) {
+				err(1, "sort failed, line %d", __LINE__);
+			    }
 
 			for (c = 0; c <= se; ++c) {
 				array[c].diff_rank = 1 + se - c;
@@ -3091,55 +3046,35 @@ restart_dns_err:
 				array[c].diff_rating = 100.0L - t;
 			}
 
-			selection_sort(array, (size_t)se + 1,
-			    sizeof(MIRROR), unified_cmp);
+			if (
+				heapsort(array, (size_t)se + 1,
+				    sizeof(MIRROR), unified_cmp)
+			   ) {
+				err(1, "sort failed, line %d", __LINE__);
+			}
 
 		} else {
 
-		/*
-		 * I chose to use a more efficient selection sort
-		 * pass instead of doing a selection_sort() to load the
-		 * fastest mirror data into array[0] since the
-		 * rest of the data in the array is not used.
-		 */
-
-			ac = array + array_length - 1;
-			MIRROR *fastest = ac;
-
 			if (responsiveness || average) {
-				while (array < ac) {
-					--ac;
-					if (diff_cmp_pure(ac, fastest) < 0) {
-						fastest = ac;
-					}
-				}
+				sort_ret = heapsort(array, (size_t)array_length,
+						sizeof(MIRROR), diff_cmp_pure);
 			} else {
-				while (array < ac) {
-					--ac;
-					if (diff_cmp(ac, fastest) < 0) {
-						fastest = ac;
-					}
-				}
+				sort_ret = heapsort(array, (size_t)array_length,
+						sizeof(MIRROR), diff_cmp);
 			}
-
-			if (array != fastest) {
-
-				free(array[0].label);
-				free(array[0].http);
-
-				(void)memcpy(&array[0], fastest,
-				             sizeof(MIRROR));
-
-				/*
-				 * nullify duplicate array entries
-				 */
-				(void)memset(fastest, 0, sizeof(MIRROR));
+			
+			if (sort_ret) {
+				err(1, "sort failed, line %d", __LINE__);
 			}
 		}
 
 	} else {
-		selection_sort(array, (size_t)array_length, sizeof(MIRROR),
+		sort_ret = heapsort(array, (size_t)array_length, sizeof(MIRROR),
 		           diff_cmp);
+			
+		if (sort_ret) {
+			err(1, "sort failed, line %d", __LINE__);
+		}
 
 		int  ds = -1;
 		int  de = -1;
@@ -3256,8 +3191,12 @@ restart_dns_err:
 		 * sort by longest length first, subsort http alphabetically
 		 *           It makes it kinda look like a flower.
 		 */
-		selection_sort(array, (size_t)se + 1, sizeof(MIRROR),
-		               diff_cmp_g);
+			if (
+				heapsort(array, (size_t)se + 1, sizeof(MIRROR),
+				    diff_cmp_g)
+			   ) {
+				err(1, "sort failed, line %d", __LINE__);
+			}
 
 		(void)printf("\n\n");
 		(void)printf("                        ");
@@ -3363,8 +3302,12 @@ gen_skip1:
 		 * if diff > 0 then
 		 * subsort http alphabetically
 		 */
-		selection_sort(array, (size_t)se0 + 1, sizeof(MIRROR),
-		    diff_cmp_g2);
+		if (
+			heapsort(array, (size_t)se0 + 1, sizeof(MIRROR),
+		    diff_cmp_g2)
+		   ) {
+			err(1, "sort failed, line %d", __LINE__);
+		}
 
 		(void)printf("     /* Trusted OpenBSD.org subdomain ");
 		(void)printf("mirrors for generating this section */\n\n");
@@ -3488,8 +3431,12 @@ generate_jump:
 			array[c].speed_rating = t;
 		}
 
-		selection_sort(array, (size_t)se + 1, sizeof(MIRROR),
-		               diff_cmp_pure);
+		if (
+			heapsort(array, (size_t)se + 1, sizeof(MIRROR),
+		               diff_cmp_pure)
+		   ) {
+			err(1, "sort failed, line %d", __LINE__);
+		}
 
 		for (c = 0; c <= se; ++c) {
 			array[c].diff_rank = 1 + se - c;
@@ -3513,13 +3460,18 @@ generate_jump:
 
 
 		if (average) {
-			selection_sort(array, (size_t)(se + 1),
+			sort_ret = heapsort(array, (size_t)(se + 1),
 			    sizeof(MIRROR), unified_cmp);
 		} else if (bandwidth) {
-			selection_sort(array, (size_t)(se + 1), sizeof(MIRROR),
-			               diff_cmp);
+			sort_ret = heapsort(array, (size_t)(se + 1),
+			    sizeof(MIRROR), diff_cmp);
+		} else {
+			sort_ret = 0;
 		}
-
+		
+		if (sort_ret) {
+			err(1, "sort failed, line %d", __LINE__);
+		}
 
 		if (de != -1) {
 			(void)printf("\n\nDOWNLOAD ERROR MIRRORS:\n\n");
