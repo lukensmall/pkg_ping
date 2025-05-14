@@ -148,7 +148,10 @@ static const size_t dns_socket_len = 1256;
 
 
 
-/* Called once with atexit. It's the only function called with atexit. */
+/* 
+ * Called once with atexit. It's the only function called with atexit
+ * and free_array isn't called elsewhere
+ */
 static void
 free_array(void)
 {
@@ -159,6 +162,7 @@ free_array(void)
 		free(ac->label);
 		free(ac->http);
 	}
+	array_length = 0;
 	free(array);
 	free(diff_string);
 	free(line);
@@ -535,7 +539,9 @@ manpage(void)
 	(void)printf(
 	    "[-f (don't automatically write to File if run as root)]\n");
 
-	(void)printf("[-g (Generate source ftp list)]\n");
+	(void)printf("[-G (Generate source ftp list: all)]\n");
+
+	(void)printf("[-g (Generate source ftp list: only accessible ones)]\n");
 
 	(void)printf("[-h (print this Help message and exit)]\n");
 
@@ -564,9 +570,12 @@ manpage(void)
 	(void)printf("[-s timeout in Seconds (eg. -s 2.3) (default 10 if -g\n");
 	(void)printf("        is specified. Otherwise default 5)]\n");
 
-	(void)printf("[-U (USA, CDN and Canada mirrors Only. This ");
-	(void)printf("will likely be faster if you are in these areas.");
-	(void)printf(" The program will absolutely take less runtime.)]\n");
+	(void)printf("[-U (USA, CDN and Canada mirrors Only.");
+	(void)printf("\n        ");
+	(void)printf("This will likely be faster if you are in these areas.");
+	(void)printf("\n        ");
+	(void)printf("The program will absolutely take less runtime.)]");
+	(void)printf("\n");
 
 	(void)printf("[-u (no USA mirrors to comply ");
 	(void)printf("with USA encryption export laws.)]\n");
@@ -794,7 +803,8 @@ dns_loop:
 		
 		suc6 = sa6->sin6_addr.s6_addr;
 
-		c = max = 0;
+		c = 0;
+		max = 0;
 		i_max = -1;
 
 		/*
@@ -1153,6 +1163,7 @@ main(int argc, char *argv[])
 	int    pos_max = 0;
 	int       loop = 20;
 	int        pos = 0;
+	int        all = 0;
 
 	size_t len = 0;
 
@@ -1281,7 +1292,7 @@ struct winsize {
 
 
 	for(;;) {
-		c = getopt(argc, argv, "6abDdfghl:nOprSs:uUVv");
+		c = getopt(argc, argv, "6abDdfGghl:nOprSs:uUVv");
 		if (c == -1) {
 			break;
 		}
@@ -1310,6 +1321,10 @@ struct winsize {
 			if (pledge("stdio exec proc dns id", NULL) == -1) {
 				err(1, "pledge, line: %d", __LINE__);
 			}
+			break;
+		case 'G':
+			all = 1;
+			generate = 1;
 			break;
 		case 'g':
 			generate = 1;
@@ -1434,7 +1449,10 @@ struct winsize {
 	}
 
 	if (generate) {
-		if (verbose < 1) {
+		if (all) {
+			verbose = 1;
+			dns_cache = 0;
+		} else if (verbose < 1) {
 			verbose = 1;
 		}
 		secure   = 1;
@@ -1531,43 +1549,46 @@ struct winsize {
                         /* GENERATED CODE BEGINS HERE */
 
 
-        const char *ftp_list[55] = {
+        const char *ftp_list[62] = {
 
-          "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
-           "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
-           "ftp.rnl.tecnico.ulisboa.pt","openbsd.mirrors.hoobly.com",
-"mirror.raiolanetworks.com","mirrors.ocf.berkeley.edu","mirror.hs-esslingen.de",
-   "mirrors.pidginhost.com","openbsd.cs.toronto.edu","*artfiles.org/openbsd",
-     "mirror.planetunix.net","www.mirrorservice.org","mirror.aarnet.edu.au",
-       "openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
+          "mirrors.syringanetworks.net","openbsd.mirror.constant.com",
+           "plug-mirror.rcac.purdue.edu","cloudflare.cdn.openbsd.org",
+           "ftp.halifax.rwth-aachen.de","ftp.rnl.tecnico.ulisboa.pt",
+            "openbsd.mirrors.hoobly.com","mirror.raiolanetworks.com",
+  "mirrors.ocf.berkeley.edu","mirror.hs-esslingen.de","mirrors.pidginhost.com",
+    "openbsd.cs.toronto.edu","*artfiles.org/openbsd","mirror.planetunix.net",
+     "www.mirrorservice.org","mirror.aarnet.edu.au","openbsd.c3sl.ufpr.br",
+       "ftp.usa.openbsd.org","ftp2.eu.openbsd.org","ftp2.fr.openbsd.org",
        "mirror.leaseweb.com","mirror.telepoint.bg","mirrors.gigenet.com",
         "openbsd.eu.paket.ua","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
          "ftp.lysator.liu.se","mirror.freedif.org","mirror.fsmg.org.nz",
          "mirror.ungleich.ch","mirrors.aliyun.com","mirrors.dotsrc.org",
           "openbsd.ipacct.com","ftp.hostserver.de","mirrors.chroot.ro",
  "mirrors.sonic.net","mirrors.ucr.ac.cr","openbsd.as250.net","mirror.group.one",
-   "mirror.litnet.lt","mirror.yandex.ru","mirrors.ircam.fr","cdn.openbsd.org",
-    "ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.ihost.md","mirror.ox.ac.uk",
-      "mirrors.mit.edu","repo.jing.rocks","ftp.icm.edu.pl","ftp.cc.uoc.gr",
-   "ftp.spline.de","www.ftp.ne.jp","ftp.nluug.nl","ftp.psnc.pl","ftp.bit.nl",
-                                  "ftp.fau.de"
+  "mirror.litnet.lt","mirror.yandex.ru","mirrors.ircam.fr","openbsd.paket.ua",
+    "cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.ihost.md",
+    "mirror.junda.nl","mirror.ox.ac.uk","mirrors.mit.edu","repo.jing.rocks",
+       "ftp.icm.edu.pl","mirror.rise.ph","ftp.cc.uoc.gr","ftp.spline.de",
+    "www.ftp.ne.jp","ftp.nluug.nl","ftp.riken.jp","ftp.psnc.pl","ftp.bit.nl",
+                            "ftp.fau.de","ftp.uio.no"
 
         };
 
-        const int ftp_list_index = 55;
+        const int ftp_list_index = 62;
 
 
 
      /* Trusted OpenBSD.org subdomain mirrors for generating this section */
 
-        const char *ftp_list_g[7] = {
+        const char *ftp_list_g[8] = {
 
     "cloudflare.cdn.openbsd.org","ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
-  "ftp.eu.openbsd.org","ftp.fr.openbsd.org","cdn.openbsd.org","ftp.OpenBSD.org"
+        "ftp2.fr.openbsd.org","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
+                       "cdn.openbsd.org","ftp.OpenBSD.org"
 
         };
 
-        const int ftp_list_index_g = 7;
+        const int ftp_list_index_g = 8;
 
 
                          /* GENERATED CODE ENDS HERE */
@@ -1852,8 +1873,8 @@ struct winsize {
 
 		if (i && (next || previous)) {
 
-			n = (int)strlen(release) + 1;
 			long double f_temp;
+			n = (int)strlen(release) + 1;
 
 			if (n == (3 + 1))
 			{
@@ -2043,7 +2064,7 @@ struct winsize {
 	}
 
 	while (read(z, &v, 1) == 1) {
-		if (pos == (dns_socket_len - 2)) {
+		if (pos >= (int)(dns_socket_len - 2)) {
 			line[pos] = '\0';
 			(void)printf("'line': %s\n", line);
 			(void)printf("pos got too big! line: %d\n", __LINE__);
@@ -2133,7 +2154,8 @@ struct winsize {
 
 		if ((usa == 0) && strstr(line, "USA")) {
 			free(array[array_length].http);
-			pos = num = 0;
+			num = 0;
+			pos = 0;
 			continue;
 		}
 		
@@ -2147,7 +2169,8 @@ struct winsize {
 		    
 		) {
 			free(array[array_length].http);
-			pos = num = 0;
+			num = 0;
+			pos = 0;
 			continue;
 		}
 
@@ -2472,7 +2495,7 @@ struct winsize {
 				(void)printf("%s\n", array[c].label);
 			}
 
-		} else if (verbose >= 0) {
+		} else if ((verbose >= 0)) {
 			i = (int)array_length - c;
 			if (c) {
 				if ( (i == 9) || (i == 99) ) {
@@ -2539,7 +2562,7 @@ struct winsize {
 
 			i = (int)read(dns_cache_d_socket[1], &v, 1);
 
-			if (i < 1) {
+			if (i != 1) {
 
 restart_dns_err:
 
@@ -2626,15 +2649,15 @@ restart_dns_err:
 					err(1, "pledge, line: %d", __LINE__);
 				}
 
-				(void)close(block_socket[STDOUT_FILENO]);
 				(void)close(block_socket[STDIN_FILENO]);
+				(void)close(block_socket[STDOUT_FILENO]);
 
 				(void)close(ftp_2_ftp_helper[STDOUT_FILENO]);
 				(void)close(ftp_helper_out[STDIN_FILENO]);
 
 				free(line);
 
-				n = 50;
+				n = 100;
 				line = (char*)calloc((size_t)n, sizeof(char));
 				if (line == NULL) {
 					(void)printf("calloc\n");
@@ -2653,7 +2676,7 @@ restart_dns_err:
 				int ret = 1;
 
 				while (read(z, &v, 1) == 1) {
-					if ((int)pos == (n - 2)) {
+					if ((int)pos >= (n - 2)) {
 						line[pos] = '\0';
 						(void)printf("'line': ");
 						(void)printf("%s\n", line);
@@ -2727,7 +2750,7 @@ restart_dns_err:
 						t *= 1024.0L;
 					} else {
 						(void)printf("bad read, line");
-						(void)printf(" %d", __LINE__);
+						(void)printf(" %d\n", __LINE__);
 						break;
 					}
 
@@ -2815,7 +2838,7 @@ restart_dns_err:
 			(void)read(block_socket[STDIN_FILENO], &v, 1);
 			(void)close(block_socket[STDIN_FILENO]);
 
-			if (debug) {
+			if (debug || all) {
 				_exit(0);
 			}
 
@@ -2911,7 +2934,7 @@ restart_dns_err:
 			continue;
 		}
 
-		if (!debug) {
+		if (!debug && !all) {
 			z = ftp_helper_out[STDIN_FILENO];
 			if (read(z, &array[c].speed, sizeof(long double))
 			    < (ssize_t)sizeof(long double)) {
@@ -2983,7 +3006,7 @@ restart_dns_err:
 
 			if (
 				heapsort(array, array_length, sizeof(MIRROR),
-				    diff_cmp)
+				    diff_cmp_pure)
 			   ) {
 				err(1, "sort failed, line %d", __LINE__);
 			    }
@@ -3000,6 +3023,13 @@ restart_dns_err:
 			if (se == -1) {
 				goto no_good;
 			}
+
+			if (
+				heapsort(array, se + 1, sizeof(MIRROR),
+				    diff_cmp)
+			   ) {
+				err(1, "sort failed, line %d", __LINE__);
+			    }
 
 			for (c = 0; c <= se; ++c) {
 				array[c].speed_rank = 1 + se - c;
@@ -3056,9 +3086,14 @@ restart_dns_err:
 		} else {
 
 			if (responsiveness || average) {
+				/* 
+				 * perform sort for responsiveness 
+				 * ignore passive 'average' with a
+				 * passive verbose
+				 */
 				sort_ret = heapsort(array, (size_t)array_length,
 						sizeof(MIRROR), diff_cmp_pure);
-			} else {
+			} else /* if (bandwidth) */ {
 				sort_ret = heapsort(array, (size_t)array_length,
 						sizeof(MIRROR), diff_cmp);
 			}
@@ -3070,7 +3105,7 @@ restart_dns_err:
 
 	} else {
 		sort_ret = heapsort(array, (size_t)array_length, sizeof(MIRROR),
-		           diff_cmp);
+		           diff_cmp_pure);
 			
 		if (sort_ret) {
 			err(1, "sort failed, line %d", __LINE__);
@@ -3086,8 +3121,8 @@ restart_dns_err:
 
 		c = (int)array_length;
 		do {
-
-			if (array[--c].diff < s) {
+			--c;
+			if (array[c].diff < s) {
 				se = c;
 				break;
 			}
@@ -3120,14 +3155,21 @@ restart_dns_err:
 		if (generate == 0) {
 			goto generate_jump;
 		}
+		
+		if (all)
+		{
+			se = array_length - 1;
+			se0 = se;
+		}
 
 		/*
 		 * load diff with what will be printed http lengths
 		 *          then process http for printing
 		 */
 		n = 1;
-		ac = array + se;
-		do {
+		ac = array + se + 1;
+		while (array < ac) {
+			--ac;
 			cut = ac->http += h;
 			j = (int)strlen(cut);
 
@@ -3162,8 +3204,7 @@ restart_dns_err:
 					n = 0;
 				}
 			}
-			--ac;
-		} while (array <= ac);
+		}
 
 
 
@@ -3172,15 +3213,15 @@ restart_dns_err:
 			(void)printf("Couldn't find any openbsd.org mirrors.");
 			(void)printf("\nTry again with a larger timeout!\n");
 
-			ac = array + se0;
-			do {
+			ac = array + se0 + 1;
+			while (array < ac) {
+				--ac;
 				if (ac->http[0] == '*') {
 					ac->http -= h - 1;
 				} else {
 					ac->http -= h;
 				}
-				--ac;
-			} while (array <= ac);
+			}
 
 			free(current_time);
 
@@ -3276,8 +3317,9 @@ gen_skip1:
 		 * make non-openbsd.org mirrors: diff == 0
 		 *   and stop them from being displayed
 		 */
-		ac = array + se;
-		do {
+		ac = array + se + 1;
+		while (array < ac) {
+			--ac;
 			cut = strchr(ac->http, '/');
 			if (cut == NULL) {
 				cut = ac->http + (int)ac->diff;
@@ -3294,8 +3336,7 @@ gen_skip1:
 				ac->diff = 0;
 				--se;
 			}
-			--ac;
-		} while (array <= ac);
+		}
 
 		/*
 		 * sort by longest length first,
@@ -3387,16 +3428,15 @@ gen_skip2:
 		(void)printf(" but before line: %d with the", exit_line);
 		(void)printf(" code above.\n\n");
 
-		ac = array + se0;
-		do {
-
+		ac = array + se0 + 1;
+		while (array < ac) {
+			--ac;
 			if (ac->http[0] == '*') {
 				ac->http -= h - 1;
 			} else {
 				ac->http -= h;
 			}
-			--ac;
-		} while (array <= ac);
+		}
 
 		free(current_time);
 		current_time = NULL;
@@ -3410,7 +3450,12 @@ gen_skip2:
 generate_jump:
 
 
-
+		sort_ret = heapsort(array, (size_t)se + 1, sizeof(MIRROR),
+		           diff_cmp);
+			
+		if (sort_ret) {
+			err(1, "sort failed, line %d", __LINE__);
+		}
 
 		for (c = 0; c <= se; ++c) {
 			array[c].speed_rank = 1 + se - c;
@@ -3499,11 +3544,6 @@ generate_jump:
 			if (diff_topper == 4) {
 				break;
 			}
-		}
-
-		char *dt_str = strndup("    ", (size_t)diff_topper);
-		if (dt_str == NULL) {
-			errx(1, "strndup");
 		}
 
 		ac = array + se;
@@ -3606,7 +3646,20 @@ generate_jump:
 				(void)printf(" : ");
 
 				if ((ac->diff < 1) && (ac->diff >= 0)) {
-					(void)printf("%s", dt_str);
+					switch (diff_topper) {
+					case 1:
+						(void)printf(" ");
+						break;
+					case 2:
+						(void)printf("  ");
+						break;
+					case 3:
+						(void)printf("   ");
+						break;
+					default:
+						(void)printf("    ");
+						break;
+					}
 					sub_one_print(ac->diff);
 				} else {
 					switch (diff_topper) {
@@ -3876,7 +3929,6 @@ generate_jump:
 			}
 		}
 		freezero(bbuf, bbuf_size);
-		free(dt_str);
 	}
 
 	if (array[0].diff >= s) {
