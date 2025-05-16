@@ -85,60 +85,34 @@ cc pkg_ping.c -march=native -mtune=native -flto -O3 -o /usr/local/bin/pkg_ping
 #include <time.h>
 #include <unistd.h>
 
-
-/*
- * all pads are probably 0 length on your machine, but it may not be forever
- * Proper alignment is good.
- */
-typedef struct {
+struct __attribute__ ((__packed__)) mirror_st {
+	
 	long double diff;
 	long double speed;
 	long double diff_rating;
 	long double speed_rating;
-	char pad1[
-			(sizeof(size_t) -
-				(
-					(
-						sizeof(long double) +
-						sizeof(long double) +
-						sizeof(long double) +
-						sizeof(long double)
-					) % sizeof(size_t)
-				)
-			) % sizeof(size_t)
-		 ];
-
-
-	/* these two are equal to length sizeof(size_t) */
+	
 	char *label;
 	char *http;
-
+	
 	int diff_rank;
 	int speed_rank;
-	char pad2[
-			(sizeof(size_t) -
-				(
-					(
-						sizeof(int) +
-						sizeof(int)
-					) % sizeof(size_t)
-				)
-			) % sizeof(size_t)
-		 ];
-} MIRROR;
+};
+
+#define MIRROR  struct mirror_st
 
 extern char *malloc_options;
 
 /* strlen("http://") == 7 */
 static int h = 7;
-static size_t array_length = 0;
-static size_t array_max = 100;
+static int array_length = 0;
+static int array_max = 100;
 static MIRROR *array = NULL;
 
 /* .1 second for an ftp SIGINT to turn into a SIGKILL */
 static const struct timespec timeout_kill = { 0, 100000000 };
 
-static int kq;
+static int kq = (-1);
 
 static char *diff_string = NULL;	// initialized later
 static char *line = NULL;
@@ -162,7 +136,6 @@ free_array(void)
 		free(ac->label);
 		free(ac->http);
 	}
-	array_length = 0;
 	free(array);
 	free(diff_string);
 	free(line);
@@ -2004,7 +1977,7 @@ struct winsize {
 		errx(1, "calloc");
 	}
 
-	array = (MIRROR*)calloc(array_max, sizeof(MIRROR));
+	array = (MIRROR*)calloc((size_t)array_max, sizeof(MIRROR));
 	if (array == NULL) {
 		easy_ftp_kill(ftp_pid);
 		errx(1, "calloc");
@@ -2264,8 +2237,8 @@ struct winsize {
 			MIRROR *array_temp = array;
 			
 			array = recallocarray(array_temp,
-				              array_length,
-				              array_max,
+				              (size_t)array_length,
+				              (size_t)array_max,
 			                      sizeof(MIRROR));
 
 			if (array == NULL) {
@@ -3005,8 +2978,8 @@ restart_dns_err:
 			int se = -1;
 
 			if (
-				heapsort(array, array_length, sizeof(MIRROR),
-				    diff_cmp_pure)
+				heapsort(array, (size_t)array_length,
+				    sizeof(MIRROR), diff_cmp_pure)
 			   ) {
 				err(1, "sort failed, line %d", __LINE__);
 			    }
@@ -3025,7 +2998,7 @@ restart_dns_err:
 			}
 
 			if (
-				heapsort(array, se + 1, sizeof(MIRROR),
+				heapsort(array, (size_t)se + 1, sizeof(MIRROR),
 				    diff_cmp)
 			   ) {
 				err(1, "sort failed, line %d", __LINE__);
@@ -3232,12 +3205,12 @@ restart_dns_err:
 		 * sort by longest length first, subsort http alphabetically
 		 *           It makes it kinda look like a flower.
 		 */
-			if (
-				heapsort(array, (size_t)se + 1, sizeof(MIRROR),
-				    diff_cmp_g)
-			   ) {
-				err(1, "sort failed, line %d", __LINE__);
-			}
+		if (
+			heapsort(array, (size_t)se + 1, sizeof(MIRROR),
+			    diff_cmp_g)
+		   ) {
+			err(1, "sort failed, line %d", __LINE__);
+		}
 
 		(void)printf("\n\n");
 		(void)printf("                        ");
