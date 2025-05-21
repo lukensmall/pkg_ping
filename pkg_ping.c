@@ -85,7 +85,7 @@ cc pkg_ping.c -march=native -mtune=native -flto -O3 -o /usr/local/bin/pkg_ping
 #include <time.h>
 #include <unistd.h>
 
-struct __attribute__ ((__packed__)) mirror_st {
+typedef struct {
 	
 	long double diff;
 	long double speed;
@@ -97,9 +97,7 @@ struct __attribute__ ((__packed__)) mirror_st {
 	
 	int diff_rank;
 	int speed_rank;
-};
-
-#define MIRROR  struct mirror_st
+}MIRROR;
 
 extern char *malloc_options;
 
@@ -109,16 +107,21 @@ static int array_length = 0;
 static int array_max = 100;
 static MIRROR *array = NULL;
 
-/* .1 second for an ftp SIGINT to turn into a SIGKILL */
-static const struct timespec timeout_kill = { 0, 100000000 };
+/* .5 second for an ftp SIGINT to turn into a SIGKILL */
+static const struct timespec timeout_kill = { 0, 500000000 };
 
-static int kq = (-1);
+static int kq = -1;
 
 static char *diff_string = NULL;	// initialized later
-static char *line = NULL;
-static char *line0 = NULL;
-static char *tag = NULL;
+static char        *line = NULL;
+static char       *line0 = NULL;
+static char         *tag = NULL;
+
 static const size_t dns_socket_len = 1256;
+
+static int malformed = 0;
+static int   verbose = 0;
+static int       all = 0;
 
 
 
@@ -184,7 +187,6 @@ usa_cmp(const void *a, const void *b)
 	int temp  = (int)(strstr(one_label, "USA") != NULL);
 	if (temp != (int)(strstr(two_label, "USA") != NULL)) {
 		if (temp) {
-
 			return (-1);
 		}
 		return 1;
@@ -198,7 +200,6 @@ usa_cmp(const void *a, const void *b)
         temp      = (int)(strstr(one_label, "CDN") != NULL);
         if (temp != (int)(strstr(two_label, "CDN") != NULL)) {
                 if (temp) {
-
                         return (-1);
 		}
                 return 1;
@@ -229,9 +230,12 @@ usa_cmp(const void *a, const void *b)
 static int
 label_cmp_minus_usa(const void *a, const void *b)
 {
-
 	const char *one_label = ((const MIRROR *) a)->label;
 	const char *two_label = ((const MIRROR *) b)->label;
+
+	if (malformed) {
+		return strcmp(one_label, two_label);
+	}
 
 	// strlen(", ") == 2
 	int rc = 2;
@@ -251,7 +255,10 @@ label_cmp_minus_usa(const void *a, const void *b)
 		bc = 0;
 	}
 	
-	int ret = strcmp(red + rc, blu + bc);
+	int ret = strcmp(
+			 red + rc,
+			 blu + bc
+			);
 
 	while ((ret == 0) && rc && bc) {
 
@@ -261,7 +268,7 @@ label_cmp_minus_usa(const void *a, const void *b)
 		 */
 		 
 		for (;;) {
-			if (one_label == red) {
+			if (one_label >= red) {
 				rc = 0;
 				break;
 			}
@@ -271,9 +278,8 @@ label_cmp_minus_usa(const void *a, const void *b)
 			}
 		}
 
-
 		for (;;) {
-			if (two_label == blu) {
+			if (two_label >= blu) {
 				bc = 0;
 				break;
 			}
@@ -283,8 +289,10 @@ label_cmp_minus_usa(const void *a, const void *b)
 			}
 		}
 
-
-		ret = strcmp(red + rc, blu + bc);
+		ret = strcmp(
+			     red + rc,
+			     blu + bc
+		            );
 	}
 
 	if (ret == 0) {
@@ -465,26 +473,21 @@ label_cmp(const void *a, const void *b)
 static int
 unified_cmp(const void *a, const void *b)
 {
-	const long double one_diff_rating  = ((const MIRROR *) a)->diff_rating;
-	const long double two_diff_rating  = ((const MIRROR *) b)->diff_rating;
-
-	const long double one_speed_rating = ((const MIRROR *) a)->speed_rating;
-	const long double two_speed_rating = ((const MIRROR *) b)->speed_rating;
-
+	const long double one_unified_rating =
+	    (((const MIRROR *) a)->diff_rating  + 1.0L)
+				*
+	    (((const MIRROR *) a)->speed_rating + 1.0L);
 
 
-	const long double one_unified_rank =
-	    (one_diff_rating + 1.0L) * (one_speed_rating + 1.0L);
+	const long double two_unified_rating =
+	    (((const MIRROR *) b)->diff_rating  + 1.0L)
+				*
+	    (((const MIRROR *) b)->speed_rating + 1.0L);
 
 
-	const long double two_unified_rank =
-	    (two_diff_rating + 1.0L) * (two_speed_rating + 1.0L);
-
-
-
-	if (one_unified_rank > two_unified_rank) {
+	if (one_unified_rating > two_unified_rating) {
 		return (-1);
-	} else if (one_unified_rank < two_unified_rank) {
+	} else if (one_unified_rating < two_unified_rating) {
 		return 1;
 	} else {
 		return 0;
@@ -565,8 +568,7 @@ manpage(void)
 }
 
 static __attribute__((noreturn)) void
-dns_cache_d(const int dns_socket, const int secure,
-	     const int six, const int verbose)
+dns_cache_d(const int dns_socket, const int secure, const int six)
 {
 	int i = 0;
 	int g = 0;
@@ -879,8 +881,7 @@ dns_exit1:
  * massive file which fills up the partition.
  */
 static __attribute__((noreturn)) void
-file_d(const int write_pipe, const int secure,
-       const int verbose, const int debug)
+file_d(const int write_pipe, const int secure, const int debug)
 {
 
 	int i = 0;
@@ -1007,7 +1008,7 @@ file_cleanup:
 }
 
 static __attribute__((noreturn)) void
-restart(int argc, char *argv[], const int loop, const int verbose)
+restart(int argc, char *argv[], const int loop)
 {
 
 	if (loop == 0) {
@@ -1112,7 +1113,6 @@ main(int argc, char *argv[])
 	int           next = 0;
 	int          s_set = 0;
 	int          debug = 0;
-	int        verbose = 0;
 
 	int dns_cache = 1;
 	int       usa = 1;
@@ -1136,7 +1136,6 @@ main(int argc, char *argv[])
 	int    pos_max = 0;
 	int       loop = 20;
 	int        pos = 0;
-	int        all = 0;
 
 	size_t len = 0;
 
@@ -1474,8 +1473,7 @@ struct winsize {
 				                 __LINE__);
 			case 0:
 				(void)close(dns_cache_d_socket[1]);
-				dns_cache_d(dns_cache_d_socket[0], secure,
-						six, verbose);
+				dns_cache_d(dns_cache_d_socket[0], secure, six);
 				/* function cannot return */
 			default:
 				break;
@@ -1496,8 +1494,7 @@ struct winsize {
 			case 0:
 				(void)close(dns_cache_d_socket[1]);
 				(void)close(write_pipe[STDOUT_FILENO]);
-				file_d(write_pipe[STDIN_FILENO],
-					secure, verbose, debug);
+				file_d(write_pipe[STDIN_FILENO], secure, debug);
 				/* function cannot return */
 			default:
 				break;
@@ -2027,7 +2024,7 @@ struct winsize {
 			(void)close(write_pipe[STDOUT_FILENO]);
 			(void)waitpid(write_pid, NULL, 0);
 		}
-		restart(argc, argv, loop, verbose);
+		restart(argc, argv, loop);
 	}
 
 
@@ -2147,7 +2144,7 @@ struct winsize {
 			continue;
 		}
 
-		if (verbose >= 1) {
+		for (;!malformed;) {
 			/*
 			 * safety check for label_cmp_minus_usa():
 			 * make sure there is a space after last comma
@@ -2162,11 +2159,18 @@ struct winsize {
 			 */
 			line_temp = strrchr(line, ',');
 			if (line_temp && (line_temp[1] != ' ')) {
-				free(array[array_length].http);
-				(void)printf("label malformation: %s ", line);
+				
+				(void)printf("label malformation: %s ",line);
 				(void)printf("line: %d\n", __LINE__);
-				easy_ftp_kill(ftp_pid);
-				return 1;
+				
+				if (verbose >= 1 && !all) {
+					free(array[array_length].http);
+					easy_ftp_kill(ftp_pid);
+					return 1;
+				}
+				
+				malformed = 1;
+				break;
 			}
 
 			/*
@@ -2197,14 +2201,22 @@ struct winsize {
 					if ( line_temp &&
 					    (line_temp[1] != ' ')
 					   ) {
-						free(array[array_length].http);
 						(void)printf("label ");
 						(void)printf("malformation: ");
 						(void)printf("%s ", line);
-						(void)printf("line: ");
-						(void)printf("%d\n", __LINE__);
-						easy_ftp_kill(ftp_pid);
-						return 1;
+						(void)printf("line: %d\n",
+							     __LINE__);
+							     
+							     
+						if (verbose >= 1 && !all) {
+							n = array_length;
+							free(array[n].http);
+							easy_ftp_kill(ftp_pid);
+							return 1;
+						}
+						
+						malformed = 1;
+						break;
 					}
 				} while (line_temp);
 				
@@ -2214,6 +2226,7 @@ struct winsize {
 				              (size_t)pos - 4
 				             );
 			}
+			break;
 		}
 
 		array[array_length].label = strdup(line);
@@ -2276,7 +2289,7 @@ struct winsize {
 			(void)close(write_pipe[STDOUT_FILENO]);
 			(void)waitpid(write_pid, NULL, 0);
 		}
-		restart(argc, argv, loop, verbose);
+		restart(argc, argv, loop);
 	}
 
 	/* if "secure", h = strlen("https://") instead of strlen("http://") */
@@ -2309,13 +2322,13 @@ struct winsize {
 			sort_ret = 0;
 		}
 	} else {
-		if (verbose < 1) {
-			sort_ret = heapsort(array, (ulong)array_length,
-			    sizeof(MIRROR), usa_cmp);
-		} else if (verbose > 1) {
+		if (verbose > 1) {
 			sort_ret = heapsort(array, (ulong)array_length,
 			    sizeof(MIRROR), label_cmp);
-		} else {
+		} else if (verbose < 1) {
+			sort_ret = heapsort(array, (ulong)array_length,
+			    sizeof(MIRROR), usa_cmp);
+		} else  {
 			/* else don't sort */
 			sort_ret = 0;
 		}
@@ -2410,8 +2423,9 @@ struct winsize {
 	(void)memcpy(line, array[0].http, (ulong)h);
 
 	pos_max -= h;
-
-	for (c = 0; c < (int)array_length; ++c) {
+	
+	// if (all) skip
+	for (c = (all) ? (int)array_length : 0; c < (int)array_length; ++c) {
 
 		n = (int)strlcpy(host, array[c].http + h, (ulong)pos_max);
 		(void)memcpy(host + n, tag, (ulong)tag_len + 1);
@@ -2559,7 +2573,7 @@ restart_dns_err:
 					(void)waitpid(write_pid, NULL, 0);
 				}
 
-				restart(argc, argv, loop, verbose);
+				restart(argc, argv, loop);
 			}
 
 			if (six && (v == '0')) {
@@ -2911,7 +2925,7 @@ restart_dns_err:
 			z = ftp_helper_out[STDIN_FILENO];
 			if (read(z, &array[c].speed, sizeof(long double))
 			    < (ssize_t)sizeof(long double)) {
-				restart(argc, argv, loop, verbose);
+				restart(argc, argv, loop);
 			 }
 		}
 
@@ -3962,14 +3976,14 @@ no_good:
 
 		if (i < n) {
 			(void)printf("\nnot all of mirror sent to write_pid\n");
-			restart(argc, argv, loop, verbose);
+			restart(argc, argv, loop);
 		}
 
 		(void)waitpid(write_pid, &z, 0);
 
 		if (z) {
 			(void)printf("\nwrite_pid error.\n");
-			restart(argc, argv, loop, verbose);
+			restart(argc, argv, loop);
 		}
 
 	} else if ((!root_user && (verbose != -1)) || (root_user && !verbose)) {
