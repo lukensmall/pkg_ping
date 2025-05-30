@@ -86,7 +86,6 @@ cc pkg_ping.c -march=native -mtune=native -flto -O3 -o /usr/local/bin/pkg_ping
 #include <unistd.h>
 
 typedef struct {
-	
 	long double diff;
 	long double speed;
 	long double diff_rating;
@@ -104,7 +103,7 @@ extern char *malloc_options;
 /* strlen("http://") == 7 */
 static int h = 7;
 static int array_length = 0;
-static int array_max = 100;
+static int array_max = 200;
 static MIRROR *array = NULL;
 
 /* .5 second for an ftp SIGINT to turn into a SIGKILL */
@@ -399,7 +398,7 @@ diff_cmp_g(const void *a, const void *b)
 
 	const int diff = (
 		    (const int) ((const MIRROR *) b)->diff
-		                        -
+		                      -
 		    (const int) ((const MIRROR *) a)->diff
 		   );
 
@@ -679,7 +678,7 @@ dns_loop:
 				sui4 = sa4->sin_addr.s_addr;
 
 				/*
-				 * I have an unbound blocklist where I
+				 * I have an unbound dns blocklist where I
 				 * force unwanted domains to resolve to
 				 * 0.0.0.0 which translates to sui4 == 0
 				 * This shouldn't impact functionality
@@ -730,7 +729,7 @@ dns_loop:
 			sui4 = sa4->sin_addr.s_addr;
 
 			/*
-			 * I have an unbound blocklist where I
+			 * I have an unbound dns blocklist where I
 			 * force unwanted domains to resolve to
 			 * 0.0.0.0 which translates to sui4 == 0
 			 * I don't expect a negative impact
@@ -1143,6 +1142,7 @@ main(int argc, char *argv[])
 
                          /* GENERATED CODE ENDS HERE */
 
+
 	int exit_line = __LINE__;
 
 	size_t tag_len = 0;
@@ -1252,7 +1252,7 @@ struct winsize {
 	int num2 = 0;
 	int num3 = 0;
 	char *host = NULL;
-	char *cut = NULL;	
+	char  *cut = NULL;	
 
 	malloc_options = strdup("CFGJJjU");
 	if (malloc_options == NULL) {
@@ -1913,12 +1913,9 @@ struct winsize {
 				errx(1, "release got huge! line: %d", __LINE__);
 			}
 
-			if (previous)
-			{
+			if (previous) {
 				f_temp -= 0.1L;
-			}
-			else /* if (next) */
-			{
+			} else /* if (next) */ {
 				f_temp += 0.1L;
 			}
 
@@ -2159,31 +2156,35 @@ struct winsize {
 			continue;
 		}
 		
-		/* 
-		 * rewrites 'line' (label) to never have double spaces.
-		 * Will likely never succeed.
-		 */
-		while ((line_temp = strstr(line, "  ")) != NULL) {
-			(void)memmove(line_temp + 1, line_temp + 2,
-				      (size_t)((line + pos) - (line_temp + 2)));
-			--pos;
-		}
-
 		/*
-		 * I decided to be aggressive and wipe out spaces
-		 * after each comma and rewrite them to have one.
+		 * I decided to be aggressive and deduplicate and wipe out
+		 * spaces after each comma and rewrite them to have one.
 		 * This more cleanly enforces with memmove()s
-		 * what I want without ever failing to get what I need for
+		 * what I want without ever hard-failing on tests for
 		 * label_cmp_minus_usa() and without
 		 * pointer arithmetic which may be error-prone.
 		 */
 
 		/* 
+		 * rewrites 'line' (label) to not have double spaces.
+		 * Will likely never succeed.
+		 */
+		while ((line_temp = strstr(line, "  ")) != NULL) {
+			(void)memmove(line_temp + 1,
+				      line_temp + 2,
+				      (size_t)((line + pos) - (line_temp + 2)));
+			--pos;
+		}
+
+		/* 
 		 * rewrites 'line' (label) to have NO space after every comma
-		 * if it does. It may. This will clear them.
+		 * when it most likely does.
+		 * Everything indicates this trend will continue.
+		 * This will clear them.
 		 */
 		while ((line_temp = strstr(line, ", ")) != NULL) {
-			(void)memmove(line_temp + 1, line_temp + 2,
+			(void)memmove(line_temp + 1,
+				      line_temp + 2,
 				      (size_t)((line + pos) - (line_temp + 2)));
 			--pos;
 		}
@@ -2195,13 +2196,20 @@ struct winsize {
 		 */
 		line_temp = strchr(line, ',');
 		while (line_temp && pos < (int)(dns_socket_len - 2)) {
-			(void)memmove(line_temp + 2, line_temp + 1,
+			/*
+			 * make room for a space
+			 */
+			(void)memmove(line_temp + 2,
+				      line_temp + 1,
 				      (size_t)((line + pos) - (line_temp + 1)));
 			++pos;
 			line_temp[1] = ' ';
 			line_temp = strchr(line_temp + 2, ',');
 		}
 
+		if (pos >= (int)(dns_socket_len - 2)) {
+			errx(1, "too many unladen commas. line %d", __LINE__);
+		}
 
 		/*
 		 * Not a fan of "The " in "The Netherlands" in here
@@ -2239,7 +2247,7 @@ struct winsize {
 
 			MIRROR *array_temp = array;
 			
-			array_max += 25;
+			array_max += 100;
 
 			if (array_max >= 5000) {
 				easy_ftp_kill(ftp_pid);
@@ -2587,20 +2595,20 @@ restart_dns_err:
 				array[c].diff = s + 3;
 				continue;
 			} else if (v == 'u') {
-				if (generate) {
-					if (verbose >= 2) {
-						(void)printf("BLOCKED ");
-						(void)printf("subdomain ");
-						(void)printf("passes!\n");
-					}
-					array[c].diff = s / 2.0L;
-				} else {
-					if (verbose >= 2) {
-						(void)printf("BLOCKED ");
-						(void)printf("subdomain!\n");
-					}
-					array[c].diff = s + 4.0L;
+				//~ if (generate) {
+					//~ if (verbose >= 2) {
+						//~ (void)printf("BLOCKED ");
+						//~ (void)printf("subdomain ");
+						//~ (void)printf("passes!\n");
+					//~ }
+					//~ array[c].diff = s / 2.0L;
+				//~ } else {
+				if (verbose >= 2) {
+					(void)printf("BLOCKED ");
+					(void)printf("subdomain!\n");
 				}
+				array[c].diff = s + 4.0L;
+				//~ }
 				continue;
 			}
 		}
@@ -2723,8 +2731,7 @@ restart_dns_err:
 
 					errno = 0;
 					t = strtold(line, &endptr);
-					if (errno || (t <= 0) || (endptr != g))
-					{
+					if (errno || t <= 0 || (endptr != g)) {
 						if (endptr != g) {
 							(void)printf("endptr");
 							(void)printf(" != g\n");
@@ -3100,19 +3107,19 @@ restart_dns_err:
 		int  te = -1;
 
 		int  se = -1;
+		int se0 = -1;
 
 		int first = 0;
 
-		int se0;
 
 		MIRROR *slowest;
 		
 		int diff_topper = 0;
 		
-		int speed_shift = 0;
 		long double t = 0;
-		int pos_maxd = 0;
-		int pos_maxt = 0;
+		int speed_shift = 0;
+		int    pos_maxd = 0;
+		int    pos_maxt = 0;
 
 		size_t bbuf_size = 50;
 		char *bbuf = NULL;
@@ -3349,7 +3356,7 @@ gen_skip1:
 		 */
 		if (
 			heapsort(array, (size_t)se0 + 1, sizeof(MIRROR),
-		    diff_cmp_g2)
+					diff_cmp_g2)
 		   ) {
 			err(1, "sort failed, line %d", __LINE__);
 		}
