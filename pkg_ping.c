@@ -129,15 +129,15 @@ free_array(void)
 
 	while (array < ac) {
 		--ac;
-		free(ac->label);
-		free(ac->http);
+		(void)free(ac->label);
+		(void)free(ac->http);
 	}
-	free(array);
-	free(diff_string);
-	free(line);
-	free(line0);
-	free(tag);
-	free(malloc_options);
+	(void)free(array);
+	(void)free(diff_string);
+	(void)free(line0);
+	(void)free(line);
+	(void)free(tag);
+	(void)free(malloc_options);
 }
 
 static long double almost_zero = 0.0L;
@@ -621,7 +621,7 @@ dns_loop:
 
 	i = (int)read(dns_socket, dns_line, dns_socket_len);
 	if (i == 0) {
-		free(dns_line);
+		(void)free(dns_line);
 		(void)close(dns_socket);
 		_exit(0);
 	}
@@ -672,7 +672,7 @@ dns_loop:
 				 */
 				// sa4 = (struct sockaddr_in *) res->ai_addr;
 
-				memcpy(&sa4, &res->ai_addr,
+				(void)memcpy(&sa4, &res->ai_addr,
 				    sizeof(struct sockaddr_in *));
 
 				sui4 = sa4->sin_addr.s_addr;
@@ -723,7 +723,7 @@ dns_loop:
 			 */
 			// sa4 = (struct sockaddr_in *) res->ai_addr;
 
-			memcpy(&sa4, &res->ai_addr,
+			(void)memcpy(&sa4, &res->ai_addr,
 			    sizeof(struct sockaddr_in *));
 
 			sui4 = sa4->sin_addr.s_addr;
@@ -768,7 +768,8 @@ dns_loop:
 		 */
 		// sa6 = (struct sockaddr_in6 *) res->ai_addr;
 
-		memcpy(&sa6, &res->ai_addr, sizeof(struct sockaddr_in6 *));
+		(void)memcpy(&sa6, &res->ai_addr,
+		    sizeof(struct sockaddr_in6 *));
 		
 		suc6 = sa6->sin6_addr.s6_addr;
 
@@ -862,7 +863,7 @@ dns_loop:
 
 dns_exit1:
 
-	free(dns_line);
+	(void)free(dns_line);
 	(void)close(dns_socket);
 	_exit(1);
 }
@@ -1000,7 +1001,7 @@ file_d(const int write_pipe, const int secure,
 
 file_cleanup:
 
-	free(file_w);
+	(void)free(file_w);
 	_exit(ret);
 }
 
@@ -1019,7 +1020,7 @@ restart(int argc, char *argv[], const int loop, const int verbose)
 	}
 
 	if (loop == 0) {
-		free(new_args);
+		(void)free(new_args);
 		errx(2, "Looping exhausted: Try again.");
 	}
 
@@ -1154,13 +1155,13 @@ main(int argc, char *argv[])
 	int responsiveness = 0;
 	int      bandwidth = 0;
 	int        average = 1;
-	int        to_file = root_user;
-	int            num = 0;
 	int        current = 0;
-	int         secure = 0;
-	int       generate = 0;
-	int            all = 0;	/* this shouldn't be 1 unless generate is too */
+	int        to_file = root_user;
 	int       override = 0;
+	int       generate = 0;
+	int         secure = 0;
+	int            all = 0;	/* this shouldn't be 1 unless generate is too */
+	int            num = 0;
 	int            six = 0;
 	int       previous = 0;
 	int           next = 0;
@@ -1184,18 +1185,18 @@ main(int argc, char *argv[])
 	int       n = 0;
 	int       j = 0;
 
+	int verbose = 0;
 	int pos_max = 0;
 	int    loop = 20;
 	int     pos = 0;
-	int verbose = 0;
 
 	size_t len = 0;
 
 	int dns_cache_d_socket[2] = { -1, -1 };
-	int         write_pipe[2] = { -1, -1 };
-	int            ftp_out[2] = { -1, -1 };
 	int     ftp_helper_out[2] = { -1, -1 };
 	int       block_socket[2] = { -1, -1 };
+	int         write_pipe[2] = { -1, -1 };
+	int            ftp_out[2] = { -1, -1 };
 
 	struct timespec start = { 0, 0 };
 	struct timespec   end = { 0, 0 };
@@ -1254,7 +1255,7 @@ struct winsize {
 	char *host = NULL;
 	char  *cut = NULL;	
 
-	malloc_options = strdup("CFGJJjU");
+	malloc_options = strdup("CFGJJU");
 	if (malloc_options == NULL) {
 		err(1, "malloc");
 	}
@@ -1275,8 +1276,7 @@ struct winsize {
 		err(1, "pledge, line: %d", __LINE__);
 	}
 
-	i = ioctl(0, TIOCGWINSZ, &w);
-	if (i == -1) {
+	if (ioctl(0, TIOCGWINSZ, &w) == -1) {
 		err(1, "ioctl, line: %d", __LINE__);
 	}
 
@@ -1448,7 +1448,7 @@ struct winsize {
 				return 1;
 			}
 
-			free(current_time);
+			(void)free(current_time);
 			current_time = strdup(optarg);
 			if (current_time == NULL) {
 				errx(1, "strdup");
@@ -1755,7 +1755,7 @@ struct winsize {
 				easy_ftp_kill(ftp_pid);
 				errx(1, "strdup");
 			}
-			free(time0);
+			(void)free(time0);
 		}
 	}
 
@@ -1800,7 +1800,7 @@ struct winsize {
 			current = 1;
 		}
 
-		freezero(line, len);
+		free(line);
 		line = NULL;
 
 		if (override) {
@@ -2135,7 +2135,7 @@ struct winsize {
 		++pos;
 
 		if ((usa == 0) && strstr(line, "USA")) {
-			free(array[array_length].http);
+			(void)free(array[array_length].http);
 			num = 0;
 			pos = 0;
 			continue;
@@ -2150,7 +2150,7 @@ struct winsize {
 		    )
 		    
 		) {
-			free(array[array_length].http);
+			(void)free(array[array_length].http);
 			num = 0;
 			pos = 0;
 			continue;
@@ -2166,7 +2166,7 @@ struct winsize {
 		 */
 
 		/* 
-		 * rewrites 'line' (label) to not have double spaces.
+		 * rewrites 'line' (label) to not have back-to-back spaces.
 		 * Will likely never succeed.
 		 */
 		while ((line_temp = strstr(line, "  ")) != NULL) {
@@ -2236,7 +2236,7 @@ struct winsize {
 
 		array[array_length].label = strdup(line);
 		if (array[array_length].label == NULL) {
-			free(array[array_length].http);
+			(void)free(array[array_length].http);
 			easy_ftp_kill(ftp_pid);
 			errx(1, "strdup");
 		}
@@ -2260,7 +2260,7 @@ struct winsize {
 			                      sizeof(MIRROR));
 
 			if (array == NULL) {
-				free(array_temp);
+				(void)free(array_temp);
 				easy_ftp_kill(ftp_pid);
 				errx(1, "recallocarray");
 			}
@@ -2303,7 +2303,7 @@ struct winsize {
 	pos_max += tag_len;
 
 	if (pos_max > (int)sizeof(line)) {
-		free(line);
+		(void)free(line);
 		line = (char*)calloc((size_t)pos_max, sizeof(char));
 		if (line == NULL) {
 			errx(1, "calloc");
@@ -2595,19 +2595,19 @@ restart_dns_err:
 				array[c].diff = s + 3;
 				continue;
 			} else if (v == 'u') {
-				//~ if (generate) {
-					//~ if (verbose >= 2) {
-						//~ (void)printf("BLOCKED ");
-						//~ (void)printf("subdomain ");
-						//~ (void)printf("passes!\n");
-					//~ }
-					//~ array[c].diff = s / 2.0L;
-				//~ } else {
+				// if (generate) {
+					// if (verbose >= 2) {
+						// (void)printf("BLOCKED ");
+						// (void)printf("subdomain ");
+						// (void)printf("passes!\n");
+					// }
+					// array[c].diff = s / 2.0L;
+				// } else {
 				if (verbose >= 2) {
 					(void)printf("BLOCKED ");
 					(void)printf("subdomain!\n");
 				}
-				array[c].diff = s + 4.0L;
+				array[c].diff = s + 4;
 				//~ }
 				continue;
 			}
@@ -2630,11 +2630,25 @@ restart_dns_err:
 
 			pid_t ftp_helper_pid = -1;
 			
-			(void)close(kq);
+			ac = array + array_length;
+
+			while (array < ac) {
+				--ac;
+				(void)free(ac->label);
+				(void)free(ac->http);
+			}
+			(void)free(array);
+			(void)free(diff_string);
+			(void)free(tag);
 			
+			(void)close(kq);
+			(void)close(dns_cache_d_socket[1]);
+			(void)close(write_pipe[STDOUT_FILENO]);
+
 			if (socketpair(AF_UNIX, SOCK_STREAM,
 			    PF_UNSPEC, ftp_2_ftp_helper) == -1) {
-				err(1, "socketpair");
+				(void)printf("socketpair");
+				_exit(1);
 			}
 
 			ftp_helper_pid = fork();
@@ -2643,16 +2657,19 @@ restart_dns_err:
 				int ret = 1;
 
 				if (pledge("stdio", NULL) == -1) {
-					err(1, "pledge, line: %d", __LINE__);
+					(void)printf("pledge, line: %d\n",
+					    __LINE__);
+					_exit(1);
 				}
+
+				(void)free(line);
+				(void)free(line0);
 
 				(void)close(block_socket[STDIN_FILENO]);
 				(void)close(block_socket[STDOUT_FILENO]);
 
 				(void)close(ftp_2_ftp_helper[STDOUT_FILENO]);
 				(void)close(ftp_helper_out[STDIN_FILENO]);
-
-				free(line);
 
 				n = 100;
 				line = (char*)calloc((size_t)n, sizeof(char));
@@ -2798,6 +2815,10 @@ restart_dns_err:
 				}
 			}
 
+
+			if (pledge("stdio exec", NULL) == -1) {
+				err(1, "pledge, line: %d", __LINE__);
+			}
 
 			if (read(ftp_2_ftp_helper[STDOUT_FILENO], &v, 1) != 1) {
 				errx(1, "read error, line: %d", __LINE__);
@@ -3936,7 +3957,7 @@ generate_jump:
 				}
 			}
 		}
-		freezero(bbuf, bbuf_size);
+		free(bbuf);
 	}
 
 	if (array[0].diff >= s) {
