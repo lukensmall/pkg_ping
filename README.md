@@ -1,3 +1,11 @@
+### It determines and prints the fastest OpenBSD mirror(s) for your version and architecture for the /etc/installurl file and if run as root, will write the fastest successful one to disk unless -f is used.
+
+### New feature:
+
+New flag: -G
+
+It acts like -g, but instead of testing all the mirrors, it processes EVERY mirror downloaded. This operation is performed very quickly.
+
 ### Major update:
 It fork()s a 5th potential (yet essential) parallel process to scrape the download speed from ftp(1),
 send it back to the parent process and uses that bandwidth and the response speed to average out what mirrors are the best, not based upon the order alone,
@@ -6,9 +14,7 @@ However you may choose to purely rate by the most responsive or the fastest inst
 
 New flags: -a, -b, and -r
 
-### It determines and prints the fastest OpenBSD mirror(s) for your version and architecture for the /etc/installurl file and if run as root, will write the fastest successful one to disk unless -f is used.
-
-Perhaps some of you may be put off by the source code containing a hard-coded mirror snippet array.
+Perhaps some of you may be put off by the source code containing a hard-coded mirror array.
 If you don't trust the array, you can run it with the -g flag and it will print out another hard-coded
 mirror source code section generated from openbsd.org domain mirrors from the OpenBSD project.
 I designed this feature for you to substitute my generated code section.
