@@ -1485,9 +1485,10 @@ struct winsize {
 
 	if (generate) {
 		if (all) {
-			verbose = 1;
 			dns_cache = 0;
-		} else if (verbose < 1) {
+		}
+		
+		if (verbose < 1) {
 			verbose = 1;
 		}
 		secure   = 1;
@@ -1558,6 +1559,9 @@ struct winsize {
 			case 0:
 				(void)close(dns_cache_d_socket[1]);
 				(void)close(write_pipe[STDOUT_FILENO]);
+				if (all) {
+					verbose = 1;
+				}
 				file_d(write_pipe[STDIN_FILENO],
 				       secure, debug, verbose);
 				/* function cannot return */
@@ -1859,8 +1863,7 @@ struct winsize {
 			long double f_temp;
 			n = (int)strlen(release) + 1;
 
-			if (n == (3 + 1))
-			{
+			if (n == (3 + 1)) {
 				if (
 					((release[0] < '0') ||
 					 (release[0] > '9'))
@@ -2071,41 +2074,25 @@ struct winsize {
 				return 1;
 			}
 
+			/*
+			 * http mirror becomes an https mirror.
+			 */
 			if (secure) {
-
+				(void)memmove(line + 5, line + 4,
+				    (size_t)pos - 4);
+				line[4] = 's';
 				++pos;
-				if (pos_max < pos) {
-					pos_max = pos;
-				}
+			}
 
-				array[array_length].http =
-				    (char*)malloc((size_t)pos);
+			if (pos_max < pos) {
+				pos_max = pos;
+			}
 
-				if (array[array_length].http == NULL) {
-					easy_ftp_kill(ftp_pid);
-					errx(1, "malloc");
-				}
+			array[array_length].http = strdup(line);
 
-				(void)memcpy(array[array_length].http,
-				             "https", 5);
-
-				/* strlen("http") == 4 */
-				(void)memcpy(5 + array[array_length].http,
-				       4 + line,
-				       (ulong)pos - 5);
-
-			} else {
-
-				if (pos_max < pos) {
-					pos_max = pos;
-				}
-
-				array[array_length].http = strdup(line);
-
-				if (array[array_length].http == NULL) {
-					easy_ftp_kill(ftp_pid);
-					errx(1, "strdup");
-				}
+			if (array[array_length].http == NULL) {
+				easy_ftp_kill(ftp_pid);
+				errx(1, "strdup");
 			}
 
 			pos = 0;
@@ -2157,17 +2144,17 @@ struct winsize {
 		}
 		
 		/*
-		 * I decided to be aggressive and deduplicate and wipe out
-		 * spaces after each comma and rewrite them to have one.
-		 * This more cleanly enforces with memmove()s
+		 * I decided to be aggressive and deduplicate
+		 * and wipe out spaces after each comma and rewrite them
+		 * to have one. This more cleanly enforces with memmove()s
 		 * what I want without ever hard-failing on tests for
-		 * label_cmp_minus_usa() and without
-		 * pointer arithmetic which may be error-prone.
+		 * label_cmp_minus_usa() when it doesn't need to be so.
 		 */
+
 
 		/* 
 		 * rewrites 'line' (label) to not have back-to-back spaces.
-		 * Will likely never succeed.
+		 * Will likely never do anything.
 		 */
 		while ((line_temp = strstr(line, "  ")) != NULL) {
 			(void)memmove(line_temp + 1,
@@ -2178,24 +2165,31 @@ struct winsize {
 
 		/* 
 		 * rewrites 'line' (label) to have NO space after every comma
-		 * when it most likely does.
+		 * when it always does.
 		 * Everything indicates this trend will continue.
 		 * This will clear them.
 		 */
-		while ((line_temp = strstr(line, ", ")) != NULL) {
+		line_temp = strstr(line, ", ");
+		while (line_temp) {
 			(void)memmove(line_temp + 1,
 				      line_temp + 2,
 				      (size_t)((line + pos) - (line_temp + 2)));
 			--pos;
+			line_temp = strstr(line_temp + 1, ", ");
 		}
 
 		/* 
 		 * rewrites 'line' (label) to have space after every comma
-		 * which was most likely cleared, but we don't want a user
+		 * which was "most likely" cleared, but we don't want a user
 		 * error in writing the label to disable the software.
 		 */
 		line_temp = strchr(line, ',');
-		while (line_temp && pos < (int)(dns_socket_len - 2)) {
+		while (line_temp) {
+
+			if (pos >= (int)(dns_socket_len - 2)) {
+				errx(1, "too many unladen commas. line %d",
+				    __LINE__);
+			}
 			/*
 			 * make room for a space
 			 */
@@ -2205,10 +2199,6 @@ struct winsize {
 			++pos;
 			line_temp[1] = ' ';
 			line_temp = strchr(line_temp + 2, ',');
-		}
-
-		if (pos >= (int)(dns_socket_len - 2)) {
-			errx(1, "too many unladen commas. line %d", __LINE__);
 		}
 
 		/*
@@ -2224,9 +2214,7 @@ struct winsize {
 			if (!strncmp(line_temp + 2, "The ", 4)) {
 				(void)memmove(line_temp + 2,
 					      line_temp + 6,
-				    (size_t)
-				    ((line + pos) - (line_temp + 6))
-				    );
+				    (size_t) ((line + pos) - (line_temp + 6)));
 			}			
 		} else if (!strncmp(line, "The ", 4)) {
 			(void)memmove(line, line + 4,
@@ -2309,7 +2297,11 @@ struct winsize {
 			errx(1, "calloc");
 		}
 	}
-
+	
+	if (all) {
+		verbose = 1;
+	}
+	
 	/*
 	 * if verbose > 1, make mirrors near USA first, then subsort by label.
 	 *       otherwise, make mirrors near USA first, then don't care.
@@ -2647,7 +2639,8 @@ restart_dns_err:
 
 			if (socketpair(AF_UNIX, SOCK_STREAM,
 			    PF_UNSPEC, ftp_2_ftp_helper) == -1) {
-				(void)printf("socketpair");
+				(void)printf("socketpair, line: %d\n",
+					    __LINE__);
 				_exit(1);
 			}
 
@@ -2777,8 +2770,7 @@ restart_dns_err:
 						break;
 					}
 
-					if (verbose >= 2)
-					{
+					if (verbose >= 2) {
 						while (read(z, &v, 1) == 1) {
 							(void)printf("%c", v);
 							(void)fflush(stdout);
@@ -2802,17 +2794,13 @@ restart_dns_err:
 			(void)close(ftp_helper_out[STDOUT_FILENO]);
 
 
-			if (root_user) {
 			/*
 			 * user _pkgfetch: ftp will regain read pledge
 			 *    just to chroot to /var/empty leaving
 			 *      read access to an empty directory
 			 */
-				if (seteuid(57))
-				{
-					errx(1, "seteuid error, line: %d",
-					         __LINE__);
-				}
+			if (root_user && seteuid(57)) {
+				errx(1, "seteuid error, line: %d", __LINE__);
 			}
 
 
@@ -3188,8 +3176,7 @@ restart_dns_err:
 			goto generate_jump;
 		}
 		
-		if (all)
-		{
+		if (all) {
 			se = array_length - 1;
 			se0 = se;
 		}
