@@ -100,18 +100,21 @@ typedef struct {
 
 extern char *malloc_options;
 
-/* strlen("http://") == 7 */
+/*
+ * strlen("http://") == 7
+ */
 static int h = 7;
 static int array_length = 0;
-static int array_max = 200;
 static MIRROR *array = NULL;
 
-/* .5 second for an ftp SIGINT to turn into a SIGKILL */
+/* 
+ * half second for an ftp SIGINT to turn into a SIGKILL
+ */
 static const struct timespec timeout_kill = { 0, 500000000 };
 
 static int kq = -1;
 
-static char *diff_string = NULL;	// initialized later
+static char *diff_string = NULL;
 static char        *line = NULL;
 static char       *line0 = NULL;
 static char         *tag = NULL;
@@ -177,7 +180,9 @@ usa_cmp(const void *a, const void *b)
 	char *one_label = ((const MIRROR *) a)->label;
 	char *two_label = ((const MIRROR *) b)->label;
 
-	/* prioritize the USA mirrors first */
+	/* 
+	 * prioritize the USA mirrors first
+	 */
 	int temp  = (int)(strstr(one_label, "USA") != NULL);
 	if (temp != (int)(strstr(two_label, "USA") != NULL)) {
 		if (temp) {
@@ -190,7 +195,9 @@ usa_cmp(const void *a, const void *b)
 		return 0;
 	}
 
-        /* prioritize Content Delivery Network "CDN" mirrors next */
+        /* 
+         * prioritize Content Delivery Network "CDN" mirrors next
+         */
         temp      = (int)(strstr(one_label, "CDN") != NULL);
         if (temp != (int)(strstr(two_label, "CDN") != NULL)) {
                 if (temp) {
@@ -203,7 +210,9 @@ usa_cmp(const void *a, const void *b)
 		return 0;
 	}
 
-	/* prioritize Canada mirrors last */
+	/*
+	 * prioritize Canada mirrors last
+	 */
 	temp      = (int)(strstr(one_label, "Canada") != NULL);
 	if (temp != (int)(strstr(two_label, "Canada") != NULL)) {
 		if (temp) {
@@ -224,15 +233,20 @@ usa_cmp(const void *a, const void *b)
 static int
 label_cmp_minus_usa(const void *a, const void *b)
 {
-	int ret = 0;
 	const char *one_label = ((const MIRROR *) a)->label;
 	const char *two_label = ((const MIRROR *) b)->label;
 
-	// strlen(", ") == 2
+	int ret = 0;
+	
+	/*
+	 *  strlen(", ") == 2
+	 */
 	int rc = 2;
 	int bc = 2;
 
-	/* start with the last comma */
+	/*
+	 * start with the last comma
+	 */
 
 	const char *red = strrchr(one_label, ',');
 	const char *blu = strrchr(two_label, ',');
@@ -289,7 +303,8 @@ label_cmp_minus_usa(const void *a, const void *b)
 	if (ret == 0) {
 
 		/*
-		 * rc and bc are NOT both non-zero here
+		 * rc and bc are NOT both non-zero here:
+		 * it had to escape the "while ((ret == 0) && rc && bc)"
 		 * 
 		 * if (rc || bc):
 		 * Either red or blu has no more comma
@@ -344,7 +359,9 @@ diff_cmp_pure(const void *a, const void *b)
 		return ret;
 	}
 
-	/* reverse subsort label_cmp_minus_usa */
+	/*
+	 * reverse subsort label_cmp_minus_usa
+	 */
 	return label_cmp_minus_usa(b, a);
 }
 
@@ -382,7 +399,9 @@ diff_cmp(const void *a, const void *b)
 		return ret;
 	}
 
-	/* reverse subsort label_cmp_minus_usa */
+	/*
+	 * reverse subsort label_cmp_minus_usa
+	 */
 	return label_cmp_minus_usa(b, a);
 }
 
@@ -394,7 +413,9 @@ diff_cmp(const void *a, const void *b)
 static int
 diff_cmp_g(const void *a, const void *b)
 {
-	/* sort those with greater diff values first */
+	/*
+	 * sort those with greater diff values first
+	 */
 
 	const int diff = (
 		    (const int) ((const MIRROR *) b)->diff
@@ -435,7 +456,9 @@ diff_cmp_g2(const void *a, const void *b)
 	 */
 	if (one_len || two_len) {
 
-		/* sort those with greater len values first */
+		/*
+		 * sort those with greater len values first
+		 */
 
 		const int diff = two_len - one_len;
 		if (!diff) {
@@ -454,7 +477,9 @@ diff_cmp_g2(const void *a, const void *b)
 static int
 label_cmp(const void *a, const void *b)
 {
-	/* prioritize mirrors near to USA first */
+	/*
+	 * prioritize mirrors near to USA first
+	 */
 	const int ret = usa_cmp(a, b);
 	if (ret) {
 		return ret;
@@ -568,7 +593,7 @@ dns_cache_d(const int dns_socket, const int secure,
 	int g = 0;
 	int c = 0;
 	struct addrinfo *res0 = NULL;
-	struct addrinfo *res = NULL;
+	struct addrinfo *res  = NULL;
 
 /*
 from: /usr/src/include/netdb.h
@@ -592,9 +617,9 @@ struct addrinfo {
 	struct sockaddr_in6 *sa6 = NULL;
 	u_char *suc6 = NULL;
 
-	int max = 0;
-	int i_temp = 0;
-	int i_max = 0;
+	int            max = 0;
+	int         i_temp = 0;
+	int          i_max = 0;
 	char six_available = '0';
 
 	const char *dns_line0     = (secure) ? "https" : "http";
@@ -669,8 +694,9 @@ dns_loop:
 
 				/*
 				 * compiler complains of potential misalignment
+				 * 
+				 * sa4 = (struct sockaddr_in *) res->ai_addr;
 				 */
-				// sa4 = (struct sockaddr_in *) res->ai_addr;
 
 				(void)memcpy(&sa4, &res->ai_addr,
 				    sizeof(struct sockaddr_in *));
@@ -720,8 +746,9 @@ dns_loop:
 
 			/*
 			 * compiler complains of potential misalignment
+			 * 
+			 * sa4 = (struct sockaddr_in *) res->ai_addr;
 			 */
-			// sa4 = (struct sockaddr_in *) res->ai_addr;
 
 			(void)memcpy(&sa4, &res->ai_addr,
 			    sizeof(struct sockaddr_in *));
@@ -765,16 +792,17 @@ dns_loop:
 
 		/*
 		 * compiler complains of potential misalignment
+
+		 * sa6 = (struct sockaddr_in6 *) res->ai_addr;
 		 */
-		// sa6 = (struct sockaddr_in6 *) res->ai_addr;
 
 		(void)memcpy(&sa6, &res->ai_addr,
 		    sizeof(struct sockaddr_in6 *));
-		
+
 		suc6 = sa6->sin6_addr.s6_addr;
 
-		c = 0;
-		max = 0;
+		c     = 0;
+		max   = 0;
 		i_max = -1;
 
 		/*
@@ -829,7 +857,10 @@ dns_loop:
 				    hexadec[suc6[g] / (u_char)16],
 				    hexadec[suc6[g] % (u_char)16]);
 
-			} else if (suc6[i]) {	// Here: suc6[i] == suc6[i] % 16
+			} else if (suc6[i]) {
+				/*
+				 *  Here: suc6[i] == suc6[i] % 16
+				 */
 				(void)printf("%c%c%c",
 				    hexadec[suc6[i]             ],
 				    hexadec[suc6[g] / (u_char)16],
@@ -840,7 +871,9 @@ dns_loop:
 				    hexadec[suc6[g] / (u_char)16],
 				    hexadec[suc6[g] % (u_char)16]);
 			} else {
-					// Here: suc6[g] == suc6[g] % 16
+					/*
+					 *  Here: suc6[g] == suc6[g] % 16
+					 */
 				(void)printf("%c",	
 				    hexadec[suc6[g]             ]);
 			}
@@ -880,14 +913,15 @@ file_d(const int write_pipe, const int secure,
          const int debug, const int verbose)
 {
 
-	int i = 0;
+	int   i = 0;
 	int ret = 1;
 
-	char *file_w = NULL;
+	char *file_w    = NULL;
 	FILE *pkg_write = NULL;
-	const size_t max_file_length = 1302;
-	const size_t received_max = 1 + max_file_length - 2;
-	ssize_t received = 0;
+	
+	const size_t max_file_length = dns_socket_len + 51;
+	const size_t    received_max = 1 + max_file_length - 2;
+	ssize_t             received = 0;
 
 
 
@@ -898,7 +932,8 @@ file_d(const int write_pipe, const int secure,
 	}
 
 	if (max_file_length <= 7 + (const size_t)secure + 2 + 1) {
-		errx(1, "max_file_length is too short");
+		printf("max_file_length is too short\n");
+		_exit(1);
 	}
 
 	file_w = (char*)malloc(max_file_length);
@@ -1061,9 +1096,7 @@ easy_ftp_kill(const pid_t ftp_pid)
 	    EV_ONESHOT, NOTE_EXIT, 0, NULL);
 
 	/* kevent registration returns -1, if ftp_pid is already dead */
-	errno = 0;
-	(void)kevent(kq, &ke, 1, NULL, 0, NULL);
-    	if (errno) {
+    	if (kevent(kq, &ke, 1, NULL, 0, NULL) == (-1)) {
 		if (errno != ESRCH) {
 			(void)printf("%s ", strerror(errno));
 			(void)printf("kevent, line: %d\n", __LINE__);
@@ -1152,11 +1185,13 @@ main(int argc, char *argv[])
 
 	int root_user = (int)(getuid() == 0);
 	
+	int        average = 1;
+	
+	int        to_file = root_user;
+	
 	int responsiveness = 0;
 	int      bandwidth = 0;
-	int        average = 1;
 	int        current = 0;
-	int        to_file = root_user;
 	int       override = 0;
 	int       generate = 0;
 	int         secure = 0;
@@ -1167,9 +1202,12 @@ main(int argc, char *argv[])
 	int           next = 0;
 	int          s_set = 0;
 	int          debug = 0;
+	
+	int array_max = 200;
 
 	int dns_cache = 1;
 	int       usa = 1;
+	
 	int       USA = 0;
 
 	long double S = 0.0L;
@@ -1202,11 +1240,11 @@ main(int argc, char *argv[])
 	struct timespec   end = { 0, 0 };
 
 	struct timespec timeout = { 0, 0 };
-	struct timespec startD  = { 0, 0 };
-	struct timespec endD    = { 0, 0 };
+	struct timespec  startD = { 0, 0 };
+	struct timespec    endD = { 0, 0 };
 
 	char *line_temp = NULL;
-	char *release = NULL;
+	char   *release = NULL;
 
 	char *current_time = NULL;
 	char v = '\0';
@@ -1230,7 +1268,6 @@ struct kevent {
 
 	/* 10 seconds and 0 nanoseconds to download ftplist */
 	struct timespec timeout_ftp_list = { 10, 0 };
-
 
 /*
 from: /usr/src/sys/sys/ttycom.h
@@ -1289,11 +1326,9 @@ struct winsize {
 	}
 
 	if (to_file) {
-
 		if (unveil("/etc/installurl", "cw") == -1) {
 			err(1, "unveil, line: %d", __LINE__);
 		}
-
 		if (pledge("stdio exec proc cpath wpath dns id", NULL) == -1) {
 			err(1, "pledge, line: %d", __LINE__);
 		}
@@ -1533,13 +1568,15 @@ struct winsize {
 		dns_cache_d_pid = fork();
 		switch(dns_cache_d_pid) {
 			case -1:
-				err(1, "dns_cache_d fork, line: %d\n",
-				                 __LINE__);
+				printf("dns_cache_d fork, line: %d\n",
+				    __LINE__);
+				_exit(1);
 			case 0:
 				(void)close(dns_cache_d_socket[1]);
 				dns_cache_d(dns_cache_d_socket[0],
 				            secure, six, verbose);
 				/* function cannot return */
+				_exit(1);
 			default:
 				break;
 		}
@@ -1555,7 +1592,8 @@ struct winsize {
 		write_pid = fork();
 		switch(write_pid) {
 			case -1:
-				err(1, "file_d fork, line: %d\n", __LINE__);
+				printf("file_d fork, line: %d\n", __LINE__);
+				_exit(1);
 			case 0:
 				(void)close(dns_cache_d_socket[1]);
 				(void)close(write_pipe[STDOUT_FILENO]);
@@ -1565,6 +1603,7 @@ struct winsize {
 				file_d(write_pipe[STDIN_FILENO],
 				       secure, debug, verbose);
 				/* function cannot return */
+				_exit(1);
 			default:
 				break;
 		}
@@ -1589,24 +1628,24 @@ struct winsize {
 	ftp_pid = fork();
 	if (ftp_pid == (pid_t) 0) {
 
-		if (root_user) {
 		/*
 		 * user _pkgfetch: ftp will regain read pledge
 		 *    just to chroot to /var/empty leaving
 		 *      read access to an empty directory
 		 */
-			if (seteuid(57)) {
-				errx(1, "seteuid error, line: %d", __LINE__);
-			}
+		if (root_user && seteuid(57)) {
+			printf("seteuid error, line: %d", __LINE__);
+			_exit(1);
 		}
 
 		if (pledge("stdio exec", NULL) == -1) {
-			err(1, "pledge, line: %d", __LINE__);
+			printf("pledge, line: %d", __LINE__);
+			_exit(1);
 		}
 		
 		(void)close(ftp_out[STDIN_FILENO]);
 
-		n = 1300;
+		n = dns_socket_len + 44;
 		line = (char*)malloc((size_t)n);
 		if (line == NULL) {
 			(void)printf("malloc\n");
@@ -1649,7 +1688,7 @@ struct winsize {
 				(void)printf("'line': %s,", line);
 			}
 			(void)printf(" snprintf, line: %d\n", __LINE__);
-			return 1;
+			_exit(1);
 		}
 
 		if (verbose >= 2) {
@@ -1685,15 +1724,11 @@ struct winsize {
 		err(1, "ftp 1 fork, line: %d", __LINE__);
 	}
 
+	/* 
+	 * Let's do some work while ftp is downloading ftplist
+	 */
+
 	(void)close(ftp_out[STDOUT_FILENO]);
-
-
-	/* Let's do some work while ftp is downloading ftplist */
-
-
-	if (kq == -1) {
-		err(1, "kqueue! line: %d", __LINE__);
-	}
 
 	S = (long double) timeout_ftp_list.tv_sec +
 	    (long double) timeout_ftp_list.tv_nsec / 1000000000.0L;
@@ -1710,7 +1745,6 @@ struct winsize {
 
 	S = s;
 
-	// create 'current_time', if it does't exist
 	if (current_time == NULL) {
 		n = 20;
 		current_time = (char*)malloc((size_t)n);
@@ -1744,7 +1778,9 @@ struct winsize {
 			--n;
 		}
 
-		/* if they are all zeroes after '.' then remove '.' */
+		/* 
+		 * if they are all zeroes after '.' then remove '.'
+		 */
 		if (current_time[n] == '.') {
 			i = n;
 		}
@@ -1777,7 +1813,9 @@ struct winsize {
 	} else if (generate == 0) {
 		const int mib[2] = { CTL_KERN, KERN_VERSION };
 
-		/* retrieve length of results of "sysctl kern.version" */
+		/*
+		 * retrieve length of results of "sysctl kern.version"
+		 */
 		if (sysctl(mib, 2, NULL, &len, NULL, 0) == -1) {
 			(void)printf("%s ", strerror(errno));
 			(void)printf("sysctl, line: %d", __LINE__);
@@ -1791,7 +1829,9 @@ struct winsize {
 			errx(1, "malloc");
 		}
 
-		/* read results of "sysctl kern.version" into 'line' */
+		/* 
+		 * read results of "sysctl kern.version" into 'line'
+		 */
 		if (sysctl(mib, 2, line, &len, NULL, 0) == -1) {
 			(void)printf("%s ", strerror(errno));
 			(void)printf("sysctl, line: %d", __LINE__);
@@ -1799,7 +1839,9 @@ struct winsize {
 			return 1;
 		}
 
-		/* Discovers if the kernel is not a release version */
+		/* 
+		 * Discovers if the kernel is not a release version
+		 */
 		if (strstr(line, "current") || strstr(line, "beta")) {
 			current = 1;
 		}
@@ -1865,49 +1907,47 @@ struct winsize {
 
 			if (n == (3 + 1)) {
 				if (
-					((release[0] < '0') ||
-					 (release[0] > '9'))
+					(release[0] < '0') ||
+					(release[0] > '9')
 					||
 					(release[1] != '.')
 					||
-					((release[2] < '0') ||
-					 (release[2] > '9'))
+					(release[2] < '0') ||
+					(release[2] > '9')
 				   ) {
 					errx(1, "%s%s%d",
 					"release is somehow ",
 					"a bad format, line: ",
 					__LINE__);
 				}
-				// eg. 7.5
+				/*
+				 *  eg. 7.7
+				 */
 				f_temp = (release[0] - '0')
 				      + ((release[2] - '0') / 10.0L);
 
 			} else if (n == (4 + 1))  {
 
 				if (
-					(
-					 (release[0] < '0') ||
-					 (release[0] > '9')
-					)
+					(release[0] < '0') ||
+					(release[0] > '9')
 					||
-					(
-					 (release[1] < '0') ||
-					 (release[1] > '9')
-					)
+					(release[1] < '0') ||
+					(release[1] > '9')
 					||
 					(release[2] != '.')
 					||
-					(
-					 (release[3] < '0') ||
-					 (release[3] > '9')
-					)
+					(release[3] < '0') ||
+					(release[3] > '9')
 				) {
 					errx(1, "%s%s%d",
 					"release is somehow ",
 					"a bad format, line: ",
 					__LINE__);
 				}
-				// eg. 10.0
+				/*
+				 *  eg. 10.0
+				 */
 				f_temp = ((release[0] - '0') * 10.0L) +
 				         (long double) (release[1] - '0') +
 				         ((release[3] - '0') / 10.0L);
@@ -1932,6 +1972,7 @@ struct winsize {
 				}
 				(void)printf(" snprintf, line: %d\n", __LINE__);
 				easy_ftp_kill(ftp_pid);
+				explicit_bzero(&name, sizeof(struct utsname));
 				return 1;
 			}
 		}
@@ -1943,6 +1984,7 @@ struct winsize {
 			tag = (char*)malloc(tag_len + 1);
 			if (tag == NULL) {
 				easy_ftp_kill(ftp_pid);
+				explicit_bzero(&name, sizeof(struct utsname));
 				errx(1, "malloc");
 			}
 
@@ -1956,6 +1998,7 @@ struct winsize {
 			tag = (char*)malloc(tag_len + 1);
 			if (tag == NULL) {
 				easy_ftp_kill(ftp_pid);
+				explicit_bzero(&name, sizeof(struct utsname));
 				errx(1, "malloc");
 			}
 
@@ -1980,7 +2023,9 @@ struct winsize {
 	}
 
 
-	/* if the index for line[] can exceed 1254, it will error out */
+	/* 
+	 * if the index for line[] can exceed dns_socket_len, it will error
+	 */
 	line = (char*)calloc(dns_socket_len - 1, sizeof(char));
 	if (line == NULL) {
 		easy_ftp_kill(ftp_pid);
@@ -2065,7 +2110,9 @@ struct winsize {
 			line[pos] = '\0';
 			++pos;
 
-			/* safety check */
+			/*
+			 * safety check
+			 */
 			if (strncmp(line, "http://", 7)) {
 				(void)printf("'line': %s\n", line);
 				(void)printf("bad http format, line: %d\n",
@@ -2156,11 +2203,13 @@ struct winsize {
 		 * rewrites 'line' (label) to not have back-to-back spaces.
 		 * Will likely never do anything.
 		 */
-		while ((line_temp = strstr(line, "  ")) != NULL) {
+		line_temp = strstr(line, "  ");
+		while (line_temp != NULL) {
 			(void)memmove(line_temp + 1,
 				      line_temp + 2,
 				      (size_t)((line + pos) - (line_temp + 2)));
 			--pos;
+			line_temp = strstr(line_temp + 1, "  ");
 		}
 
 		/* 
@@ -2170,7 +2219,7 @@ struct winsize {
 		 * This will clear them.
 		 */
 		line_temp = strstr(line, ", ");
-		while (line_temp) {
+		while (line_temp != NULL) {
 			(void)memmove(line_temp + 1,
 				      line_temp + 2,
 				      (size_t)((line + pos) - (line_temp + 2)));
@@ -2184,7 +2233,7 @@ struct winsize {
 		 * error in writing the label to disable the software.
 		 */
 		line_temp = strchr(line, ',');
-		while (line_temp) {
+		while (line_temp != NULL) {
 
 			if (pos >= (int)(dns_socket_len - 2)) {
 				errx(1, "too many unladen commas. line %d",
@@ -2284,8 +2333,14 @@ struct winsize {
 		}
 		restart(argc, argv, loop, verbose);
 	}
+	
+	if (all) {
+		verbose = 1;
+	}
 
-	/* if "secure", h = strlen("https://") instead of strlen("http://") */
+	/* 
+	 * if "secure", h = strlen("https://") instead of strlen("http://")
+	 */
 	h += secure;
 
 	pos_max += tag_len;
@@ -2296,10 +2351,6 @@ struct winsize {
 		if (line == NULL) {
 			errx(1, "calloc");
 		}
-	}
-	
-	if (all) {
-		verbose = 1;
 	}
 	
 	/*
@@ -2315,7 +2366,9 @@ struct winsize {
 			sort_ret = heapsort(array, (ulong)array_length,
 			    sizeof(MIRROR), label_cmp_minus_usa);
 		} else {
-			/* else don't sort */
+			/*
+			 * else don't sort
+			 */
 			sort_ret = 0;
 		}
 	} else {
@@ -2326,13 +2379,16 @@ struct winsize {
 			sort_ret = heapsort(array, (ulong)array_length,
 			    sizeof(MIRROR), usa_cmp);
 		} else  {
-			/* else don't sort */
+			/* 
+			 * else don't sort
+			 */
 			sort_ret = 0;
 		}
 	}
 	
-	if (sort_ret)
+	if (sort_ret) {
 		err(1, "sort failed, line %d", __LINE__);
+	}
 
 	if (six) {
 		if (verbose >= 3) {
@@ -2353,8 +2409,10 @@ struct winsize {
 
 	timeout.tv_sec = (time_t) s;
 	timeout.tv_nsec =
-	    (long) ((s -
-	    (long double) timeout.tv_sec) * 1000000000.0L);
+	    (long) (
+			(s - (long double) timeout.tv_sec) *
+			1000000000.0L
+		   );
 
 	std_err = dup(STDERR_FILENO);
 	if (std_err == -1) {
@@ -2376,7 +2434,9 @@ struct winsize {
 	num3 = 0;
 	*/
 
-	/* calculations for preventing ugly line wraps in realtime output */
+	/* 
+	 * calculations for preventing ugly line wraps in realtime output
+	 */
 	if (verbose >= 2) {
 
 		ac = array + array_length;
@@ -2420,14 +2480,18 @@ struct winsize {
 
 	pos_max -= h;
 	
-	// if (all) skip
+	/*
+	 *  if (all) skip
+	 */
 	for (c = (all) ? (int)array_length : 0; c < (int)array_length; ++c) {
 
 		n = (int)strlcpy(host, array[c].http + h, (ulong)pos_max);
 		(void)memcpy(host + n, tag, (ulong)tag_len + 1);
 
 
-		/* strchr always succeeds. 'tag' starts with '/' */
+		/*
+		 * strchr always succeeds. 'tag' starts with '/'
+		 */
 		cut = strchr(host, '/');
 
 		if (verbose >= 2) {
@@ -2500,7 +2564,9 @@ struct winsize {
 
 		if (dns_cache) {
 			
-			/* 2 minutes for dns_cache_d to respond */
+			/* 
+			 * 2 minutes for dns_cache_d to respond
+			 */
 			const struct timespec timeout_d = { 120, 0 };
 
 
@@ -2587,20 +2653,11 @@ restart_dns_err:
 				array[c].diff = s + 3;
 				continue;
 			} else if (v == 'u') {
-				// if (generate) {
-					// if (verbose >= 2) {
-						// (void)printf("BLOCKED ");
-						// (void)printf("subdomain ");
-						// (void)printf("passes!\n");
-					// }
-					// array[c].diff = s / 2.0L;
-				// } else {
 				if (verbose >= 2) {
 					(void)printf("BLOCKED ");
 					(void)printf("subdomain!\n");
 				}
 				array[c].diff = s + 4;
-				//~ }
 				continue;
 			}
 		}
@@ -2658,10 +2715,10 @@ restart_dns_err:
 				(void)free(line);
 				(void)free(line0);
 
-				(void)close(block_socket[STDIN_FILENO]);
-				(void)close(block_socket[STDOUT_FILENO]);
+				(void)close(block_socket[0]);
+				(void)close(block_socket[1]);
 
-				(void)close(ftp_2_ftp_helper[STDOUT_FILENO]);
+				(void)close(ftp_2_ftp_helper[1]);
 				(void)close(ftp_helper_out[STDIN_FILENO]);
 
 				n = 100;
@@ -2674,10 +2731,22 @@ restart_dns_err:
 				num = 0;
 				pos = 0;
 
-				z = ftp_2_ftp_helper[STDIN_FILENO];
+				/*
+				 * Signal that it is ready
+				 */
+				z = ftp_2_ftp_helper[0];
 				if (write(z, &v, 1) != 1) {
-					errx(1, "write error, line: %d",
+					printf("write error, line: %d\n",
 					__LINE__);
+					
+					(void)close(
+					    ftp_helper_out[STDOUT_FILENO]
+					     );
+					     
+					(void)close(z);
+					free(line);
+					line = NULL;
+					_exit(1);
 				}
 
 				while (read(z, &v, 1) == 1) {
@@ -2741,7 +2810,12 @@ restart_dns_err:
 
 					errno = 0;
 					t = strtold(line, &endptr);
-					if (errno || t <= 0 || (endptr != g)) {
+					if (
+					    errno ||
+					    (t <= 0) ||
+					    (endptr != g)
+					   ) 
+					    {
 						if (endptr != g) {
 							(void)printf("endptr");
 							(void)printf(" != g\n");
@@ -2749,6 +2823,10 @@ restart_dns_err:
 						break;
 					}
 
+					/*
+					 * skip the printed space which was
+					 * turned into a '\0'
+					 */
 					++g;
 					if (*g == 'M') {
 						t *= 1024.0L * 1024.0L;
@@ -2780,7 +2858,7 @@ restart_dns_err:
 					break;
 				}
 				(void)close(ftp_helper_out[STDOUT_FILENO]);
-				(void)close(ftp_2_ftp_helper[STDIN_FILENO]);
+				(void)close(z);
 				free(line);
 				line = NULL;
 				_exit(ret);
@@ -2789,7 +2867,7 @@ restart_dns_err:
 				err(1, "ftp 1 fork, line: %d", __LINE__);
 			}
 
-			(void)close(ftp_2_ftp_helper[STDIN_FILENO]);
+			(void)close(ftp_2_ftp_helper[0]);
 			(void)close(ftp_helper_out[STDIN_FILENO]);
 			(void)close(ftp_helper_out[STDOUT_FILENO]);
 
@@ -2808,11 +2886,11 @@ restart_dns_err:
 				err(1, "pledge, line: %d", __LINE__);
 			}
 
-			if (read(ftp_2_ftp_helper[STDOUT_FILENO], &v, 1) != 1) {
+			if (read(ftp_2_ftp_helper[1], &v, 1) != 1) {
 				errx(1, "read error, line: %d", __LINE__);
 			}
 
-			if (dup2(ftp_2_ftp_helper[STDOUT_FILENO],
+			if (dup2(ftp_2_ftp_helper[1],
 			    STDERR_FILENO) == -1) {
 				(void)printf("%s ", strerror(errno));
 				(void)printf("ftp STDERR dup2,");
@@ -2825,7 +2903,7 @@ restart_dns_err:
 
 
 
-			(void)close(block_socket[STDOUT_FILENO]);
+			(void)close(block_socket[1]);
 			/*
 			 *     the read() for this write() is to ensure
 			 *      that the process is alive for
@@ -2835,13 +2913,15 @@ restart_dns_err:
 			 * to signal the process to resume without ugly code.
 			 */
 
-			if (write(block_socket[STDIN_FILENO], &v, 1) != 1) {
+			if (write(block_socket[0], &v, 1) != 1) {
 				errx(1, "write error, line: %d", __LINE__);
 			}
 
-			// intended to short-circuit
-			(void)read(block_socket[STDIN_FILENO], &v, 1);
-			(void)close(block_socket[STDIN_FILENO]);
+			/* 
+			 * intended to short-circuit
+			 */
+			(void)read(block_socket[0], &v, 1);
+			(void)close(block_socket[0]);
 
 			if (debug || all) {
 				_exit(0);
@@ -2851,7 +2931,9 @@ restart_dns_err:
 
 			(void)execl("/usr/bin/ftp", "ftp", line0, line, NULL);
 
-			/* I nullified stdout, so printf won't work */
+			/*
+			 *  I nullified stdout, so printf won't work
+			 */
 			(void)dprintf(std_err, "%s ", strerror(errno));
 			(void)dprintf(std_err, "ftp 2 (void)execl() failed, ");
 			(void)dprintf(std_err, "line: %d\n", __LINE__);
@@ -2864,7 +2946,7 @@ restart_dns_err:
 
 		(void)close(ftp_helper_out[STDOUT_FILENO]);
 
-		(void)close(block_socket[STDIN_FILENO]);
+		(void)close(block_socket[0]);
 
 		EV_SET(&ke, ftp_pid, EVFILT_PROC, EV_ADD |
 		    EV_ONESHOT, NOTE_EXIT, 0, NULL);
@@ -2877,10 +2959,10 @@ restart_dns_err:
 		}
 
 
-		if (read(block_socket[STDOUT_FILENO], &v, 1) != 1) {
+		if (read(block_socket[1], &v, 1) != 1) {
 			errx(1, "read error, line: %d", __LINE__);
 		}
-		(void)close(block_socket[STDOUT_FILENO]);
+		(void)close(block_socket[1]);
 
 		(void)clock_gettime(CLOCK_REALTIME, &start);
 		i = kevent(kq, NULL, 0, &ke, 1, &timeout);
@@ -2893,7 +2975,9 @@ restart_dns_err:
 			return 1;
 		}
 
-		/* timeout occurred before ftp() exit was received */
+		/* 
+		 * timeout occurred before ftp() exit was received
+		 */
 		if (i == 0) {
 
 			(void)kill(ftp_pid, SIGINT);
@@ -3265,7 +3349,9 @@ restart_dns_err:
 		    se + 1);
 
 
-		/* n = 0; */
+		/*
+		 * n = 0; 
+		 */
 		for (c = 0; c < se; ++c) {
 
 			/*
@@ -3301,7 +3387,9 @@ restart_dns_err:
 			 */
 			if (n > 80) {
 
-				/* center the printed mirrors. Err to right */
+				/* 
+				 * center the printed mirrors. Err to right
+				 */
 				for (j = (80+1 - (n - i)) / 2; j > 0; --j) {
 					(void)printf(" ");
 				}
@@ -3316,7 +3404,9 @@ restart_dns_err:
 			}
 		}
 
-		/* center the printed mirrors. Err to right */
+		/* 
+		 * center the printed mirrors. Err to right
+		 */
 		for (j = (80+1 - n) / 2; j > 0; --j) {
 			(void)printf(" ");
 		}
@@ -3413,7 +3503,9 @@ gen_skip1:
 			 */
 			if (n > 80) {
 
-				/* center the printed mirrors. Err to right */
+				/* 
+				 * center the printed mirrors. Err to right
+				 */
 				for (j = (80+1 - (n - i)) / 2; j > 0; --j) {
 					(void)printf(" ");
 				}
@@ -3427,7 +3519,9 @@ gen_skip1:
 			}
 		}
 
-		/* center the printed mirrors. Err to right */
+		/* 
+		 * center the printed mirrors. Err to right
+		 */
 		for (j = (80+1 - n) / 2; j > 0; --j) {
 			(void)printf(" ");
 		}
@@ -3919,7 +4013,9 @@ generate_jump:
 
 			(void)printf(" : ");
 
-	// If assigned this value.... If -Wfloat-equal warnings, ignore it.
+	/*
+	 * If assigned this value.... If -Wfloat-equal warnings, ignore it.
+	 */
 			if (ac->diff == (s + 1)) {
 				(void)printf("Download Error");
 			} else if (ac->diff == (s + 2)) {
