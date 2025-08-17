@@ -140,7 +140,7 @@ which may cause a needless failure and may needlessly and repeatedly beat up on 
 
 cc pkg_ping.c -o /usr/local/bin/pkg_ping
 
-cc pkg_ping.c -march=native -mtune=native -O3 -flto -pipe -o /usr/local/bin/pkg_ping
+cc pkg_ping.c -march=native -mtune=native -O3 -flto -static -pipe -o /usr/local/bin/pkg_ping
 
 Example usages:
 
