@@ -1765,9 +1765,9 @@ struct winsize {
 			manpage();
 			return 0;
 		case 'l':
-			if (strlen(optarg) >= 5) {
+			if (strlen(optarg) >= 3) {
 				(void)printf("keep -l argument under ");
-				(void)printf("5 characters long.\n");
+				(void)printf("3 characters long.\n");
 				return 1;
 			}
 
