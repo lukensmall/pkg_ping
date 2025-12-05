@@ -86,6 +86,8 @@ cc pkg_ping.c -march=native -mtune=native -flto -static -O3 \
 #include <time.h>
 #include <unistd.h>
 
+extern char *malloc_options = "CFGJJU";
+
 #define PARENT_SOCK STDIN_FILENO
 #define CHILD_SOCK STDOUT_FILENO
 
@@ -95,32 +97,29 @@ static int entry_line = __LINE__;
                         /* GENERATED CODE BEGINS HERE */
 
 
-static const char *ftp_list[62] = {
+static const char *ftp_list[53] = {
 
-          "mirrors.syringanetworks.net","openbsd.mirror.constant.com",
-           "plug-mirror.rcac.purdue.edu","cloudflare.cdn.openbsd.org",
-           "ftp.halifax.rwth-aachen.de","ftp.rnl.tecnico.ulisboa.pt",
-            "openbsd.mirrors.hoobly.com","mirror.raiolanetworks.com",
+          "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
+           "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
+           "ftp.rnl.tecnico.ulisboa.pt","openbsd.mirrors.hoobly.com",
   "mirrors.ocf.berkeley.edu","mirror.hs-esslingen.de","mirrors.pidginhost.com",
     "openbsd.cs.toronto.edu","*artfiles.org/openbsd","mirror.planetunix.net",
      "www.mirrorservice.org","mirror.aarnet.edu.au","openbsd.c3sl.ufpr.br",
        "ftp.usa.openbsd.org","ftp2.eu.openbsd.org","ftp2.fr.openbsd.org",
        "mirror.leaseweb.com","mirror.telepoint.bg","mirrors.gigenet.com",
-        "openbsd.eu.paket.ua","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
-         "ftp.lysator.liu.se","mirror.freedif.org","mirror.fsmg.org.nz",
-         "mirror.ungleich.ch","mirrors.aliyun.com","mirrors.dotsrc.org",
-          "openbsd.ipacct.com","ftp.hostserver.de","mirrors.chroot.ro",
- "mirrors.sonic.net","mirrors.ucr.ac.cr","openbsd.as250.net","mirror.group.one",
-  "mirror.litnet.lt","mirror.yandex.ru","mirrors.ircam.fr","openbsd.paket.ua",
+         "ftp.eu.openbsd.org","ftp.fr.openbsd.org","ftp.lysator.liu.se",
+         "mirror.freedif.org","mirror.fsmg.org.nz","mirror.ungleich.ch",
+         "mirrors.aliyun.com","mirrors.dotsrc.org","openbsd.ipacct.com",
+"ftp.hostserver.de","mirrors.chroot.ro","mirrors.sonic.net","mirrors.ucr.ac.cr",
+  "openbsd.as250.net","mirror.group.one","mirror.litnet.lt","mirror.yandex.ru",
     "cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.ihost.md",
-    "mirror.junda.nl","mirror.ox.ac.uk","mirrors.mit.edu","repo.jing.rocks",
-       "ftp.icm.edu.pl","mirror.rise.ph","ftp.cc.uoc.gr","ftp.spline.de",
-    "www.ftp.ne.jp","ftp.nluug.nl","ftp.riken.jp","ftp.psnc.pl","ftp.bit.nl",
-                            "ftp.fau.de","ftp.uio.no"
+     "mirror.junda.nl","mirror.ox.ac.uk","mirrors.mit.edu","ftp.icm.edu.pl",
+ "mirror.rise.ph","ftp.cc.uoc.gr","ftp.spline.de","ftp.nluug.nl","ftp.psnc.pl",
+                            "ftp.bit.nl","ftp.fau.de"
 
 };
 
-static const int ftp_list_index = 62;
+static const int ftp_list_index = 53;
 
 
 
@@ -154,8 +153,6 @@ typedef struct {
 	int diff_rank;
 	int speed_rank;
 }MIRROR;
-
-extern char *malloc_options;
 
 /*
  * strlen("http://") == 7
@@ -197,7 +194,6 @@ free_array(void)
 	(void)free(line0);
 	(void)free(line);
 	(void)free(tag);
-	(void)free(malloc_options);
 }
 
 static long double almost_zero = 0.0L;
@@ -1126,6 +1122,7 @@ restart(int argc, char *argv[], const int loop, const int verbose)
 	if (new_args[n] == NULL) {
 		errx(1, "calloc");
 	}
+	
 	c = snprintf(new_args[n], len, "-l%d", loop - 1);
 	if ((c >= len) || (c < 0)) {
 		if (c < 0) {
@@ -1176,7 +1173,7 @@ easy_ftp_kill(const pid_t ftp_pid)
 }
 
 static __attribute__((noreturn)) void
-ftp_test_help(int ftp_helper_out, int ftp_2_ftp_helper_socket, int verbose)
+ftp_test_help(int ftp_helper_out_pipe, int ftp_2_ftp_helper_socket, int verbose)
 {
 
 	int ret = 1;
@@ -1211,7 +1208,7 @@ ftp_test_help(int ftp_helper_out, int ftp_2_ftp_helper_socket, int verbose)
 	if (write(ftp_2_ftp_helper_socket, &v, 1) != 1) {
 		(void)printf("write error, line: %d\n", __LINE__);
 		
-		(void)close(ftp_helper_out);
+		(void)close(ftp_helper_out_pipe);
 		     
 		(void)close(ftp_2_ftp_helper_socket);
 		free(line);
@@ -1226,11 +1223,8 @@ ftp_test_help(int ftp_helper_out, int ftp_2_ftp_helper_socket, int verbose)
 		
 		if ((int)pos >= (n - 2)) {
 			line[pos] = '\0';
-			(void)printf("'line': ");
-			(void)printf("%s\n", line);
-			(void)printf("pos got too big");
-			(void)printf("! line: %d\n",
-				    __LINE__);
+			(void)printf("'line': %s\n", line);
+			(void)printf("pos got too big! line: %d\n", __LINE__);
 			_exit(1);
 		}
 
@@ -1300,16 +1294,14 @@ ftp_test_help(int ftp_helper_out, int ftp_2_ftp_helper_socket, int verbose)
 		} else if (*g == 'K') {
 			t *= 1024.0L;
 		} else {
-			(void)printf("bad read, line");
-			(void)printf(" %d\n", __LINE__);
+			(void)printf("bad read, line %d\n", __LINE__);
 			break;
 		}
 
-		i = (int)write(ftp_helper_out, &t, sizeof(long double));
+		i = (int)write(ftp_helper_out_pipe, &t, sizeof(long double));
 
 		if (i != (int)sizeof(long double)) {
-			(void)printf("bad write, line");
-			(void)printf(" %d", __LINE__);
+			(void)printf("bad write, line %d", __LINE__);
 			break;
 		}
 
@@ -1323,13 +1315,13 @@ ftp_test_help(int ftp_helper_out, int ftp_2_ftp_helper_socket, int verbose)
 		break;
 	}
 	(void)close(ftp_2_ftp_helper_socket);
-	(void)close(ftp_helper_out);
+	(void)close(ftp_helper_out_pipe);
 	free(line);
 	_exit(ret);
 }
 
 static __attribute__((noreturn)) void
-ftp_test(int block_socket, int ftp_helper_out,
+ftp_test(int block_socket, int ftp_helper_out_pipe,
 	    int verbose, int debug, int root_user, int std_err)
 {
 	int ftp_2_ftp_helper_socket[2] = { -1, -1 };
@@ -1357,7 +1349,7 @@ ftp_test(int block_socket, int ftp_helper_out,
 			
 			(void)close(ftp_2_ftp_helper_socket[PARENT_SOCK]);
 			
-			ftp_test_help(ftp_helper_out,
+			ftp_test_help(ftp_helper_out_pipe,
 					ftp_2_ftp_helper_socket[CHILD_SOCK],
 					verbose);
 			/* function cannot return */
@@ -1365,7 +1357,7 @@ ftp_test(int block_socket, int ftp_helper_out,
 		default:
 			break;
 	}
-	(void)close(ftp_helper_out);
+	(void)close(ftp_helper_out_pipe);
 	(void)close(ftp_2_ftp_helper_socket[CHILD_SOCK]);
 
 
@@ -1397,8 +1389,7 @@ ftp_test(int block_socket, int ftp_helper_out,
 		_exit(1);
 	}
 
-	if (dup2(ftp_2_ftp_helper_socket[PARENT_SOCK],
-	STDERR_FILENO) == -1) {
+	if (dup2(ftp_2_ftp_helper_socket[PARENT_SOCK], STDERR_FILENO) == -1) {
 		(void)printf("%s ", strerror(errno));
 		(void)printf("ftp STDERR dup2,");
 		(void)printf(" line: %d\n", __LINE__);
@@ -1442,7 +1433,7 @@ ftp_test(int block_socket, int ftp_helper_out,
 }
 
 static __attribute__((noreturn)) void
-ftp_first(int ftp_out, int root_user, int generate, int verbose)
+ftp_first(int ftp_out_pipe, int root_user, int generate, int verbose)
 {
 	int n = dns_socket_len + 44;
 	
@@ -1517,7 +1508,7 @@ ftp_first(int ftp_out, int root_user, int generate, int verbose)
 	}
 
 
-	if (dup2(ftp_out, STDOUT_FILENO) == -1) {
+	if (dup2(ftp_out_pipe, STDOUT_FILENO) == -1) {
 		(void)printf("%s ", strerror(errno));
 		(void)printf("ftp STDOUT dup2, line: %d\n", __LINE__);
 		_exit(1);
@@ -1597,11 +1588,11 @@ main(int argc, char *argv[])
 
 	size_t len = 0;
 
-	int dns_cache_d_socket[2] = { -1, -1 };
-	int     ftp_helper_out[2] = { -1, -1 };
-	int       block_socket[2] = { -1, -1 };
-	int         write_pipe[2] = { -1, -1 };
-	int            ftp_out[2] = { -1, -1 };
+	int ftp_helper_out_pipe[2] = { -1, -1 };
+	int  dns_cache_d_socket[2] = { -1, -1 };
+	int        block_socket[2] = { -1, -1 };
+	int        ftp_out_pipe[2] = { -1, -1 };
+	int          write_pipe[2] = { -1, -1 };
 
 	struct timespec start = { 0, 0 };
 	struct timespec   end = { 0, 0 };
@@ -1657,12 +1648,7 @@ struct winsize {
 	int num2 = 0;
 	int num3 = 0;
 	char *host = NULL;
-	char  *cut = NULL;	
-
-	malloc_options = strdup("CFGJJU");
-	if (malloc_options == NULL) {
-		err(1, "malloc");
-	}
+	char  *cut = NULL;
 
 	errno = 0;
 	almost_zero = strtold(".000000001", NULL);
@@ -1982,7 +1968,7 @@ struct winsize {
 		}
 	}
 
-	if (pipe(ftp_out) == -1) {
+	if (pipe(ftp_out_pipe) == -1) {
 		err(1, "pipe, line: %d", __LINE__);
 	}
 
@@ -1992,15 +1978,15 @@ struct winsize {
 			err(1, "first ftp, line: %d\n", __LINE__);
 			break;
 		case 0:
-			(void)close(ftp_out[STDIN_FILENO]);
-			ftp_first(ftp_out[STDOUT_FILENO],
+			(void)close(ftp_out_pipe[STDIN_FILENO]);
+			ftp_first(ftp_out_pipe[STDOUT_FILENO],
 			          root_user, generate, verbose);
 			/* function cannot return */
 			break;
 		default:
 			break;
 	}
-	(void)close(ftp_out[STDOUT_FILENO]);
+	(void)close(ftp_out_pipe[STDOUT_FILENO]);
 
 	/* 
 	 * Let's do some work while ftp is downloading ftplist
@@ -2322,7 +2308,7 @@ struct winsize {
 
 	(void)atexit(free_array);
 
-	z = ftp_out[STDIN_FILENO];
+	z = ftp_out_pipe[STDIN_FILENO];
 
 	/*
 	 * I use kevent here, just so I can restart
@@ -2870,7 +2856,6 @@ struct winsize {
 			}
 
 			if (i != 1) {
-
 				(void)kill(dns_cache_d_pid, SIGKILL);
 				goto restart_dns_err;
 			}
@@ -2934,7 +2919,7 @@ restart_dns_err:
 			err(1, "socketpair");
 		}
 
-		if (pipe(ftp_helper_out) == -1) {
+		if (pipe(ftp_helper_out_pipe) == -1) {
 			err(1, "pipe, line: %d", __LINE__);
 		}
 
@@ -2960,10 +2945,10 @@ restart_dns_err:
 				(void)close(write_pipe[STDOUT_FILENO]);
 				
 				(void)close(block_socket[PARENT_SOCK]);
-				(void)close(ftp_helper_out[STDIN_FILENO]);
+				(void)close(ftp_helper_out_pipe[STDIN_FILENO]);
 
 				ftp_test(block_socket[CHILD_SOCK],
-				           ftp_helper_out[STDOUT_FILENO],
+				           ftp_helper_out_pipe[STDOUT_FILENO],
 					   verbose, debug || all, root_user, 
 					   std_err);
 				/* function cannot return */
@@ -2973,7 +2958,7 @@ restart_dns_err:
 		}
 
 		(void)close(block_socket[CHILD_SOCK]);
-		(void)close(ftp_helper_out[STDOUT_FILENO]);
+		(void)close(ftp_helper_out_pipe[STDOUT_FILENO]);
 
 		EV_SET(&ke, ftp_pid, EVFILT_PROC, EV_ADD |
 		    EV_ONESHOT, NOTE_EXIT, 0, NULL);
@@ -3030,7 +3015,7 @@ restart_dns_err:
 			}
 
 			(void)waitpid(ftp_pid, NULL, 0);
-			(void)close(ftp_helper_out[STDIN_FILENO]);
+			(void)close(ftp_helper_out_pipe[STDIN_FILENO]);
 
 			if (verbose >= 2) {
 				(void)printf("Timeout\n");
@@ -3046,19 +3031,19 @@ restart_dns_err:
 				(void)printf("Download Error\n");
 			}
 
-			(void)close(ftp_helper_out[STDIN_FILENO]);
+			(void)close(ftp_helper_out_pipe[STDIN_FILENO]);
 			continue;
 		}
 
 		if (!debug && !all) {
-			z = ftp_helper_out[STDIN_FILENO];
+			z = ftp_helper_out_pipe[STDIN_FILENO];
 			if (read(z, &array[c].speed, sizeof(long double))
 			    < (ssize_t)sizeof(long double)) {
 				restart(argc, argv, loop, verbose);
 			 }
 		}
 
-		(void)close(ftp_helper_out[STDIN_FILENO]);
+		(void)close(ftp_helper_out_pipe[STDIN_FILENO]);
 
 		array[c].diff =
 		    (long double) (end.tv_sec  - start.tv_sec ) +
