@@ -1,5 +1,9 @@
 ### It determines and prints the fastest OpenBSD mirror(s) for your version and architecture for the /etc/installurl file and if run as root, will write the fastest successful one to disk unless -f is used.
 
+### Major update:
+
+It works for 7.8. OpenBSD won't let me declare malloc_options and change it later.
+
 ### New feature:
 
 New flag: -G
