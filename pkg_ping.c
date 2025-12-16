@@ -44,14 +44,14 @@
 
 /*
  *	As root:
- *	cc pkg_ping.c -o /usr/local/bin/pkg_ping
+ *	cc pkg_ping.c -Wno-extern-initializer -o /usr/local/bin/pkg_ping
  *
  * 	If you want bleeding edge performance, you can try:
  *
  *  As root:
 
 cc pkg_ping.c -march=native -mtune=native -flto -static -O3 \
--o /usr/local/bin/pkg_ping
+-Wno-extern-initializer -o /usr/local/bin/pkg_ping
 
  *	run with: /usr/local/bin/pkg_ping
  *
@@ -1278,7 +1278,7 @@ ftp_test_help(int ftp_helper_out_pipe, int ftp_2_ftp_helper_socket, int verbose)
 		    (t <= 0) ||
 		    (endptr != g)
 		   ) 
-		    {
+		{
 			if (endptr != g) {
 				(void)printf("endptr  != g\n");
 			}
@@ -1322,7 +1322,7 @@ ftp_test_help(int ftp_helper_out_pipe, int ftp_2_ftp_helper_socket, int verbose)
 
 static __attribute__((noreturn)) void
 ftp_test(int block_socket, int ftp_helper_out_pipe,
-	    int verbose, int debug, int root_user, int std_err)
+	    int verbose, int bail, int root_user, int std_err)
 {
 	int ftp_2_ftp_helper_socket[2] = { -1, -1 };
 
@@ -1377,7 +1377,7 @@ ftp_test(int block_socket, int ftp_helper_out_pipe,
 	}
 
 	/*
-	 *     this read() is to ensure
+	 *           this read() is to ensure
 	 *      that the helper process is alive for
 	 *           the parent kevent call.
 	 *   It standardizes the timing of the ftp calling
@@ -1398,8 +1398,8 @@ ftp_test(int block_socket, int ftp_helper_out_pipe,
 	
 	/*
 	 *     the read() for this write() is to ensure
-	 *      that the process is alive for
-	 *           the parent kevent call.
+	 *            that the process is alive for
+	 *               the parent kevent call.
 	 *   It standardizes the timing of the ftp calling
 	 *   process, and it is written as an efficient way
 	 * to signal the process to resume without ugly code.
@@ -1415,7 +1415,7 @@ ftp_test(int block_socket, int ftp_helper_out_pipe,
 	(void)read(block_socket, &v, 1);
 	(void)close(block_socket);
 
-	if (debug) {
+	if (bail) {
 		_exit(0);
 	}
 
