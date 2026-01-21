@@ -88,8 +88,8 @@ cc pkg_ping.c -march=native -mtune=native -flto -static -O3 \
 
 extern char *malloc_options = "CFGJJU";
 
-#define PARENT_SOCK STDIN_FILENO
-#define CHILD_SOCK STDOUT_FILENO
+#define PARENT_SOCK 0
+#define  CHILD_SOCK 1
 
 static int entry_line = __LINE__;
 
@@ -142,17 +142,20 @@ static const int ftp_list_index_g = 8;
 static int exit_line = __LINE__;
 
 typedef struct {
-	long double diff;
-	long double speed;
-	long double diff_rating;
-	long double speed_rating;
+	long double diff;         // usually the time it took to download
+                                  // can also be the string length of the MIRROR
+                                  // if generating a MIRROR list
+                                  
+	long double speed;        // the scraped download speed from ftp()
+	long double diff_rating;  // rating of the diff amongst other MIRRORs
+	long double speed_rating; // rating of speed amongst other MIRRORs
 	
-	char *label;
-	char *http;
+	char *label;              // indicating the city, country, or location
+	char *http;               // URL of the MIRROR
 	
-	int diff_rank;
-	int speed_rank;
-}MIRROR;
+	int diff_rank;            // rank of the diff amongst other MIRRORs
+	int speed_rank;           // rank of speed amongst other MIRRORs
+} MIRROR;
 
 /*
  * strlen("http://") == 7
@@ -227,6 +230,10 @@ sub_one_print(long double diff)
 	(void)printf("%s", 1 + diff_string);
 }
 
+/*
+ * comparison between two MIRRORs. 
+ * Prioritize MIRRORs which are likely closer to the USA, otherwise...don't care.
+ */
 static int
 usa_cmp(const void *a, const void *b)
 {
@@ -326,7 +333,7 @@ label_cmp_minus_usa(const void *a, const void *b)
 		 */
 		 
 		for (;;) {
-			if (one_label >= red) {
+			if (one_label == red) {
 				rc = 0;
 				break;
 			}
@@ -337,7 +344,7 @@ label_cmp_minus_usa(const void *a, const void *b)
 		}
 
 		for (;;) {
-			if (two_label >= blu) {
+			if (two_label == blu) {
 				bc = 0;
 				break;
 			}
@@ -389,6 +396,14 @@ label_cmp_minus_usa(const void *a, const void *b)
 	return ret;
 }
 
+/*
+ * comparison between two MIRRORs.
+ * It doesn't test speed.
+ * 
+ * First determine whether the diff is different, then
+ * Prioritize MIRRORs which are likely close to the USA, otherwise if zero,
+ * return the reverse result of label_cmp_minus_usa().
+ */
 static int
 diff_cmp_pure(const void *a, const void *b)
 {
@@ -418,6 +433,12 @@ diff_cmp_pure(const void *a, const void *b)
 	return label_cmp_minus_usa(b, a);
 }
 
+/*
+ * comparison between two MIRRORs.
+ * First determine whether the diff is different, then
+ * Prioritize MIRRORs which are likely close to the USA, otherwise if zero,
+ * return the reverse result of label_cmp_minus_usa().
+ */
 static int
 diff_cmp(const void *a, const void *b)
 {
@@ -513,8 +534,7 @@ diff_cmp_g2(const void *a, const void *b)
 		 * sort those with greater len values first
 		 */
 
-		const int diff = two_len - one_len;
-		if (!diff) {
+		if (one_len == two_len) {
 
 			return strcmp(
 				      ((const MIRROR *) a)->http,
@@ -522,11 +542,14 @@ diff_cmp_g2(const void *a, const void *b)
 				     );
 
 		}
-		return diff;
+		return (two_len - one_len);
 	}
 	return 0;
 }
 
+/*
+ * add a usa_cmp to label_cmp_minus_usa()
+ */
 static int
 label_cmp(const void *a, const void *b)
 {
@@ -541,6 +564,9 @@ label_cmp(const void *a, const void *b)
 	return label_cmp_minus_usa(a, b);
 }
 
+/*
+ * unify diff and speed ratings into a single comparison
+ */
 static int
 unified_cmp(const void *a, const void *b)
 {
@@ -586,7 +612,7 @@ manpage(void)
 	(void)printf(
 	    "[-f (don't automatically write to File if run as root)]\n");
 
-	(void)printf("[-G (Generate source ftp list: all)]\n");
+	(void)printf("[-G (Generate all current sources of the ftp list)]\n");
 
 	(void)printf("[-g (Generate source ftp list: only accessible ones)]\n");
 
@@ -631,13 +657,23 @@ manpage(void)
 	    "[-V (no Verbose output. No output except error messages)]\n");
 
 	(void)printf(
-	    "[-v (increase Verbosity. It recognizes up to 4 of these)]\n\n");
+	    "[-v (increase Verbosity. It recognizes up to 5 of these)]\n\n");
 
 
 	(void)printf("More information at: ");
 	(void)printf("https://github.com/lukensmall/pkg_ping\n\n");
 }
 
+/*
+ * I created this DNS daemon which when supplied a URL, it will print out
+ * DNS records, but it also pre-caches any ftp() call where ftp(1) issues a
+ * DNS call using the same mechanism so, fetching it precaches whatever dns
+ * server you're using it's fetched very quickly to let the ftp call timings not
+ * need to wait for DNS calls to fetch the DNS records across the internet in an
+ * undetermined time; thereby eliminating the biggest problem in determining the
+ * raw responsiveness of a server to a request in a single request to limit the
+ * annoying file downloads on their networks to an absolute minimum.
+ */
 static __attribute__((noreturn)) void
 dns_cache_d(const int dns_socket, const int secure,
 	       const int six, const int verbose)
@@ -670,18 +706,19 @@ struct addrinfo {
 	struct sockaddr_in6 *sa6 = NULL;
 	u_char *suc6 = NULL;
 
-	int            max = 0;
-	int         i_temp = 0;
-	int          i_max = 0;
+	int    max = 0;
+	int i_temp = 0;
+	int  i_max = 0;
+	
 	char six_available = '0';
 
 	const char *dns_line0     = (secure) ? "https" : "http";
 	const char *dns_line0_alt = (secure) ?  "443"  :  "80";
 
 	const char hexadec[16] = { '0','1','2','3',
-				   '4','5','6','7',
-				   '8','9','a','b',
-				   'c','d','e','f' };
+	                           '4','5','6','7',
+	                           '8','9','a','b',
+	                           'c','d','e','f' };
 
 	char *dns_line = (char*)calloc(dns_socket_len, sizeof(char));
 	if (dns_line == NULL) {
@@ -716,7 +753,7 @@ dns_loop:
 	}
 	dns_line[i] = '\0';
 
-	if (verbose == 4) {
+	if (verbose >= 4) {
 		(void)printf("DNS caching: %s\n", dns_line);
 	}
 
@@ -726,7 +763,7 @@ dns_loop:
 		c = getaddrinfo(dns_line, dns_line0_alt, &hints, &res0);
 
 		if (c) {
-			if (verbose == 4) {
+			if (verbose >= 4) {
 				(void)printf("%s\n", gai_strerror((int)c));
 			}
 			i = (int)write(dns_socket, "f", 1);
@@ -955,6 +992,8 @@ dns_exit1:
 }
 
 /*
+ * Writes the determined intallurl when main() supplies it.
+ * 
  * I considered keeping this functionality in main(), but
  * if there's a possibility of the main() getting overrun,
  * this process performs some sanity checks to, among
@@ -1093,16 +1132,23 @@ file_cleanup:
 	_exit(ret);
 }
 
+/*
+ * restarting the application needs to happen.
+ * Decrement 'loop' if above zero else quit.
+ * append the new 'loop' and restart().
+ * A new random MIRROR is selected in the next run.
+ */
 static __attribute__((noreturn)) void
 restart(int argc, char *argv[], const int loop, const int verbose)
 {
 	int c;
 	const int len = 10;
 
+	// if an appended 'loop' is already the last variable, excise the value.
 	const int n
 	    = argc - (int)((argc > 1) && (!strncmp(argv[argc - 1], "-l", 2)));
 
-	char **new_args = calloc((size_t)n + 1 + 1, sizeof(char *));
+	char **new_args = (char **)calloc((size_t)n + 1 + 1, sizeof(char *));
 	if (new_args == NULL) {
 		errx(1, "calloc");
 	}
@@ -1142,6 +1188,9 @@ restart(int argc, char *argv[], const int loop, const int verbose)
 	err(1, "execv failed, line: %d", __LINE__);
 }
 
+/*
+ * gracefully kill off the ftp() call.
+ */
 static void
 easy_ftp_kill(const pid_t ftp_pid)
 {
@@ -1171,31 +1220,36 @@ easy_ftp_kill(const pid_t ftp_pid)
 	}
  	(void)waitpid(ftp_pid, NULL, 0);
 }
-
+/*
+ * scrapes the speed from the ftp() call output and returns it to main()
+ */
 static __attribute__((noreturn)) void
-ftp_test_help(int ftp_helper_out_pipe, int ftp_2_ftp_helper_socket, int verbose)
+ftp_test_help(const int ftp_helper_out_pipe, const int ftp_2_ftp_helper_socket,
+              const int verbose)
 {
 
 	int ret = 1;
 	int num = 0;
 	int pos = 0;
-	int   n = 100;
+	int   n = 200;
 	
 	ssize_t i = 0;
 
 	char v = '0';
 
+	char *g = NULL;
+	long double t = 0.0L;
+	char *endptr = NULL;
+	
 	if (pledge("stdio", NULL) == -1) {
 		(void)printf("pledge, line: %d\n", __LINE__);
 		_exit(1);
 	}
 
-	(void)free(line);
-	line = NULL;
-	
 	(void)free(line0);
 	line0 = NULL;
 
+	(void)free(line);
 	line = (char*)calloc((size_t)n, sizeof(char));
 	if (line == NULL) {
 		(void)printf("calloc\n");
@@ -1205,7 +1259,7 @@ ftp_test_help(int ftp_helper_out_pipe, int ftp_2_ftp_helper_socket, int verbose)
 	/*
 	 * Signal that it is ready
 	 */
-	if (write(ftp_2_ftp_helper_socket, &v, 1) != 1) {
+	if (write(ftp_2_ftp_helper_socket, &v, sizeof(char)) != sizeof(char)) {
 		(void)printf("write error, line: %d\n", __LINE__);
 		
 		(void)close(ftp_helper_out_pipe);
@@ -1216,12 +1270,13 @@ ftp_test_help(int ftp_helper_out_pipe, int ftp_2_ftp_helper_socket, int verbose)
 		_exit(1);
 	}
 
-	while (read(ftp_2_ftp_helper_socket, &v, 1) == 1) {
-		char *g = NULL;
-		long double t = 0.0L;
-		char *endptr = NULL;
-		
-		if ((int)pos >= (n - 2)) {
+	/*
+	 * read ftp output and search for a '(' then read what is between there
+	 * and a ')' and if successful, determine the sent bandwidth and return.
+	 */
+	while (read(ftp_2_ftp_helper_socket, &v, sizeof(char))
+	    == sizeof(char)) {
+		if (pos >= (n - 2)) {
 			line[pos] = '\0';
 			(void)printf("'line': %s\n", line);
 			(void)printf("pos got too big! line: %d\n", __LINE__);
@@ -1234,16 +1289,14 @@ ftp_test_help(int ftp_helper_out_pipe, int ftp_2_ftp_helper_socket, int verbose)
 		}
 
 		if (num == 0) {
-			if (v != '(') {
-				continue;
+			if (v == '(') {
+				num = 1;
 			}
-			num = 1;
 			continue;
 		}
 
 		if (v != ')') {
-			line[pos] = v;
-			++pos;
+			line[pos++] = v;
 			continue;
 		}
 
@@ -1298,15 +1351,16 @@ ftp_test_help(int ftp_helper_out_pipe, int ftp_2_ftp_helper_socket, int verbose)
 			break;
 		}
 
-		i = (int)write(ftp_helper_out_pipe, &t, sizeof(long double));
+		i = write(ftp_helper_out_pipe, &t, sizeof(long double));
 
-		if (i != (int)sizeof(long double)) {
+		if (i != (ssize_t)sizeof(long double)) {
 			(void)printf("bad write, line %d", __LINE__);
 			break;
 		}
 
 		if (verbose >= 2) {
-			while (read(ftp_2_ftp_helper_socket, &v, 1) == 1) {
+			while (read(ftp_2_ftp_helper_socket, &v, sizeof(char))
+			    == sizeof(char)) {
 				(void)printf("%c", v);
 				(void)fflush(stdout);
 			}
@@ -1320,14 +1374,19 @@ ftp_test_help(int ftp_helper_out_pipe, int ftp_2_ftp_helper_socket, int verbose)
 	_exit(ret);
 }
 
+/*
+ * tests a mirror setting up a ftp_test_help process first, then it execs into
+ * a ftp call itself
+ */ 
 static __attribute__((noreturn)) void
-ftp_test(int block_socket, int ftp_helper_out_pipe,
-	    int verbose, int bail, int root_user, int std_err)
+ftp_test(const int block_socket, const int ftp_helper_out_pipe,
+         const int verbose, const int bail, const int root_user,
+         const int std_err)
 {
 	int ftp_2_ftp_helper_socket[2] = { -1, -1 };
 
 	char v = '0';
-
+	
 	if (socketpair(AF_UNIX, SOCK_STREAM,
 	    PF_UNSPEC, ftp_2_ftp_helper_socket) == -1) {
 		(void)printf("socketpair, line: %d\n",
@@ -1419,12 +1478,14 @@ ftp_test(int block_socket, int ftp_helper_out_pipe,
 		_exit(0);
 	}
 
-	(void)close(STDOUT_FILENO);
+	if (verbose < 5) {
+		(void)close(STDOUT_FILENO);
+	}
 
 	(void)execl("/usr/bin/ftp", "ftp", line0, line, NULL);
 
 	/*
-	 *  I nullified stdout, so printf won't work
+	 *  I likely nullified stdout, so printf won't work
 	 */
 	(void)dprintf(std_err, "%s ", strerror(errno));
 	(void)dprintf(std_err, "ftp 2 (void)execl() failed, ");
@@ -1432,8 +1493,12 @@ ftp_test(int block_socket, int ftp_helper_out_pipe,
 	_exit(1);
 }
 
+/*
+ * download a fresh copy of the mirror list from a stale list of MIRRORS.
+ */ 
 static __attribute__((noreturn)) void
-ftp_first(int ftp_out_pipe, int root_user, int generate, int verbose)
+ftp_first(const int ftp_out_pipe, const int root_user, 
+	  const int generate, const int verbose)
 {
 	int n = dns_socket_len + 44;
 	
@@ -1647,6 +1712,7 @@ struct winsize {
 	int num1 = 0;
 	int num2 = 0;
 	int num3 = 0;
+	
 	char *host = NULL;
 	char  *cut = NULL;
 
@@ -1852,8 +1918,8 @@ struct winsize {
 				break;
 			}
 			++verbose;
-			if (verbose > 4) {
-				verbose = 4;
+			if (verbose > 5) {
+				verbose = 5;
 			}
 			break;
 		default:
@@ -1867,13 +1933,17 @@ struct winsize {
 	}
 
 	if (generate) {
+		
 		if (all) {
 			dns_cache = 0;
+			if (verbose < 2) {
+				verbose = 2;
+			}
 		}
-		
-		if (verbose < 1) {
+		else if (verbose < 1) {
 			verbose = 1;
 		}
+		
 		secure   = 1;
 		next     = 0;
 		previous = 0;
@@ -1900,10 +1970,6 @@ struct winsize {
 	 */
 	if (s < 0.015625L) {
 		errx(1, "try an -s greater than or equal to 0.015625 (1/64)");
-	}
-
-	if ((dns_cache == 0) && (verbose == 4)) {
-		verbose = 3;
 	}
 
 	if (dns_cache) {
@@ -1945,9 +2011,6 @@ struct winsize {
 			case 0:
 				(void)close(dns_cache_d_socket[PARENT_SOCK]);
 				(void)close(write_pipe[STDOUT_FILENO]);
-				if (all) {
-					verbose = 1;
-				}
 				file_d(write_pipe[STDIN_FILENO],
 				       secure, debug, verbose);
 				/* function cannot return */
@@ -1992,21 +2055,20 @@ struct winsize {
 	 * Let's do some work while ftp is downloading ftplist
 	 */
 
-
 	kq = kqueue();
 	if (kq == -1) {
 		errx(1, "kqueue() error, line :%d", __LINE__);
 	}
 
-	S = (long double) timeout_ftp_list.tv_sec +
-	    (long double) timeout_ftp_list.tv_nsec / 1000000000.0L;
+	S = ((long double) timeout_ftp_list.tv_sec) +
+	    ((long double) timeout_ftp_list.tv_nsec) / 1000000000.0L;
 
 	if (s > S) {
 		timeout_ftp_list.tv_sec  = (time_t) s;
 		timeout_ftp_list.tv_nsec =
 		    (long) (
 			       (
-		                  s - (long double)timeout_ftp_list.tv_sec
+		                  s - (long double) timeout_ftp_list.tv_sec
 		               ) * 1000000000.0L
 		           );
 	}
@@ -2359,8 +2421,14 @@ struct winsize {
 		(void)clock_gettime(CLOCK_REALTIME, &startD);
 	}
 
-	while (read(z, &v, 1) == 1) {
-		if (pos >= (int)(dns_socket_len - 2)) {
+	while (read(z, &v, sizeof(char)) == sizeof(char)) {
+		
+		if (verbose == 5) {
+			(void)printf("%c", v);
+			(void)fflush(stdout);
+		}
+
+		if (pos >= (int)(dns_socket_len - 2 * sizeof(char))) {
 			line[pos] = '\0';
 			(void)printf("'line': %s\n", line);
 			(void)printf("pos got too big! line: %d\n", __LINE__);
@@ -2389,14 +2457,14 @@ struct winsize {
 				return 1;
 			}
 
-			/*
-			 * http mirror becomes an https mirror.
-			 */
 			if (secure) {
+			/*
+			 * an http mirror becomes an https mirror.
+			 */
 				(void)memmove(line + 5, line + 4,
 				    (size_t)pos - 4);
-				line[4] = 's';
 				++pos;
+				line[4] = 's';
 			}
 
 			if (pos_max < pos) {
@@ -2435,6 +2503,23 @@ struct winsize {
 
 		line[pos] = '\0';
 		++pos;
+
+
+		/*
+		 * having a comma at the beginning is problematic later
+		 * and it's an error we can clean up now cheaply
+		 * if it ever could occur.
+		 */
+		if (line[0] == ',' && line[1] == ' ') {
+			pos -= 2;
+			(void)memmove(line, line + 2,
+			    (size_t)pos);
+		} else if (line[0] == ',') {
+			--pos;
+			(void)memmove(line, line + 1,
+			    (size_t)pos);
+		}
+		
 
 		if ((usa == 0) && strstr(line, "USA")) {
 			(void)free(array[array_length].http);
@@ -2485,7 +2570,7 @@ struct winsize {
 				/*
 				 * will likely never get here
 				 */
-				if (pos >= (int)(dns_socket_len - 2)) {
+				if (pos >= ((int)dns_socket_len) - 2) {
 					errx(1,
 					    "too many unladen commas, line: %d",
 					    __LINE__
@@ -2499,12 +2584,15 @@ struct winsize {
 				++pos;
 				line_temp[1] = ' ';
 			}
+			
+			/* Either a space is added or line_temp[1] is a space */
 			line_temp = strchr(line_temp + 2, ',');
 		}
 
 		/*
 		 * Not a fan of "The " in "The Netherlands" in here
 		 *     I think it sticks out when it's sorted.
+		 *       and I don't want to sort on "The".
 		 *
 		 *   If the label has a "The " after the last ", "
 		 *   or if it has no comma and starts with "The ",
@@ -2542,10 +2630,11 @@ struct winsize {
 				errx(1, "array_max got insanely large");
 			}
 			
-			array = recallocarray(array_temp,
-				              (size_t)array_length,
-				              (size_t)array_max,
-			                      sizeof(MIRROR));
+			array = (MIRROR*)recallocarray(array_temp,
+				                       (size_t)array_length,
+				                       (size_t)array_max,
+			                               sizeof(MIRROR)
+			                              );
 
 			if (array == NULL) {
 				(void)free(array_temp);
@@ -2746,9 +2835,9 @@ struct winsize {
 		cut = strchr(host, '/');
 
 		if (verbose >= 2) {
-			if (verbose == 4) {
+			if (  (verbose >= 4) && (dns_cache != 0) ) {
 				(void)printf("\n\n\n\n");
-			} else if (verbose == 3) {
+			} else if (verbose >= 3) {
 				(void)printf("\n\n");
 			} else {
 				(void)printf("\n");
@@ -2838,8 +2927,8 @@ struct winsize {
 			 * I use kevent here, just so I can restart
 			 * the program again if DNS daemon is stuck
 			 */
-			EV_SET(&ke, dns_cache_d_socket[PARENT_SOCK], EVFILT_READ,
-			    EV_ADD | EV_ONESHOT, 0, 0, NULL);
+			EV_SET(&ke, dns_cache_d_socket[PARENT_SOCK],
+			    EVFILT_READ, EV_ADD | EV_ONESHOT, 0, 0, NULL);
 			i = kevent(kq, &ke, 1, &ke, 1, &timeout_d);
 
 			if ((verbose >= 0) && (verbose <= 3)) {
@@ -2949,7 +3038,7 @@ restart_dns_err:
 
 				ftp_test(block_socket[CHILD_SOCK],
 				           ftp_helper_out_pipe[STDOUT_FILENO],
-					   verbose, debug || all, root_user, 
+					   verbose, debug, root_user, 
 					   std_err);
 				/* function cannot return */
 				break;
@@ -2962,6 +3051,15 @@ restart_dns_err:
 
 		EV_SET(&ke, ftp_pid, EVFILT_PROC, EV_ADD |
 		    EV_ONESHOT, NOTE_EXIT, 0, NULL);
+		
+		/*
+		 * this separate kevent call and block-socketing ensures
+		 * that ftp_test and ftp_test_help are created and prepared to
+		 * immediately execute to eliminate as many timing variables
+		 * as possible which can be done in a single ftp download.
+		 * Hopefully after the dust settles, mirror responsiveness is
+		 * is judged fairly.
+		 */
 		if (kevent(kq, &ke, 1, NULL, 0, NULL) == -1) {
 			(void)printf("%s ", strerror(errno));
 			(void)printf("kevent register fail,");
@@ -3035,7 +3133,8 @@ restart_dns_err:
 			continue;
 		}
 
-		if (!debug && !all) {
+		// to get here, !all is true
+		if (!debug /* && !all */) {
 			z = ftp_helper_out_pipe[STDIN_FILENO];
 			if (read(z, &array[c].speed, sizeof(long double))
 			    < (ssize_t)sizeof(long double)) {
@@ -3098,6 +3197,7 @@ restart_dns_err:
 	free(line);
 	line = NULL;
 	(void)close(kq);
+	kq = -1;
 
 	if (verbose <= 0) {
 
@@ -3110,7 +3210,7 @@ restart_dns_err:
 				    sizeof(MIRROR), diff_cmp_pure)
 			   ) {
 				err(1, "sort failed, line %d", __LINE__);
-			    }
+			}
 
 			c = (int)array_length;
 			do {
@@ -3130,7 +3230,7 @@ restart_dns_err:
 				    diff_cmp)
 			   ) {
 				err(1, "sort failed, line %d", __LINE__);
-			    }
+			}
 
 			for (c = 0; c <= se; ++c) {
 				long double t;
@@ -3156,7 +3256,7 @@ restart_dns_err:
 				    sizeof(MIRROR), diff_cmp_pure)
 			   ) {
 				err(1, "sort failed, line %d", __LINE__);
-			    }
+			}
 
 			for (c = 0; c <= se; ++c) {
 				long double t;
