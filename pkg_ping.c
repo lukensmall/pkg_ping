@@ -97,29 +97,29 @@ static int entry_line = __LINE__;
                         /* GENERATED CODE BEGINS HERE */
 
 
-static const char *ftp_list[53] = {
+static const char *ftp_list[52] = {
 
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
            "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
-           "ftp.rnl.tecnico.ulisboa.pt","openbsd.mirrors.hoobly.com",
-  "mirrors.ocf.berkeley.edu","mirror.hs-esslingen.de","mirrors.pidginhost.com",
-    "openbsd.cs.toronto.edu","*artfiles.org/openbsd","mirror.planetunix.net",
-     "www.mirrorservice.org","mirror.aarnet.edu.au","openbsd.c3sl.ufpr.br",
-       "ftp.usa.openbsd.org","ftp2.eu.openbsd.org","ftp2.fr.openbsd.org",
-       "mirror.leaseweb.com","mirror.telepoint.bg","mirrors.gigenet.com",
-         "ftp.eu.openbsd.org","ftp.fr.openbsd.org","ftp.lysator.liu.se",
-         "mirror.freedif.org","mirror.fsmg.org.nz","mirror.ungleich.ch",
-         "mirrors.aliyun.com","mirrors.dotsrc.org","openbsd.ipacct.com",
-"ftp.hostserver.de","mirrors.chroot.ro","mirrors.sonic.net","mirrors.ucr.ac.cr",
-  "openbsd.as250.net","mirror.group.one","mirror.litnet.lt","mirror.yandex.ru",
-    "cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.ihost.md",
-     "mirror.junda.nl","mirror.ox.ac.uk","mirrors.mit.edu","ftp.icm.edu.pl",
- "mirror.rise.ph","ftp.cc.uoc.gr","ftp.spline.de","ftp.nluug.nl","ftp.psnc.pl",
-                            "ftp.bit.nl","ftp.fau.de"
+            "ftp.rnl.tecnico.ulisboa.pt","mirrors.ocf.berkeley.edu",
+   "mirror.hs-esslingen.de","mirrors.pidginhost.com","openbsd.cs.toronto.edu",
+    "*artfiles.org/openbsd","mirror.planetunix.net","www.mirrorservice.org",
+      "mirror.aarnet.edu.au","openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org",
+       "ftp2.eu.openbsd.org","ftp2.fr.openbsd.org","mirror.leaseweb.com",
+        "mirror.telepoint.bg","mirrors.gigenet.com","ftp.eu.openbsd.org",
+         "ftp.fr.openbsd.org","ftp.lysator.liu.se","mirror.freedif.org",
+         "mirror.fsmg.org.nz","mirror.ungleich.ch","mirrors.aliyun.com",
+         "mirrors.dotsrc.org","openbsd.ipacct.com","ftp.hostserver.de",
+"mirrors.chroot.ro","mirrors.sonic.net","mirrors.ucr.ac.cr","openbsd.as250.net",
+   "mirror.group.one","mirror.litnet.lt","mirror.yandex.ru","cdn.openbsd.org",
+    "ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.ihost.md","mirror.junda.nl",
+     "mirror.ox.ac.uk","mirrors.mit.edu","ftp.icm.edu.pl","mirror.rise.ph",
+   "ftp.cc.uoc.gr","ftp.spline.de","ftp.nluug.nl","ftp.psnc.pl","ftp.bit.nl",
+                                  "ftp.fau.de"
 
 };
 
-static const int ftp_list_index = 53;
+static const int ftp_list_index = 52;
 
 
 
@@ -192,11 +192,23 @@ free_array(void)
 		(void)free(ac->label);
 		(void)free(ac->http);
 	}
+	array_length = 0;
+	
 	(void)free(array);
+	array = NULL;
+
 	(void)free(diff_string);
+	diff_string = NULL;
+
 	(void)free(line0);
+	line0 = NULL;
+
 	(void)free(line);
+	line = NULL;
+
 	(void)free(tag);
+	tag = NULL;
+
 }
 
 static long double almost_zero = 0.0L;
@@ -882,7 +894,7 @@ dns_loop:
 
 		/*
 		 * compiler complains of potential misalignment
-
+		 *
 		 * sa6 = (struct sockaddr_in6 *) res->ai_addr;
 		 */
 
@@ -1381,7 +1393,7 @@ ftp_test_help(const int ftp_helper_out_pipe, const int ftp_2_ftp_helper_socket,
 static __attribute__((noreturn)) void
 ftp_test(const int block_socket, const int ftp_helper_out_pipe,
          const int verbose, const int bail, const int root_user,
-         const int std_err)
+         const int std_err, const int print)
 {
 	int ftp_2_ftp_helper_socket[2] = { -1, -1 };
 
@@ -1478,7 +1490,7 @@ ftp_test(const int block_socket, const int ftp_helper_out_pipe,
 		_exit(0);
 	}
 
-	if (verbose < 5) {
+	if (verbose < 5 || !print) {
 		(void)close(STDOUT_FILENO);
 	}
 
@@ -1618,13 +1630,14 @@ main(int argc, char *argv[])
 	int       override = 0;
 	int       generate = 0;
 	int         secure = 0;
-	int            all = 0;	/* this shouldn't be 1 unless generate is too */
+	int            all = generate;
 	int            num = 0;
 	int            six = 0;
 	int       previous = 0;
 	int           next = 0;
 	int          s_set = 0;
 	int          debug = 0;
+	int     test_print = 0;
 	
 	int array_max = 200;
 
@@ -2510,16 +2523,26 @@ struct winsize {
 		 * and it's an error we can clean up now cheaply
 		 * if it ever could occur.
 		 */
-		if (line[0] == ',' && line[1] == ' ') {
-			pos -= 2;
-			(void)memmove(line, line + 2,
-			    (size_t)pos);
-		} else if (line[0] == ',') {
-			--pos;
-			(void)memmove(line, line + 1,
-			    (size_t)pos);
-		}
+		do {
+			if (!memcmp(line, ", ", 2)) {
+				pos -= 2;
+				(void)memmove(line, line + 2,
+				    (size_t)pos);
+			} else if (line[0] == ',') {
+				--pos;
+				(void)memmove(line, line + 1,
+				    (size_t)pos);
+			} else {
+				break;
+			}
+		} while (pos > 1);
 		
+		if (pos <= 1) {
+			(void)free(array[array_length].http);
+			num = 0;
+			pos = 0;
+			continue;
+		}
 
 		if ((usa == 0) && strstr(line, "USA")) {
 			(void)free(array[array_length].http);
@@ -3025,10 +3048,17 @@ restart_dns_err:
 					(void)free(ac->label);
 					(void)free(ac->http);
 				}
+				array_length = 0;
+				
 				(void)free(array);
-				(void)free(diff_string);
-				(void)free(tag);
+				array = NULL;
 
+				(void)free(diff_string);
+				diff_string = NULL;
+
+				(void)free(tag);
+				tag = NULL;
+				
 				(void)close(kq);
 				(void)close(dns_cache_d_socket[PARENT_SOCK]);
 				(void)close(write_pipe[STDOUT_FILENO]);
@@ -3039,7 +3069,7 @@ restart_dns_err:
 				ftp_test(block_socket[CHILD_SOCK],
 				           ftp_helper_out_pipe[STDOUT_FILENO],
 					   verbose, debug, root_user, 
-					   std_err);
+					   std_err, test_print == 0);
 				/* function cannot return */
 				break;
 			default:
@@ -3051,7 +3081,7 @@ restart_dns_err:
 
 		EV_SET(&ke, ftp_pid, EVFILT_PROC, EV_ADD |
 		    EV_ONESHOT, NOTE_EXIT, 0, NULL);
-		
+
 		/*
 		 * this separate kevent call and block-socketing ensures
 		 * that ftp_test and ftp_test_help are created and prepared to
@@ -3147,6 +3177,13 @@ restart_dns_err:
 		array[c].diff =
 		    (long double) (end.tv_sec  - start.tv_sec ) +
 		    (long double) (end.tv_nsec - start.tv_nsec) / 1000000000.0L;
+		
+		if (test_print == 0 && array[c].diff < s) {
+			test_print = 1;
+			if (verbose == 5) {
+				(void)printf("\n<Print output one time>\n");
+			}
+		}
 
 		if (verbose >= 2) {
 			if (array[c].diff >= s) {
