@@ -1,5 +1,9 @@
 ### It determines and prints the fastest OpenBSD mirror(s) for your version and architecture for the /etc/installurl file and if run as root, will write the fastest successful one to disk unless -f is used.
 
+### New feature:
+
+I added more verbosity for your curiosity. It will print out the downloaded raw mirror list and a single complete download of the SHA256 files or time file with a 5th -v or -vvvvv
+
 ### Major update:
 
 It works for 7.8. OpenBSD won't let me declare malloc_options and change it later.
@@ -16,7 +20,7 @@ send it back to the parent process and uses that bandwidth and the response spee
 but based upon translating it to a linear equation for more equitable rankings so super fast and super responsive mirrors will be weighed stronger!
 However you may choose to purely rate by the most responsive or the fastest instead!
 
-New flags: -a, -b, and -r
+### New flags: -a, -b, and -r
 
 Perhaps some of you may be put off by the source code containing a hard-coded mirror array.
 If you don't trust the array, you can run it with the -g flag and it will print out another hard-coded
@@ -46,7 +50,7 @@ It uses several commandline options:
 -6 causes it to only lookup ipv6 addresses on mirrors.
    Maybe you want to make an ipv6 only box, but want to test it with ipv4 connected first?
 
--a: makes -V or zero -v take it's time and not shorten the time out and evaluate average time. Otherwise for -vv and above, it has no effect.
+-a: makes with -V or zero -v take it's time and not shorten the time out and evaluate average time. Otherwise for -vv and above, it has no effect.
 Average is the default setting otherwise.
 
 -b: rate purely by bandwidth
@@ -63,6 +67,8 @@ Average is the default setting otherwise.
    might have snapshots or desired release of your architecture or version. It presets options such as minimum 
    verboseness of -v, -f, and finally: -S because the mirror list needs to be securely downloaded. 
    This flag will also reset variables set by -O, -p and -n.
+
+-G is like -g except it is very fast and prints out all of the mirrors without testing them.
 
 -h will print the "help" options.
 
@@ -100,7 +106,7 @@ If both -n and -p are specified, it will default to the last argument specified.
 
 
 -U will only load mirrors with "USA", "Canada", and "CDN" in the label. This can be used with -u to only get
-   Canada and CDN mirrors I suppose.
+   Canada and CDN mirrors.
 
 
 -v will show when it is fetching "ftplist" from one of the many hard coded mirrors, prints out the results 
@@ -115,6 +121,8 @@ If both -n and -p are specified, it will default to the last argument specified.
 
 -vvvv (an additional -v) will also show dns lookup output if -d is not used. It will temporarily print a * with less -v's to indicate dns caching.
       Further -v arguments are ignored
+
+-vvvvv (an additional -v) will also print out the freshly downloaded raw mirror list. It will also print out the first successful SHA256 file or time file it downloads.
 
 -V will stop all output except error messages. It overrides all -v instances.
    It's useful I suppose, if run from a script or daemon as root so that it writes the result to file.
@@ -151,3 +159,6 @@ Example usages:
 pkg_ping -vs1.5 -vvu
 
 /usr/local/bin/pkg_ping -vSvs 2
+
+(my favorite)
+pkg_ping -vvvvvUSs2
