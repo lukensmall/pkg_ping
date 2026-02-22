@@ -1,7 +1,7 @@
 /*
  * BSD 2-Clause License
  *
- * Copyright (c) 2016 - 2025, Luke N Small, thinkitdoitdone@gmail.com
+ * Copyright (c) 2016 - 2026, Luke N Small, thinkitdoitdone@gmail.com
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -97,7 +97,7 @@ static int entry_line = __LINE__;
                         /* GENERATED CODE BEGINS HERE */
 
 
-static const char *ftp_list[52] = {
+static const char *ftp_list[53] = {
 
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
            "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
@@ -113,13 +113,13 @@ static const char *ftp_list[52] = {
 "mirrors.chroot.ro","mirrors.sonic.net","mirrors.ucr.ac.cr","openbsd.as250.net",
    "mirror.group.one","mirror.litnet.lt","mirror.yandex.ru","cdn.openbsd.org",
     "ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.ihost.md","mirror.junda.nl",
-     "mirror.ox.ac.uk","mirrors.mit.edu","ftp.icm.edu.pl","mirror.rise.ph",
-   "ftp.cc.uoc.gr","ftp.spline.de","ftp.nluug.nl","ftp.psnc.pl","ftp.bit.nl",
-                                  "ftp.fau.de"
+     "mirror.mephi.ru","mirror.ox.ac.uk","mirrors.mit.edu","ftp.icm.edu.pl",
+ "mirror.rise.ph","ftp.cc.uoc.gr","ftp.spline.de","ftp.nluug.nl","ftp.psnc.pl",
+                            "ftp.bit.nl","ftp.fau.de"
 
 };
 
-static const int ftp_list_index = 52;
+static const int ftp_list_index = 53;
 
 
 
@@ -1308,7 +1308,8 @@ ftp_test_help(const int ftp_helper_out_pipe, const int ftp_2_ftp_helper_socket,
 		}
 
 		if (v != ')') {
-			line[pos++] = v;
+			line[pos] = v;
+			++pos;
 			continue;
 		}
 
@@ -1490,7 +1491,7 @@ ftp_test(const int block_socket, const int ftp_helper_out_pipe,
 		_exit(0);
 	}
 
-	if (verbose < 5 || !print) {
+	if ((verbose < 5) || (!print)) {
 		(void)close(STDOUT_FILENO);
 	}
 
@@ -2441,7 +2442,7 @@ struct winsize {
 			(void)fflush(stdout);
 		}
 
-		if (pos >= (int)(dns_socket_len - 2 * sizeof(char))) {
+		if ((pos) >= ((int)(dns_socket_len - 2 * sizeof(char)))) {
 			line[pos] = '\0';
 			(void)printf("'line': %s\n", line);
 			(void)printf("pos got too big! line: %d\n", __LINE__);
@@ -2524,7 +2525,7 @@ struct winsize {
 		 * if it ever could occur.
 		 */
 		do {
-			if (!memcmp(line, ", ", 2)) {
+			if (!strncmp(line, ", ", 2)) {
 				pos -= 2;
 				(void)memmove(line, line + 2,
 				    (size_t)pos);
@@ -3178,7 +3179,7 @@ restart_dns_err:
 		    (long double) (end.tv_sec  - start.tv_sec ) +
 		    (long double) (end.tv_nsec - start.tv_nsec) / 1000000000.0L;
 		
-		if (test_print == 0 && array[c].diff < s) {
+		if ((test_print == 0) && (array[c].diff < s)) {
 			test_print = 1;
 			if (verbose == 5) {
 				(void)printf("\n<Print output one time>\n");
