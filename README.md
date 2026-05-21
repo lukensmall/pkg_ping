@@ -1,5 +1,9 @@
 ### It determines and prints the fastest OpenBSD mirror(s) for your version and architecture for the /etc/installurl file and if run as root, will write the fastest successful one to disk unless -f is used.
 
+### Major update:
+
+It works for 7.9. OpenBSD requires an extra "rpath" pledge proliferate to the dns daemon.
+
 ### New feature:
 
 I added more verbosity for your curiosity. It will print out the downloaded raw mirror list and a single complete download of the SHA256 files or time file with a 5th -v or -vvvvv
