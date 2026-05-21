@@ -738,7 +738,7 @@ struct addrinfo {
 		goto dns_exit1;
 	}
 
-	if (pledge("stdio dns", NULL) == -1) {
+	if (pledge("stdio dns rpath", NULL) == -1) {
 		(void)printf("%s ", strerror(errno));
 		(void)printf("dns_cache_d pledge, line: %d\n", __LINE__);
 		_exit(1);
@@ -1004,7 +1004,7 @@ dns_exit1:
 }
 
 /*
- * Writes the determined intallurl when main() supplies it.
+ * Writes the determined installurl when main() supplies it.
  * 
  * I considered keeping this functionality in main(), but
  * if there's a possibility of the main() getting overrun,
@@ -1736,7 +1736,7 @@ struct winsize {
 		err(1, "almost_zero == 0, line: %d", __LINE__);
 	}
 
-	i = pledge("stdio exec proc cpath wpath dns id unveil tty", NULL);
+	i = pledge("stdio exec proc cpath wpath dns rpath id unveil tty", NULL);
 	if (i == -1) {
 		err(1, "pledge, line: %d", __LINE__);
 	}
@@ -1757,11 +1757,11 @@ struct winsize {
 		if (unveil("/etc/installurl", "cw") == -1) {
 			err(1, "unveil, line: %d", __LINE__);
 		}
-		if (pledge("stdio exec proc cpath wpath dns id", NULL) == -1) {
+		if (pledge("stdio exec proc cpath wpath dns rpath id", NULL) == -1) {
 			err(1, "pledge, line: %d", __LINE__);
 		}
 	} else {
-		if (pledge("stdio exec proc dns id", NULL) == -1) {
+		if (pledge("stdio exec proc dns rpath id", NULL) == -1) {
 			err(1, "pledge, line: %d", __LINE__);
 		}
 	}
@@ -1816,7 +1816,7 @@ struct winsize {
 			break;
 		case 'f':
 			to_file = 0;
-			if (pledge("stdio exec proc dns id", NULL) == -1) {
+			if (pledge("stdio exec proc dns rpath id", NULL) == -1) {
 				err(1, "pledge, line: %d", __LINE__);
 			}
 			break;
@@ -1963,7 +1963,7 @@ struct winsize {
 		previous = 0;
 		override = 0;
 		to_file  = 0;
-		if (pledge("stdio exec proc dns id", NULL) == -1) {
+		if (pledge("stdio exec proc dns rpath id", NULL) == -1) {
 			err(1, "pledge, line: %d", __LINE__);
 		}
 
@@ -3282,11 +3282,15 @@ restart_dns_err:
 				 * good speeds stand out from the rest
 				 * and evaluated accordingly.
 				 */
-				t  = array[c].speed - array[se].speed;
-				t *= 100.0L;
-				t /= array[0].speed - array[se].speed;
+				if (array[0].speed != array[se].speed) {
+					t  = array[c].speed - array[se].speed;
+					t *= 100.0L;
+					t /= array[0].speed - array[se].speed;
 
-				array[c].speed_rating = t;
+					array[c].speed_rating = t;
+				} else {
+					array[c].speed_rating = 100.0L;
+				}
 			}
 
 			if (
@@ -3308,11 +3312,18 @@ restart_dns_err:
 				 * good speeds stand out from the rest
 				 * and evaluated accordingly.
 				 */
-				t = array[c].diff - array[0].diff;
-				t *= 100.0L;
-				t /= array[se].diff - array[0].diff;
+				if (array[se].diff != array[0].diff) {
+					t = array[c].diff - array[0].diff;
+					t *= 100.0L;
+					t /= array[se].diff - array[0].diff;
 
-				array[c].diff_rating = 100.0L - t;
+					array[c].diff_rating = 100.0L - t;
+				} else {
+					array[c].diff_rating = 100.0L;
+				}
+
+
+
 			}
 
 			if (
@@ -3731,11 +3742,15 @@ generate_jump:
 			 * good speeds stand out from the rest
 			 * and evaluated accordingly.
 			 */
-			t = array[c].speed - array[se].speed;
-			t *= 100.0L;
-			t /= array[0].speed - array[se].speed;
+			if (array[0].speed != array[se].speed) {
+				t  = array[c].speed - array[se].speed;
+				t *= 100.0L;
+				t /= array[0].speed - array[se].speed;
 
-			array[c].speed_rating = t;
+				array[c].speed_rating = t;
+			} else {
+				array[c].speed_rating = 100.0L;
+			}
 		}
 
 		if (
@@ -3756,11 +3771,15 @@ generate_jump:
 			 * good speeds stand out from the rest
 			 * and evaluated accordingly.
 			 */
-			t = array[c].diff - array[0].diff;
-			t *= 100.0L;
-			t /= array[se].diff - array[0].diff;
+			if (array[se].diff != array[0].diff) {
+				t = array[c].diff - array[0].diff;
+				t *= 100.0L;
+				t /= array[se].diff - array[0].diff;
 
-			array[c].diff_rating = 100.0L - t;
+				array[c].diff_rating = 100.0L - t;
+			} else {
+				array[c].diff_rating = 100.0L;
+			}
 		}
 
 
