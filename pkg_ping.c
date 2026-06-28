@@ -79,6 +79,7 @@ cc pkg_ping.c -march=native -mtune=native -flto -static -O3 \
 #include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
+#include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -86,8 +87,23 @@ cc pkg_ping.c -march=native -mtune=native -flto -static -O3 \
 #include <time.h>
 #include <unistd.h>
 
+/*
+ * OpenBSD seems to enforce a single declaration of this, now.
+ */
 extern char *malloc_options = "CFGJJU";
 
+/*
+ * Wipe out environment variables,
+ * which conceivably could be bad to keep.
+ * 
+ * We don't need environment variables at all.
+ * I'm going to disable them
+ */
+extern char **environ = NULL;
+
+/*
+ * I figured that I'd clean up some of the magic numbers.
+ */
 #define PARENT_SOCK 0
 #define  CHILD_SOCK 1
 
@@ -97,43 +113,41 @@ static int entry_line = __LINE__;
                         /* GENERATED CODE BEGINS HERE */
 
 
-static const char *ftp_list[53] = {
+static const char *ftp_list[49] = {
 
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
            "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
             "ftp.rnl.tecnico.ulisboa.pt","mirrors.ocf.berkeley.edu",
-   "mirror.hs-esslingen.de","mirrors.pidginhost.com","openbsd.cs.toronto.edu",
-    "*artfiles.org/openbsd","mirror.planetunix.net","www.mirrorservice.org",
-      "mirror.aarnet.edu.au","openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org",
-       "ftp2.eu.openbsd.org","ftp2.fr.openbsd.org","mirror.leaseweb.com",
-        "mirror.telepoint.bg","mirrors.gigenet.com","ftp.eu.openbsd.org",
-         "ftp.fr.openbsd.org","ftp.lysator.liu.se","mirror.freedif.org",
-         "mirror.fsmg.org.nz","mirror.ungleich.ch","mirrors.aliyun.com",
-         "mirrors.dotsrc.org","openbsd.ipacct.com","ftp.hostserver.de",
+   "mirrors.pidginhost.com","openbsd.cs.toronto.edu","*artfiles.org/openbsd",
+     "mirror.planetunix.net","www.mirrorservice.org","mirror.aarnet.edu.au",
+       "openbsd.c3sl.ufpr.br","ftp.usa.openbsd.org","ftp2.fr.openbsd.org",
+       "mirror.leaseweb.com","mirror.telepoint.bg","mirrors.gigenet.com",
+         "ftp.eu.openbsd.org","ftp.fr.openbsd.org","ftp.lysator.liu.se",
+         "mirror.freedif.org","mirror.fsmg.org.nz","mirror.ungleich.ch",
+         "mirrors.aliyun.com","mirrors.dotsrc.org","ftp.hostserver.de",
 "mirrors.chroot.ro","mirrors.sonic.net","mirrors.ucr.ac.cr","openbsd.as250.net",
    "mirror.group.one","mirror.litnet.lt","mirror.yandex.ru","cdn.openbsd.org",
     "ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.ihost.md","mirror.junda.nl",
-     "mirror.mephi.ru","mirror.ox.ac.uk","mirrors.mit.edu","ftp.icm.edu.pl",
- "mirror.rise.ph","ftp.cc.uoc.gr","ftp.spline.de","ftp.nluug.nl","ftp.psnc.pl",
-                            "ftp.bit.nl","ftp.fau.de"
+     "mirror.ox.ac.uk","mirrors.mit.edu","ftp.icm.edu.pl","mirror.rise.ph",
+   "ftp.cc.uoc.gr","ftp.spline.de","ftp.nluug.nl","ftp.psnc.pl","ftp.bit.nl",
+                                  "ftp.fau.de"
 
 };
 
-static const int ftp_list_index = 53;
+static const int ftp_list_index = 49;
 
 
 
      /* Trusted OpenBSD.org subdomain mirrors for generating this section */
 
-static const char *ftp_list_g[8] = {
+static const char *ftp_list_g[7] = {
 
-    "cloudflare.cdn.openbsd.org","ftp.usa.openbsd.org","ftp2.eu.openbsd.org",
-        "ftp2.fr.openbsd.org","ftp.eu.openbsd.org","ftp.fr.openbsd.org",
-                       "cdn.openbsd.org","ftp.OpenBSD.org"
+    "cloudflare.cdn.openbsd.org","ftp.usa.openbsd.org","ftp2.fr.openbsd.org",
+  "ftp.eu.openbsd.org","ftp.fr.openbsd.org","cdn.openbsd.org","ftp.OpenBSD.org"
 
 };
 
-static const int ftp_list_index_g = 8;
+static const int ftp_list_index_g = 7;
 
 
                          /* GENERATED CODE ENDS HERE */
@@ -173,7 +187,6 @@ static int kq = -1;
 
 static char *diff_string = NULL;
 static char        *line = NULL;
-static char       *line0 = NULL;
 static char         *tag = NULL;
 
 static const size_t dns_socket_len = 1256;
@@ -199,9 +212,6 @@ free_array(void)
 
 	(void)free(diff_string);
 	diff_string = NULL;
-
-	(void)free(line0);
-	line0 = NULL;
 
 	(void)free(line);
 	line = NULL;
@@ -244,13 +254,14 @@ sub_one_print(long double diff)
 
 /*
  * comparison between two MIRRORs. 
- * Prioritize MIRRORs which are likely closer to the USA, otherwise...don't care.
+ * Prioritize MIRRORs which are likely closer to the USA,
+ * otherwise...don't care.
  */
 static int
 usa_cmp(const void *a, const void *b)
 {
-	char *one_label = ((const MIRROR *) a)->label;
-	char *two_label = ((const MIRROR *) b)->label;
+	const char *one_label = ((const MIRROR *) a)->label;
+	const char *two_label = ((const MIRROR *) b)->label;
 
 	/* 
 	 * prioritize the USA mirrors first
@@ -300,7 +311,8 @@ usa_cmp(const void *a, const void *b)
  * hierarchy which are in reverse order between commas.
  * 
  * checks to make sure these procedures are safe, are performed in main
- * It can assume all commas in the labels are followed by a space
+ * It can assume all commas in the labels are followed by a space,
+ * there is no leading comma, and there are no double spaces.
  */
 static int
 label_cmp_minus_usa(const void *a, const void *b)
@@ -447,7 +459,8 @@ diff_cmp_pure(const void *a, const void *b)
 
 /*
  * comparison between two MIRRORs.
- * First determine whether the diff is different, then
+ * First determine whether the speed is different, then if the diff is
+ * different, then
  * Prioritize MIRRORs which are likely close to the USA, otherwise if zero,
  * return the reverse result of label_cmp_minus_usa().
  */
@@ -502,7 +515,6 @@ diff_cmp_g(const void *a, const void *b)
 	/*
 	 * sort those with greater diff values first
 	 */
-
 	const int diff = (
 		    (const int) ((const MIRROR *) b)->diff
 		                      -
@@ -677,14 +689,15 @@ manpage(void)
 }
 
 /*
- * I created this DNS daemon which when supplied a URL, it will print out
- * DNS records, but it also pre-caches any ftp() call where ftp(1) issues a
+ * I created this DNS caching daemon which when supplied a URL, it will print
+ * out DNS records, but it also pre-caches any ftp() call where ftp(1) issues a
  * DNS call using the same mechanism so, fetching it precaches whatever dns
- * server you're using it's fetched very quickly to let the ftp call timings not
- * need to wait for DNS calls to fetch the DNS records across the internet in an
- * undetermined time; thereby eliminating the biggest problem in determining the
- * raw responsiveness of a server to a request in a single request to limit the
- * annoying file downloads on their networks to an absolute minimum.
+ * server you're using, so it's fetched very quickly to let the ftp call timings
+ * not need to wait for DNS calls to fetch the DNS records across the internet
+ * in an undetermined time; thereby eliminating the biggest problem in
+ * determining the raw responsiveness of a server to a request in a single
+ * request to limit the annoying file downloads on their networks to an
+ * absolute minimum.
  */
 static __attribute__((noreturn)) void
 dns_cache_d(const int dns_socket, const int secure,
@@ -695,6 +708,7 @@ dns_cache_d(const int dns_socket, const int secure,
 	int c = 0;
 	struct addrinfo *res0 = NULL;
 	struct addrinfo *res  = NULL;
+	int ret = 1;
 
 /*
 from: /usr/src/include/netdb.h
@@ -735,33 +749,32 @@ struct addrinfo {
 	char *dns_line = (char*)calloc(dns_socket_len, sizeof(char));
 	if (dns_line == NULL) {
 		(void)printf("calloc\n");
-		goto dns_exit1;
+		goto dns_exit;
 	}
 
-	if (pledge("stdio dns rpath", NULL) == -1) {
+	if (pledge("stdio dns", NULL) == -1) {
 		(void)printf("%s ", strerror(errno));
 		(void)printf("dns_cache_d pledge, line: %d\n", __LINE__);
-		_exit(1);
+		goto dns_exit;
 	}
 	
 dns_loop:
 
 	i = (int)read(dns_socket, dns_line, dns_socket_len);
 	if (i == 0) {
-		(void)free(dns_line);
-		(void)close(dns_socket);
-		_exit(0);
+		ret = 0;
+		goto dns_exit;
 	}
 
 	if (i == dns_socket_len) {
 		(void)printf("i == dns_socket_len, line: %d\n", __LINE__);
-		goto dns_exit1;
+		goto dns_exit;
 	}
 
 	if (i == -1) {
 		(void)printf("%s ", strerror(errno));
 		(void)printf("read error line: %d\n", __LINE__);
-		goto dns_exit1;
+		goto dns_exit;
 	}
 	dns_line[i] = '\0';
 
@@ -778,12 +791,14 @@ dns_loop:
 			if (verbose >= 4) {
 				(void)printf("%s\n", gai_strerror((int)c));
 			}
-			i = (int)write(dns_socket, "f", 1);
-			if (i < 1) {
-				(void)printf("%s ", strerror(errno));
+			i = (int)write(dns_socket, "f", sizeof(char));
+			if (i != sizeof(char)) {
+				if (i == -1) {
+					(void)printf("%s ", strerror(errno));
+				}
 				(void)printf("write error line: %d\n",
 				                    __LINE__);
-				goto dns_exit1;
+				goto dns_exit;
 			}
 			goto dns_loop;
 		}
@@ -824,17 +839,19 @@ dns_loop:
 		}
 
 		if (res == NULL) {
-			i = (int)write(dns_socket, "u", 1);
+			i = (int)write(dns_socket, "u", sizeof(char));
 		} else {
-			i = (int)write(dns_socket, "1", 1);
+			i = (int)write(dns_socket, "1", sizeof(char));
 		}
 
-		if (i != 1) {
+		
+		if (i != sizeof(char)) {
 			if (i == -1) {
 				(void)printf("%s ", strerror(errno));
 			}
 			(void)printf("write error line: %d\n", __LINE__);
-			goto dns_exit1;
+			freeaddrinfo(res0);
+			goto dns_exit;
 		}
 		freeaddrinfo(res0);
 		goto dns_loop;
@@ -984,23 +1001,28 @@ dns_loop:
 	}
 	freeaddrinfo(res0);
 
-	i = (int)write(dns_socket, &six_available, 1);
+	i = (int)write(dns_socket, &six_available, sizeof(char));
 
-	if (i != 1) {
+	if (i != sizeof(char)) {
 		if (i == -1) {
 			(void)printf("%s ", strerror(errno));
 		}
 		(void)printf("write error line: %d\n", __LINE__);
-		goto dns_exit1;
+		goto dns_exit;
 	}
 
 	goto dns_loop;
 
-dns_exit1:
+dns_exit:
 
+	if (pledge("stdio", NULL) == -1) {
+		(void)printf("%s ", strerror(errno));
+		(void)printf("dns_cache_d pledge, line: %d\n", __LINE__);
+		ret = 1;
+	}
 	(void)free(dns_line);
 	(void)close(dns_socket);
-	_exit(1);
+	_exit(ret);
 }
 
 /*
@@ -1027,9 +1049,13 @@ file_d(const int write_pipe, const int secure,
 	const size_t    received_max = 1 + max_file_length - 2;
 	ssize_t             received = 0;
 
-
-
-	if (pledge("stdio cpath wpath", NULL) == -1) {
+	if (debug) {
+		if (pledge("stdio", NULL) == -1) {
+			(void)printf("%s ", strerror(errno));
+			(void)printf("pledge, line: %d\n", __LINE__);
+			goto file_cleanup;
+		}
+	} else if (pledge("stdio cpath wpath", NULL) == -1) {
 		(void)printf("%s ", strerror(errno));
 		(void)printf("pledge, line: %d\n", __LINE__);
 		_exit(1);
@@ -1088,7 +1114,6 @@ file_d(const int write_pipe, const int secure,
 		}
 	}
 
-	/* unlink() to prevent possible symlinks by...root? */
 	if (debug) {
 		if (verbose > 0) {
 			(void)printf("\nDebug mode: file not written.\n");
@@ -1096,27 +1121,27 @@ file_d(const int write_pipe, const int secure,
 			(void)printf("Debug mode: file not written.\n");
 		}
 	} else {
-		
+
+		if (verbose > 0) {
+			(void)printf("\n");
+		}
+
 		/* unlink() to prevent possible symlinks by...root? */
 		(void)unlink("/etc/installurl");
 		pkg_write = fopen("/etc/installurl", "w");
+
+		if (pkg_write == NULL) {
+			(void)printf("errno: %d %s ", errno, strerror(errno));
+			(void)printf("/etc/installurl not opened.\n");
+			goto file_cleanup;
+		}
 
 		if (pledge("stdio wpath", NULL) == -1) {
 			(void)printf("%s ", strerror(errno));
 			(void)printf("pledge, line: %d\n", __LINE__);
 			goto file_cleanup;
 		}
-
-		if (verbose > 0) {
-			(void)printf("\n");
-		}
-
-		if (pkg_write == NULL) {
-			(void)printf("%s ", strerror(errno));
-			(void)printf("/etc/installurl not opened.\n");
-			goto file_cleanup;
-		}
-		
+	
 		i = (int)fwrite(file_w, 1, (size_t)received + 1, pkg_write);
 		(void)fclose(pkg_write);
 		if (i < (int)received + 1) {
@@ -1124,45 +1149,55 @@ file_d(const int write_pipe, const int secure,
 						  __LINE__);
 			goto file_cleanup;
 		}
-	}
-
-	if (pledge("stdio", NULL) == -1) {
-		(void)printf("%s ", strerror(errno));
-		(void)printf("pledge, line: %d\n", __LINE__);
-		goto file_cleanup;
-	}
-
-	if (verbose >= 0) {
-		(void)printf("/etc/installurl: %s", file_w);
+		
+		if (verbose >= 0) {
+			(void)printf("/etc/installurl: %s", file_w);
+		}
 	}
 
 	ret = 0;
 
 file_cleanup:
 
+	if (pledge("stdio", NULL) == -1) {
+		(void)printf("%s ", strerror(errno));
+		(void)printf("pledge, line: %d\n", __LINE__);
+		ret = 1;
+	}
+
 	(void)free(file_w);
 	_exit(ret);
 }
 
 /*
- * restarting the application needs to happen.
- * Decrement 'loop' if above zero else quit.
- * append the new 'loop' and restart().
- * A new random MIRROR is selected in the next run.
+ *             restarting the application needs to happen.
+ *              Decrement 'loop' if above zero else quit.
+ * append the new 'loop' while erasing any trailing one and restart().
+ *           A new random mirror is selected in the next run.
  */
 static __attribute__((noreturn)) void
-restart(int argc, char *argv[], const int loop, const int verbose)
+restart(int argc, char *argv[], const int loop,
+	const int verbose, const int call_line)
 {
 	int c;
 	const int len = 10;
 
-	// if an appended 'loop' is already the last variable, excise the value.
+	/* 
+	 * if an appended 'loop' is already the last variable: excise the value.
+	 */
 	const int n
 	    = argc - (int)((argc > 1) && (!strncmp(argv[argc - 1], "-l", 2)));
 
 	char **new_args = (char **)calloc((size_t)n + 1 + 1, sizeof(char *));
 	if (new_args == NULL) {
 		errx(1, "calloc");
+	}
+	if (pledge("stdio exec", NULL) == -1) {
+		err(1, "pledge, line: %d", __LINE__);
+	}
+
+	if (verbose != -1) {
+		printf("restart called from line: %d\n", call_line);
 	}
 
 	if (loop == 0) {
@@ -1191,9 +1226,6 @@ restart(int argc, char *argv[], const int loop, const int verbose)
 		}
 	}
 
-	(void)close(kq);
-
-
 	/* hard-code to /usr/local/bin/pkg_ping */
 
 	(void)execv("/usr/local/bin/pkg_ping", new_args);
@@ -1201,7 +1233,8 @@ restart(int argc, char *argv[], const int loop, const int verbose)
 }
 
 /*
- * gracefully kill off the ftp() call.
+ * gracefully kill off the ftp(1) call: I specifically kill off ftp(1) zombies
+ * 		to be considerate to the mirror maintainers.
  */
 static void
 easy_ftp_kill(const pid_t ftp_pid)
@@ -1211,7 +1244,7 @@ easy_ftp_kill(const pid_t ftp_pid)
 	    EV_ONESHOT, NOTE_EXIT, 0, NULL);
 
 	/* kevent registration returns -1, if ftp_pid is already dead */
-    	if (kevent(kq, &ke, 1, NULL, 0, NULL) == (-1)) {
+    	if (kevent(kq, &ke, 1, NULL, 0, NULL) == -1) {
 		if (errno != ESRCH) {
 			(void)printf("%s ", strerror(errno));
 			(void)printf("kevent, line: %d\n", __LINE__);
@@ -1232,8 +1265,9 @@ easy_ftp_kill(const pid_t ftp_pid)
 	}
  	(void)waitpid(ftp_pid, NULL, 0);
 }
+
 /*
- * scrapes the speed from the ftp() call output and returns it to main()
+ * scrapes the speed from the ftp(1) call output and returns it to main()
  */
 static __attribute__((noreturn)) void
 ftp_test_help(const int ftp_helper_out_pipe, const int ftp_2_ftp_helper_socket,
@@ -1258,9 +1292,6 @@ ftp_test_help(const int ftp_helper_out_pipe, const int ftp_2_ftp_helper_socket,
 		_exit(1);
 	}
 
-	(void)free(line0);
-	line0 = NULL;
-
 	(void)free(line);
 	line = (char*)calloc((size_t)n, sizeof(char));
 	if (line == NULL) {
@@ -1273,13 +1304,7 @@ ftp_test_help(const int ftp_helper_out_pipe, const int ftp_2_ftp_helper_socket,
 	 */
 	if (write(ftp_2_ftp_helper_socket, &v, sizeof(char)) != sizeof(char)) {
 		(void)printf("write error, line: %d\n", __LINE__);
-		
-		(void)close(ftp_helper_out_pipe);
-		     
-		(void)close(ftp_2_ftp_helper_socket);
-		free(line);
-		line = NULL;
-		_exit(1);
+		goto ftp_help_cleanup;
 	}
 
 	/*
@@ -1292,7 +1317,7 @@ ftp_test_help(const int ftp_helper_out_pipe, const int ftp_2_ftp_helper_socket,
 			line[pos] = '\0';
 			(void)printf("'line': %s\n", line);
 			(void)printf("pos got too big! line: %d\n", __LINE__);
-			_exit(1);
+			break;
 		}
 
 		if (verbose >= 2) {
@@ -1381,9 +1406,13 @@ ftp_test_help(const int ftp_helper_out_pipe, const int ftp_2_ftp_helper_socket,
 		ret = 0;
 		break;
 	}
+	
+ftp_help_cleanup:
+
 	(void)close(ftp_2_ftp_helper_socket);
 	(void)close(ftp_helper_out_pipe);
 	free(line);
+	line = NULL;
 	_exit(ret);
 }
 
@@ -1393,13 +1422,13 @@ ftp_test_help(const int ftp_helper_out_pipe, const int ftp_2_ftp_helper_socket,
  */ 
 static __attribute__((noreturn)) void
 ftp_test(const int block_socket, const int ftp_helper_out_pipe,
-         const int verbose, const int bail, const int root_user,
-         const int std_err, const int print)
+         const int verbose, const int bail, const int std_err,
+         const int print, const int six)
 {
 	int ftp_2_ftp_helper_socket[2] = { -1, -1 };
 
 	char v = '0';
-	
+
 	if (socketpair(AF_UNIX, SOCK_STREAM,
 	    PF_UNSPEC, ftp_2_ftp_helper_socket) == -1) {
 		(void)printf("socketpair, line: %d\n",
@@ -1418,35 +1447,26 @@ ftp_test(const int block_socket, const int ftp_helper_out_pipe,
 			break;
 		case 0:
 			(void)close(block_socket);
-			
 			(void)close(ftp_2_ftp_helper_socket[PARENT_SOCK]);
 			
-			ftp_test_help(ftp_helper_out_pipe,
-					ftp_2_ftp_helper_socket[CHILD_SOCK],
-					verbose);
+			ftp_test_help(
+				      ftp_helper_out_pipe,
+			              ftp_2_ftp_helper_socket[CHILD_SOCK],
+			              verbose
+			             );
 			/* function cannot return */
 			break;
 		default:
 			break;
 	}
-	(void)close(ftp_helper_out_pipe);
-	(void)close(ftp_2_ftp_helper_socket[CHILD_SOCK]);
-
-
-	/*
-	 * user _pkgfetch: ftp will regain read pledge
-	 *    just to chroot to /var/empty leaving
-	 *      read access to an empty directory
-	 */
-	if (root_user && seteuid(57)) {
-		(void)printf("seteuid error, line: %d\n", __LINE__);
-		_exit(1);
-	}
-
+	
 	if (pledge("stdio exec", NULL) == -1) {
 		(void)printf("pledge, line: %d\n", __LINE__);
 		_exit(1);
 	}
+	
+	(void)close(ftp_helper_out_pipe);
+	(void)close(ftp_2_ftp_helper_socket[CHILD_SOCK]);
 
 	/*
 	 *           this read() is to ensure
@@ -1456,7 +1476,8 @@ ftp_test(const int block_socket, const int ftp_helper_out_pipe,
 	 *   process, and it is written as an efficient way
 	 * to signal the process to resume without ugly code.
 	 */
-	if (read(ftp_2_ftp_helper_socket[PARENT_SOCK], &v, 1) != 1) {
+	if (read(ftp_2_ftp_helper_socket[PARENT_SOCK], &v, sizeof(char))
+	     != sizeof(char)) {
 		(void)printf("read error, line: %d\n", __LINE__);
 		_exit(1);
 	}
@@ -1467,6 +1488,7 @@ ftp_test(const int block_socket, const int ftp_helper_out_pipe,
 		(void)printf(" line: %d\n", __LINE__);
 		_exit(1);
 	}
+	(void)close(ftp_2_ftp_helper_socket[PARENT_SOCK]);
 	
 	/*
 	 *     the read() for this write() is to ensure
@@ -1476,15 +1498,16 @@ ftp_test(const int block_socket, const int ftp_helper_out_pipe,
 	 *   process, and it is written as an efficient way
 	 * to signal the process to resume without ugly code.
 	 */
-	if (write(block_socket, &v, 1) != 1) {
+	if (write(block_socket, &v, sizeof(char)) != sizeof(char)) {
 		(void)printf("write error, line: %d", __LINE__);
 		_exit(1);
 	}
 
 	/* 
-	 * intended to short-circuit
+	 * intended to short-circuit with a close()
+	 * on the other end.
 	 */
-	(void)read(block_socket, &v, 1);
+	(void)read(block_socket, &v, sizeof(char));
 	(void)close(block_socket);
 
 	if (bail) {
@@ -1495,7 +1518,23 @@ ftp_test(const int block_socket, const int ftp_helper_out_pipe,
 		(void)close(STDOUT_FILENO);
 	}
 
-	(void)execl("/usr/bin/ftp", "ftp", line0, line, NULL);
+	if (six) {
+		if (verbose >= 3) {
+			(void)execl("/usr/bin/ftp", "/usr/bin/ftp", "-vim6o-",
+			            line, NULL);
+		} else {
+			(void)execl("/usr/bin/ftp", "/usr/bin/ftp", "-viM6o-",
+			            line, NULL);
+		}
+	} else {
+		if (verbose >= 3) {
+			(void)execl("/usr/bin/ftp", "/usr/bin/ftp", "-vimo-",
+			            line, NULL);
+		} else {
+			(void)execl("/usr/bin/ftp", "/usr/bin/ftp", "-viMo-",
+			            line, NULL);
+		}
+	}
 
 	/*
 	 *  I likely nullified stdout, so printf won't work
@@ -1510,35 +1549,23 @@ ftp_test(const int block_socket, const int ftp_helper_out_pipe,
  * download a fresh copy of the mirror list from a stale list of MIRRORS.
  */ 
 static __attribute__((noreturn)) void
-ftp_first(const int ftp_out_pipe, const int root_user, 
-	  const int generate, const int verbose)
+ftp_first(const int ftp_out_pipe, const int generate, const int verbose)
 {
 	int n = dns_socket_len + 44;
 	
 	ssize_t i = 0;
-
-	/*
-	 * user _pkgfetch: ftp will regain read pledge
-	 *    just to chroot to /var/empty leaving
-	 *      read access to an empty directory
-	 */
-	if (root_user && seteuid(57)) {
-		(void)printf("seteuid error, line: %d", __LINE__);
-		_exit(1);
-	}
-
+	
 	if (pledge("stdio exec", NULL) == -1) {
 		(void)printf("pledge, line: %d", __LINE__);
 		_exit(1);
 	}
-	
 	
 	line = (char*)malloc((size_t)n);
 	if (line == NULL) {
 		(void)printf("malloc\n");
 		_exit(1);
 	}
-
+	
 	if (generate) {
 
 		i = (int)arc4random_uniform(ftp_list_index_g);
@@ -1591,14 +1618,15 @@ ftp_first(const int ftp_out_pipe, const int root_user,
 		(void)printf("ftp STDOUT dup2, line: %d\n", __LINE__);
 		_exit(1);
 	}
+	(void)close(ftp_out_pipe);
 
 
 	if (verbose >= 2) {
-		(void)execl("/usr/bin/ftp", "ftp", "-vimo-",
-			    line, NULL);
+		(void)execl("/usr/bin/ftp", "/usr/bin/ftp", "-vimo-",
+		            line, NULL);
 	} else {
-		(void)execl("/usr/bin/ftp", "ftp", "-ViMo-",
-			    line, NULL);
+		(void)execl("/usr/bin/ftp", "/usr/bin/ftp", "-ViMo-",
+		            line, NULL);
 	}
 
 	(void)fprintf(stderr, "%s ", strerror(errno));
@@ -1619,7 +1647,7 @@ main(int argc, char *argv[])
 	
 	int sort_ret = 0;
 
-	int root_user = (int)(getuid() == 0);
+	const int root_user = (int)(getuid() == 0);
 	
 	int        average = 1;
 	
@@ -1648,6 +1676,7 @@ main(int argc, char *argv[])
 	int       USA = 0;
 
 	long double S = 0.0L;
+	long double t = 0.0L;
 
 	pid_t dns_cache_d_pid = 0;
 	pid_t       write_pid = 0;
@@ -1736,32 +1765,88 @@ struct winsize {
 		err(1, "almost_zero == 0, line: %d", __LINE__);
 	}
 
-	i = pledge("stdio exec proc cpath wpath dns rpath id unveil tty", NULL);
+	if (root_user) {
+		
+		struct passwd *pw = NULL;
+		
+		i = pledge(
+		    "stdio exec proc dns cpath wpath id unveil tty getpw",
+		    NULL);
+		if (i == -1) {
+			err(1, "pledge, line: %d", __LINE__);
+		}
+		
+		pw = getpwnam("_pkgfetch");
+		if (pw == NULL) {
+			err(1, "getpwnam _pkg_fetch failed, line %d", __LINE__);
+		}
+	
+		/*
+		 * user _pkgfetch: ftp(1) will regain read pledge
+		 *    just to chroot to /var/empty leaving
+		 *      read access to an empty directory
+		 * 
+		 *   for all the other processes except file_d, 
+		 *        why not make them unprivileged.
+		 */
+		if (seteuid(pw->pw_uid)) {
+			err(1, "seteuid error, line: %d", __LINE__);
+		}
+		
+		/*
+		 *  why not wipe the reference from the stack.
+		 */
+		explicit_bzero(&pw, sizeof(struct passwd *));
+	}
+	
+	i = pledge("stdio exec proc dns cpath wpath id unveil tty", NULL);
 	if (i == -1) {
 		err(1, "pledge, line: %d", __LINE__);
 	}
+
 
 	if (ioctl(0, TIOCGWINSZ, &w) == -1) {
 		err(1, "ioctl, line: %d", __LINE__);
 	}
 
+
+	if (pledge("stdio exec proc dns cpath wpath id unveil", NULL) == -1) {
+		err(1, "pledge, line: %d", __LINE__);
+	}
+	
 	if (unveil("/usr/bin/ftp", "x") == -1) {
-		err(1, "unveil, line: %d", __LINE__);
+		err(1, "unveil /usr/bin/ftp, line: %d", __LINE__);
 	}
 
 	if (unveil("/usr/local/bin/pkg_ping", "x") == -1) {
-		err(1, "unveil, line: %d", __LINE__);
+		err(1, "unveil /usr/local/bin/pkg_ping, line: %d", __LINE__);
 	}
 
+	/*
+	 * This is always equal to root_user before the flags get processed.
+	 * It can get nullified later. If there's a way for option flags to
+	 * corrupt something, I prefer to have this performed before
+	 * user input needs to happen.
+	 */
 	if (to_file) {
 		if (unveil("/etc/installurl", "cw") == -1) {
-			err(1, "unveil, line: %d", __LINE__);
+			err(1, "unveil /etc/installurl, line: %d", __LINE__);
 		}
-		if (pledge("stdio exec proc cpath wpath dns rpath id", NULL) == -1) {
+
+		if (unveil(NULL, NULL) == -1) {
+			err(1, "unveil end1, line: %d", __LINE__);
+		}
+
+		i = pledge("stdio exec proc dns cpath wpath id", NULL);
+		if (i == -1) {
 			err(1, "pledge, line: %d", __LINE__);
 		}
 	} else {
-		if (pledge("stdio exec proc dns rpath id", NULL) == -1) {
+		if (unveil(NULL, NULL) == -1) {
+			err(1, "unveil end2 line: %d", __LINE__);
+		}
+
+		if (pledge("stdio exec proc dns id ", NULL) == -1) {
 			err(1, "pledge, line: %d", __LINE__);
 		}
 	}
@@ -1816,7 +1901,7 @@ struct winsize {
 			break;
 		case 'f':
 			to_file = 0;
-			if (pledge("stdio exec proc dns rpath id", NULL) == -1) {
+			if (pledge("stdio exec proc dns id", NULL) == -1) {
 				err(1, "pledge, line: %d", __LINE__);
 			}
 			break;
@@ -1876,9 +1961,8 @@ struct winsize {
 			}
 
 			if (strlen(optarg) >= 15) {
-				(void)printf("keep -s argument under ");
-				(void)printf("15 characters long\n");
-				return 1;
+				errx(1,
+				"keep -s argument under 15 characters long");
 			}
 
 			i = 0;
@@ -1963,7 +2047,7 @@ struct winsize {
 		previous = 0;
 		override = 0;
 		to_file  = 0;
-		if (pledge("stdio exec proc dns rpath id", NULL) == -1) {
+		if (pledge("stdio exec proc dns id", NULL) == -1) {
 			err(1, "pledge, line: %d", __LINE__);
 		}
 
@@ -1977,13 +2061,47 @@ struct winsize {
 		errx(1, "try an -s less than, equal to 1000");
 	}
 
-
 	/*
 	 * 1/64th is represented exactly within
 	 * binary datatype long double
 	 */
 	if (s < 0.015625L) {
 		errx(1, "try an -s greater than or equal to 0.015625 (1/64)");
+	}
+
+	if (to_file) {
+
+		if (pipe2(write_pipe, O_CLOEXEC) == -1) {
+			err(1, "pipe2, line: %d", __LINE__);
+		}
+
+		write_pid = fork();
+		switch(write_pid) {
+			case -1:
+				err(1, "file_d fork, line: %d\n", __LINE__);
+				break;
+			case 0:
+				if (seteuid(0) == -1) {
+					printf(
+					       "seteuid root, line: %d\n",
+					       __LINE__
+					      );
+					_exit(1);
+				}
+				(void)close(write_pipe[STDOUT_FILENO]);
+				file_d(write_pipe[STDIN_FILENO],
+				       secure, debug, verbose);
+				/* function cannot return */
+				break;
+			default:
+				break;
+		}
+		(void)close(write_pipe[STDIN_FILENO]);
+	}
+
+	i = pledge("stdio exec proc dns", NULL);
+	if (i == -1) {
+		err(1, "pledge, line: %d", __LINE__);
 	}
 
 	if (dns_cache) {
@@ -2000,6 +2118,7 @@ struct winsize {
 				    __LINE__);
 				break;
 			case 0:
+				(void)close(write_pipe[STDOUT_FILENO]);
 				(void)close(dns_cache_d_socket[PARENT_SOCK]);
 				dns_cache_d(dns_cache_d_socket[CHILD_SOCK],
 				            secure, six, verbose);
@@ -2011,40 +2130,10 @@ struct winsize {
 		(void)close(dns_cache_d_socket[CHILD_SOCK]);
 	}
 
-	if (to_file) {
-
-		if (pipe2(write_pipe, O_CLOEXEC) == -1) {
-			err(1, "pipe2, line: %d", __LINE__);
-		}
-
-		write_pid = fork();
-		switch(write_pid) {
-			case -1:
-				err(1, "file_d fork, line: %d\n", __LINE__);
-				break;
-			case 0:
-				(void)close(dns_cache_d_socket[PARENT_SOCK]);
-				(void)close(write_pipe[STDOUT_FILENO]);
-				file_d(write_pipe[STDIN_FILENO],
-				       secure, debug, verbose);
-				/* function cannot return */
-				break;
-			default:
-				break;
-		}
-		(void)close(write_pipe[STDIN_FILENO]);
-	}
-
-	if (root_user) {
-		if (pledge("stdio exec proc id", NULL) == -1) {
+	if (pledge("stdio exec proc", NULL) == -1) {
 			err(1, "pledge, line: %d", __LINE__);
-		}
-	} else {
-		if (pledge("stdio exec proc", NULL) == -1) {
-			err(1, "pledge, line: %d", __LINE__);
-		}
 	}
-
+	
 	if (pipe(ftp_out_pipe) == -1) {
 		err(1, "pipe, line: %d", __LINE__);
 	}
@@ -2057,7 +2146,7 @@ struct winsize {
 		case 0:
 			(void)close(ftp_out_pipe[STDIN_FILENO]);
 			ftp_first(ftp_out_pipe[STDOUT_FILENO],
-			          root_user, generate, verbose);
+			          generate, verbose);
 			/* function cannot return */
 			break;
 		default:
@@ -2066,12 +2155,12 @@ struct winsize {
 	(void)close(ftp_out_pipe[STDOUT_FILENO]);
 
 	/* 
-	 * Let's do some work while ftp is downloading ftplist
+	 * Let's do some work while ftp(1) is downloading ftplist
 	 */
 
-	kq = kqueue();
+	kq = kqueue1(O_CLOEXEC);
 	if (kq == -1) {
-		errx(1, "kqueue() error, line :%d", __LINE__);
+		errx(1, "kqueue1() error, line :%d", __LINE__);
 	}
 
 	S = ((long double) timeout_ftp_list.tv_sec) +
@@ -2162,7 +2251,7 @@ struct winsize {
 		 */
 		if (sysctl(mib, 2, NULL, &len, NULL, 0) == -1) {
 			(void)printf("%s ", strerror(errno));
-			(void)printf("sysctl, line: %d", __LINE__);
+			(void)printf("sysctl, line: %d\n", __LINE__);
 			easy_ftp_kill(ftp_pid);
 			return 1;
 		}
@@ -2178,8 +2267,10 @@ struct winsize {
 		 */
 		if (sysctl(mib, 2, line, &len, NULL, 0) == -1) {
 			(void)printf("%s ", strerror(errno));
-			(void)printf("sysctl, line: %d", __LINE__);
+			(void)printf("sysctl, line: %d\n", __LINE__);
 			easy_ftp_kill(ftp_pid);
+			freezero(line, len);
+			line = NULL;
 			return 1;
 		}
 
@@ -2223,7 +2314,7 @@ struct winsize {
 
 		if (uname(&name) == -1) {
 			(void)printf("%s ", strerror(errno));
-			(void)printf("uname, line: %d", __LINE__);
+			(void)printf("uname, line: %d\n", __LINE__);
 			easy_ftp_kill(ftp_pid);
 			return 1;
 		}
@@ -2244,6 +2335,10 @@ struct winsize {
 			errx(1, "strdup");
 		}
 
+		/*
+		 * flags are written to prevent both next and previous
+		 * to both be declared.
+		 */
 		if (i && (next || previous)) {
 
 			long double f_temp;
@@ -2259,6 +2354,7 @@ struct winsize {
 					(release[2] < '0') ||
 					(release[2] > '9')
 				   ) {
+					easy_ftp_kill(ftp_pid);
 					errx(1, "%s%s%d",
 					"release is somehow ",
 					"a bad format, line: ",
@@ -2284,6 +2380,7 @@ struct winsize {
 					(release[3] < '0') ||
 					(release[3] > '9')
 				) {
+					easy_ftp_kill(ftp_pid);
 					errx(1, "%s%s%d",
 					"release is somehow ",
 					"a bad format, line: ",
@@ -2297,6 +2394,7 @@ struct winsize {
 				         ((release[3] - '0') / 10.0L);
 
 			} else {
+				easy_ftp_kill(ftp_pid);
 				errx(1, "release got huge! line: %d", __LINE__);
 			}
 
@@ -2413,20 +2511,9 @@ struct winsize {
 	}
 
 	if (i != 1) {
-
 		easy_ftp_kill(ftp_pid);
-
 		(void)close(z);
-
-		if (dns_cache) {
-			(void)close(dns_cache_d_socket[PARENT_SOCK]);
-			(void)waitpid(dns_cache_d_pid, NULL, 0);
-		}
-		if (to_file) {
-			(void)close(write_pipe[STDOUT_FILENO]);
-			(void)waitpid(write_pid, NULL, 0);
-		}
-		restart(argc, argv, loop, verbose);
+		restart(argc, argv, loop, verbose, __LINE__);
 	}
 
 
@@ -2442,7 +2529,7 @@ struct winsize {
 			(void)fflush(stdout);
 		}
 
-		if ((pos) >= ((int)(dns_socket_len - 2 * sizeof(char)))) {
+		if ((pos) >= ((int)(dns_socket_len - 2))) {
 			line[pos] = '\0';
 			(void)printf("'line': %s\n", line);
 			(void)printf("pos got too big! line: %d\n", __LINE__);
@@ -2471,14 +2558,14 @@ struct winsize {
 				return 1;
 			}
 
-			if (secure) {
 			/*
 			 * an http mirror becomes an https mirror.
 			 */
+			if (secure) {
 				(void)memmove(line + 5, line + 4,
 				    (size_t)pos - 4);
-				++pos;
 				line[4] = 's';
+				++pos;
 			}
 
 			if (pos_max < pos) {
@@ -2520,8 +2607,8 @@ struct winsize {
 
 
 		/*
-		 * having a comma at the beginning is problematic later
-		 * and it's an error we can clean up now cheaply
+		 * having a possible ", " or ',' at the beginning is
+		 * problematic later. it's an error we can clean up cheaply now
 		 * if it ever could occur.
 		 */
 		do {
@@ -2661,7 +2748,7 @@ struct winsize {
 			                              );
 
 			if (array == NULL) {
-				(void)free(array_temp);
+				array = array_temp;
 				easy_ftp_kill(ftp_pid);
 				errx(1, "recallocarray");
 			}
@@ -2687,15 +2774,7 @@ struct winsize {
 			(void)printf("download problem.\n");
 		}
 
-		if (dns_cache) {
-			(void)close(dns_cache_d_socket[PARENT_SOCK]);
-			(void)waitpid(dns_cache_d_pid, NULL, 0);
-		}
-		if (to_file) {
-			(void)close(write_pipe[STDOUT_FILENO]);
-			(void)waitpid(write_pid, NULL, 0);
-		}
-		restart(argc, argv, loop, verbose);
+		restart(argc, argv, loop, verbose, __LINE__);
 	}
 	
 	if (all) {
@@ -2705,7 +2784,7 @@ struct winsize {
 	/* 
 	 * if "secure", h = strlen("https://") instead of strlen("http://")
 	 */
-	h += secure;
+	h += (secure) ? 1 : 0;
 
 	pos_max += tag_len;
 
@@ -2752,23 +2831,6 @@ struct winsize {
 	
 	if (sort_ret) {
 		err(1, "sort failed, line %d", __LINE__);
-	}
-
-	if (six) {
-		if (verbose >= 3) {
-			line0 = strdup("-vim6o-");
-		} else {
-			line0 = strdup("-viM6o-");
-		}
-	} else {
-		if (verbose >= 3) {
-			line0 = strdup("-vimo-");
-		} else {
-			line0 = strdup("-viMo-");
-		}
-	}
-	if (line0 == NULL) {
-		errx(1, "strdup");
 	}
 
 	timeout.tv_sec = (time_t) s;
@@ -2936,7 +2998,7 @@ struct winsize {
 
 			i = (int)write(dns_cache_d_socket[PARENT_SOCK],
 			                      host, (size_t)n);
-			if (i < n) {
+			if (i != n) {
 				goto restart_dns_err;
 			}
 
@@ -2965,6 +3027,7 @@ struct winsize {
 				(void)printf("kevent, timeout_d may ");
 				(void)printf("be too large. ");
 				(void)printf("line: %d\n", __LINE__);
+				    
 				return 1;
 			}
 
@@ -2974,9 +3037,13 @@ struct winsize {
 			}
 
 
-			i = (int)read(dns_cache_d_socket[PARENT_SOCK], &v, 1);
+			i = (int)read(
+				      dns_cache_d_socket[PARENT_SOCK],
+				      &v,
+			              sizeof(char)
+			             );
 
-			if (i != 1) {
+			if (i != sizeof(char)) {
 
 restart_dns_err:
 
@@ -2992,15 +3059,7 @@ restart_dns_err:
 					} while (n);
 				}
 
-				(void)close(dns_cache_d_socket[PARENT_SOCK]);
-				(void)waitpid(dns_cache_d_pid, NULL, 0);
-
-				if (to_file) {
-					(void)close(write_pipe[STDOUT_FILENO]);
-					(void)waitpid(write_pid, NULL, 0);
-				}
-
-				restart(argc, argv, loop, verbose);
+				restart(argc, argv, loop, verbose, __LINE__);
 			}
 
 			if (six && (v == '0')) {
@@ -3029,11 +3088,11 @@ restart_dns_err:
 
 		if (socketpair(AF_UNIX, SOCK_STREAM,
 		    PF_UNSPEC, block_socket) == -1) {
-			err(1, "socketpair");
+			err(1, "socketpair, line %d", __LINE__);
 		}
 
-		if (pipe(ftp_helper_out_pipe) == -1) {
-			err(1, "pipe, line: %d", __LINE__);
+		if (pipe2(ftp_helper_out_pipe, O_CLOEXEC) == -1) {
+			err(1, "pipe2, line: %d", __LINE__);
 		}
 
 		ftp_pid = fork();
@@ -3069,8 +3128,8 @@ restart_dns_err:
 
 				ftp_test(block_socket[CHILD_SOCK],
 				           ftp_helper_out_pipe[STDOUT_FILENO],
-					   verbose, debug, root_user, 
-					   std_err, test_print == 0);
+					   verbose, debug, std_err,
+					   test_print == 0, six);
 				/* function cannot return */
 				break;
 			default:
@@ -3080,8 +3139,6 @@ restart_dns_err:
 		(void)close(block_socket[CHILD_SOCK]);
 		(void)close(ftp_helper_out_pipe[STDOUT_FILENO]);
 
-		EV_SET(&ke, ftp_pid, EVFILT_PROC, EV_ADD |
-		    EV_ONESHOT, NOTE_EXIT, 0, NULL);
 
 		/*
 		 * this separate kevent call and block-socketing ensures
@@ -3091,6 +3148,8 @@ restart_dns_err:
 		 * Hopefully after the dust settles, mirror responsiveness is
 		 * is judged fairly.
 		 */
+		EV_SET(&ke, ftp_pid, EVFILT_PROC, EV_ADD |
+		    EV_ONESHOT, NOTE_EXIT, 0, NULL);
 		if (kevent(kq, &ke, 1, NULL, 0, NULL) == -1) {
 			(void)printf("%s ", strerror(errno));
 			(void)printf("kevent register fail,");
@@ -3099,10 +3158,21 @@ restart_dns_err:
 			return 1;
 		}
 
-
-		if (read(block_socket[PARENT_SOCK], &v, 1) != 1) {
-			errx(1, "read error, line: %d", __LINE__);
+		/*
+		 * receive a response from the ftp_test processes.
+		 */
+		if (read(block_socket[PARENT_SOCK], &v, sizeof(char))
+		    != sizeof(char)) {
+			(void)printf("%s ", strerror(errno));
+			(void)printf("read error,");
+			(void)printf(" line: %d\n", __LINE__);
+			easy_ftp_kill(ftp_pid);
+			return 1;
 		}
+		
+		/*
+		 * send last response to ftp_test to resume.
+		 */
 		(void)close(block_socket[PARENT_SOCK]);
 
 		(void)clock_gettime(CLOCK_REALTIME, &start);
@@ -3111,7 +3181,7 @@ restart_dns_err:
 
 		if (i == -1) {
 			(void)printf("%s ", strerror(errno));
-			(void)printf("kevent, line: %d", __LINE__);
+			(void)printf("kevent, line: %d\n", __LINE__);
 			easy_ftp_kill(ftp_pid);
 			return 1;
 		}
@@ -3129,7 +3199,9 @@ restart_dns_err:
 			 */
 			i = kevent(kq, NULL, 0, &ke, 1, &timeout_kill);
 			if (i == -1) {
+				easy_ftp_kill(ftp_pid);
 				err(1, "kevent, line: %d", __LINE__);
+			
 			}
 
 			if (i == 0) {
@@ -3138,9 +3210,10 @@ restart_dns_err:
 				if (verbose >= 2) {
 					(void)printf("killed\n");
 				}
-				if (kevent(kq, NULL, 0, &ke, 1, NULL) == -1) {
-					err(1, "kevent, line: %d", __LINE__);
-				}
+				/*
+				 * reap event
+				 */
+				(void)kevent(kq, NULL, 0, &ke, 1, NULL);
 			}
 
 			(void)waitpid(ftp_pid, NULL, 0);
@@ -3164,16 +3237,17 @@ restart_dns_err:
 			continue;
 		}
 
-		// to get here, !all is true
-		if (!debug /* && !all */) {
-			z = ftp_helper_out_pipe[STDIN_FILENO];
+		z = ftp_helper_out_pipe[STDIN_FILENO];
+		if (!debug) {
 			if (read(z, &array[c].speed, sizeof(long double))
-			    < (ssize_t)sizeof(long double)) {
-				restart(argc, argv, loop, verbose);
-			 }
+			    != (ssize_t)sizeof(long double)) {
+				printf("ftp_helper_out_pipe[STDIN_FILENO]");
+				printf(" read failed. line %d\n", __LINE__);
+				(void)close(z);
+				restart(argc, argv, loop, verbose, __LINE__);
+			}
 		}
-
-		(void)close(ftp_helper_out_pipe[STDIN_FILENO]);
+		(void)close(z);
 
 		array[c].diff =
 		    (long double) (end.tv_sec  - start.tv_sec ) +
@@ -3216,9 +3290,6 @@ restart_dns_err:
 		}
 	}
 
-	free(line0);
-	line0 = NULL;
-
 	if (dns_cache) {
 		(void)close(dns_cache_d_socket[PARENT_SOCK]);
 		(void)waitpid(dns_cache_d_pid, NULL, 0);
@@ -3235,7 +3306,6 @@ restart_dns_err:
 	free(line);
 	line = NULL;
 	(void)close(kq);
-	kq = -1;
 
 	if (verbose <= 0) {
 
@@ -3271,7 +3341,6 @@ restart_dns_err:
 			}
 
 			for (c = 0; c <= se; ++c) {
-				long double t;
 				array[c].speed_rank = 1 + se - c;
 
 				/*
@@ -3301,7 +3370,6 @@ restart_dns_err:
 			}
 
 			for (c = 0; c <= se; ++c) {
-				long double t;
 				array[c].diff_rank = 1 + se - c;
 
 				/*
@@ -3370,7 +3438,6 @@ restart_dns_err:
 		
 		int diff_topper = 0;
 		
-		long double t = 0;
 		int speed_shift = 0;
 		int    pos_maxd = 0;
 		int    pos_maxt = 0;
@@ -4216,6 +4283,11 @@ generate_jump:
 
 no_good:
 
+		if (to_file) {
+			(void)close(write_pipe[STDOUT_FILENO]);
+			(void)waitpid(write_pid, NULL, 0);
+		}
+		
 		(void)printf("No successful mirrors found.\n\n");
 
 		if (next) {
@@ -4232,7 +4304,7 @@ no_good:
 		} else if (!current && !generate) {
 			(void)printf("You are probably running a snapshot, ");
 			(void)printf("but it is indicating that you are");
-			(void)printf(" running a release. running a release. ");
+			(void)printf(" running a release. ");
 			(void)printf("You should use the -O flag in that");
 			(void)printf(" case.\n");
 		}
@@ -4268,16 +4340,18 @@ no_good:
 		i = (int)write(write_pipe[STDOUT_FILENO],
 		    array[0].http, (size_t)n);
 
-		if (i < n) {
+		if (i != n) {
 			(void)printf("\nnot all of mirror sent to write_pid\n");
-			restart(argc, argv, loop, verbose);
+			(void)close(write_pipe[STDOUT_FILENO]);
+			restart(argc, argv, loop, verbose, __LINE__);
 		}
 
+		(void)close(write_pipe[STDOUT_FILENO]);
 		(void)waitpid(write_pid, &z, 0);
 
 		if (z) {
 			(void)printf("\nwrite_pid error.\n");
-			restart(argc, argv, loop, verbose);
+			restart(argc, argv, loop, verbose, __LINE__);
 		}
 
 	} else if ((!root_user && (verbose != -1)) || (root_user && !verbose)) {
