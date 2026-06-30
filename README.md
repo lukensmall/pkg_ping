@@ -1,8 +1,13 @@
 ### It determines and prints the fastest OpenBSD mirror(s) for your version and architecture for the /etc/installurl file and if run as root, will write the fastest successful one to disk unless -f is used.
 
-### Major update:
+### Minor security hardening update:
 
-It works for 7.9. OpenBSD requires an extra "rpath" pledge proliferate to the dns daemon.
+I made the program eliminate environment variables.
+
+I also made the processes immediately run as the effectively unprivileged user _pkgfetch
+and if it has the chance to get to the file writing process, it regains super user power to delete/write installurl.
+Then it eliminates the possibility within the rest of the processes to change back into the root user unless there is a restart.
+Instead of hard-coding 57 as the _pkgfetch user ID, I make it look it up.
 
 ### New feature:
 
