@@ -93,7 +93,7 @@ cc pkg_ping.c -march=native -mtune=native -flto -static -O3 \
 extern char *malloc_options = "CFGJJU";
 
 /*
- * Wipe out environment variables,
+ * Wipe out environment variables:
  * which conceivably could be bad to keep.
  * 
  * We don't need environment variables at all.
@@ -113,7 +113,7 @@ static int entry_line = __LINE__;
                         /* GENERATED CODE BEGINS HERE */
 
 
-static const char *ftp_list[49] = {
+static const char *ftp_list[50] = {
 
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
            "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
@@ -128,13 +128,13 @@ static const char *ftp_list[49] = {
 "mirrors.chroot.ro","mirrors.sonic.net","mirrors.ucr.ac.cr","openbsd.as250.net",
    "mirror.group.one","mirror.litnet.lt","mirror.yandex.ru","cdn.openbsd.org",
     "ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.ihost.md","mirror.junda.nl",
-     "mirror.ox.ac.uk","mirrors.mit.edu","ftp.icm.edu.pl","mirror.rise.ph",
-   "ftp.cc.uoc.gr","ftp.spline.de","ftp.nluug.nl","ftp.psnc.pl","ftp.bit.nl",
-                                  "ftp.fau.de"
+     "mirror.mephi.ru","mirror.ox.ac.uk","mirrors.mit.edu","ftp.icm.edu.pl",
+ "mirror.rise.ph","ftp.cc.uoc.gr","ftp.spline.de","ftp.nluug.nl","ftp.psnc.pl",
+                            "ftp.bit.nl","ftp.fau.de"
 
 };
 
-static const int ftp_list_index = 49;
+static const int ftp_list_index = 50;
 
 
 
@@ -156,6 +156,7 @@ static const int ftp_list_index_g = 7;
 static int exit_line = __LINE__;
 
 typedef struct {
+
 	long double diff;         // usually the time it took to download
                                   // can also be the string length of the MIRROR
                                   // if generating a MIRROR list
@@ -169,6 +170,7 @@ typedef struct {
 	
 	int diff_rank;            // rank of the diff amongst other MIRRORs
 	int speed_rank;           // rank of speed amongst other MIRRORs
+
 } MIRROR;
 
 /*
@@ -356,6 +358,9 @@ label_cmp_minus_usa(const void *a, const void *b)
 		 * found in the previous iteration
 		 */
 		 
+		/*
+		 * no leading comma is enforced in main()
+		 */
 		for (;;) {
 			if (one_label == red) {
 				rc = 0;
@@ -596,13 +601,13 @@ unified_cmp(const void *a, const void *b)
 {
 	const long double one_unified_rating =
 	    (((const MIRROR *) a)->diff_rating  + 1.0L)
-				*
+                                *
 	    (((const MIRROR *) a)->speed_rating + 1.0L);
 
 
 	const long double two_unified_rating =
 	    (((const MIRROR *) b)->diff_rating  + 1.0L)
-				*
+                                *
 	    (((const MIRROR *) b)->speed_rating + 1.0L);
 
 
@@ -1033,6 +1038,10 @@ dns_exit:
  * this process performs some sanity checks to, among
  * other things, prevent /etc/installurl from becoming a
  * massive file which fills up the partition.
+ * It makes user changes more seamless as well, since
+ * I want to change the effective user to _pkgfetch
+ * for everything but file writing, having a separate
+ * process for it, makes great sense.
  */
 static __attribute__((noreturn)) void
 file_d(const int write_pipe, const int secure,
@@ -1049,11 +1058,20 @@ file_d(const int write_pipe, const int secure,
 	const size_t    received_max = 1 + max_file_length - 2;
 	ssize_t             received = 0;
 
+	/*
+	 * It needs to be root to operate on the root-owned /etc/installurl
+	 */
+	if (seteuid(0) == -1) {
+		(void)printf("%s ", strerror(errno));
+		(void)printf("seteuid root, line: %d\n", __LINE__);
+		_exit(1);
+	}
+	
 	if (debug) {
 		if (pledge("stdio", NULL) == -1) {
 			(void)printf("%s ", strerror(errno));
 			(void)printf("pledge, line: %d\n", __LINE__);
-			goto file_cleanup;
+			_exit(1);;
 		}
 	} else if (pledge("stdio cpath wpath", NULL) == -1) {
 		(void)printf("%s ", strerror(errno));
@@ -1085,13 +1103,13 @@ file_d(const int write_pipe, const int secure,
 	(void)close(write_pipe);
 
 	if (received == 0) {
-		(void)printf("program exited without writing.\n");
+		(void)printf("program exited without writing: ");
 		(void)printf("/etc/installurl not written.\n");
 		goto file_cleanup;
 	}
 
 	if (received == (ssize_t)received_max) {
-		(void)printf("received mirror is too large\n");
+		(void)printf("received mirror is too large: ");
 		(void)printf("/etc/installurl not written.\n");
 		goto file_cleanup;
 	}
@@ -1261,7 +1279,6 @@ easy_ftp_kill(const pid_t ftp_pid)
 		if (!kevent(kq, NULL, 0, &ke, 1, &timeout_kill)) {
 			(void)kill(ftp_pid, SIGKILL);
 		}
-
 	}
  	(void)waitpid(ftp_pid, NULL, 0);
 }
@@ -1417,17 +1434,17 @@ ftp_help_cleanup:
 }
 
 /*
- * tests a mirror setting up a ftp_test_help process first, then it execs into
- * a ftp call itself
+ * tests a mirror setting up a ftp_test_help process first,
+ * then it execs into an ftp call itself
  */ 
 static __attribute__((noreturn)) void
 ftp_test(const int block_socket, const int ftp_helper_out_pipe,
          const int verbose, const int bail, const int std_err,
          const int print, const int six)
 {
-	int ftp_2_ftp_helper_socket[2] = { -1, -1 };
-
 	char v = '0';
+
+	int ftp_2_ftp_helper_socket[2] = { -1, -1 };
 
 	if (socketpair(AF_UNIX, SOCK_STREAM,
 	    PF_UNSPEC, ftp_2_ftp_helper_socket) == -1) {
@@ -1505,7 +1522,7 @@ ftp_test(const int block_socket, const int ftp_helper_out_pipe,
 
 	/* 
 	 * intended to short-circuit with a close()
-	 * on the other end.
+	 * from the parent.
 	 */
 	(void)read(block_socket, &v, sizeof(char));
 	(void)close(block_socket);
@@ -1537,7 +1554,7 @@ ftp_test(const int block_socket, const int ftp_helper_out_pipe,
 	}
 
 	/*
-	 *  I likely nullified stdout, so printf won't work
+	 *  I possibly nullified stdout, so printf won't work
 	 */
 	(void)dprintf(std_err, "%s ", strerror(errno));
 	(void)dprintf(std_err, "ftp 2 (void)execl() failed, ");
@@ -1770,8 +1787,9 @@ struct winsize {
 		struct passwd *pw = NULL;
 		
 		i = pledge(
-		    "stdio exec proc dns cpath wpath id unveil tty getpw",
-		    NULL);
+		          "stdio exec proc dns cpath wpath id unveil tty getpw",
+		          NULL
+			  );
 		if (i == -1) {
 			err(1, "pledge, line: %d", __LINE__);
 		}
@@ -1787,7 +1805,7 @@ struct winsize {
 		 *      read access to an empty directory
 		 * 
 		 *   for all the other processes except file_d, 
-		 *        why not make them unprivileged.
+		 *       why not make them unprivileged.
 		 */
 		if (seteuid(pw->pw_uid)) {
 			err(1, "seteuid error, line: %d", __LINE__);
@@ -1857,7 +1875,7 @@ struct winsize {
 	}
 
 	if (argc < 1) {
-		(void)printf("argc cannot be less than 1!\n");
+		errx(1, "argc cannot be less than 1!");
 	}
 
 	if (argc >= 30) {
@@ -1965,6 +1983,9 @@ struct winsize {
 				"keep -s argument under 15 characters long");
 			}
 
+			/*
+			 * let's force my own validation on top of strtold()
+			 */
 			i = 0;
 			c = 0;
 			do {
@@ -2081,13 +2102,6 @@ struct winsize {
 				err(1, "file_d fork, line: %d\n", __LINE__);
 				break;
 			case 0:
-				if (seteuid(0) == -1) {
-					printf(
-					       "seteuid root, line: %d\n",
-					       __LINE__
-					      );
-					_exit(1);
-				}
 				(void)close(write_pipe[STDOUT_FILENO]);
 				file_d(write_pipe[STDIN_FILENO],
 				       secure, debug, verbose);
@@ -2226,6 +2240,7 @@ struct winsize {
 			current_time = strdup(time0);
 			if (current_time == NULL) {
 				easy_ftp_kill(ftp_pid);
+				(void)free(time0);
 				errx(1, "strdup");
 			}
 			(void)free(time0);
@@ -2332,12 +2347,13 @@ struct winsize {
 
 		if (release == NULL) {
 			easy_ftp_kill(ftp_pid);
+			explicit_bzero(&name, sizeof(struct utsname));
 			errx(1, "strdup");
 		}
 
 		/*
 		 * flags are written to prevent both next and previous
-		 * to both be declared.
+		 * being declared.
 		 */
 		if (i && (next || previous)) {
 
@@ -2355,6 +2371,8 @@ struct winsize {
 					(release[2] > '9')
 				   ) {
 					easy_ftp_kill(ftp_pid);
+					explicit_bzero(&name,
+					    sizeof(struct utsname));
 					errx(1, "%s%s%d",
 					"release is somehow ",
 					"a bad format, line: ",
@@ -2381,6 +2399,8 @@ struct winsize {
 					(release[3] > '9')
 				) {
 					easy_ftp_kill(ftp_pid);
+					explicit_bzero(&name,
+					    sizeof(struct utsname));
 					errx(1, "%s%s%d",
 					"release is somehow ",
 					"a bad format, line: ",
@@ -2395,6 +2415,7 @@ struct winsize {
 
 			} else {
 				easy_ftp_kill(ftp_pid);
+				explicit_bzero(&name, sizeof(struct utsname));
 				errx(1, "release got huge! line: %d", __LINE__);
 			}
 
@@ -2788,7 +2809,7 @@ struct winsize {
 
 	pos_max += tag_len;
 
-	if (pos_max > (int)sizeof(line)) {
+	if (pos_max > (int)sizeof(dns_socket_len /* length of line */)) {
 		(void)free(line);
 		line = (char*)calloc((size_t)pos_max, sizeof(char));
 		if (line == NULL) {
@@ -2921,7 +2942,7 @@ struct winsize {
 		cut = strchr(host, '/');
 
 		if (verbose >= 2) {
-			if (  (verbose >= 4) && (dns_cache != 0) ) {
+			if ( (verbose >= 4) && (dns_cache != 0) ) {
 				(void)printf("\n\n\n\n");
 			} else if (verbose >= 3) {
 				(void)printf("\n\n");
@@ -3138,7 +3159,19 @@ restart_dns_err:
 
 		(void)close(block_socket[CHILD_SOCK]);
 		(void)close(ftp_helper_out_pipe[STDOUT_FILENO]);
-
+		
+		/*
+		 * receive a response from the ftp_test processes
+		 *               that they are ready
+		 */
+		if (read(block_socket[PARENT_SOCK], &v, sizeof(char))
+		    != sizeof(char)) {
+			(void)printf("%s ", strerror(errno));
+			(void)printf("read error,");
+			(void)printf(" line: %d\n", __LINE__);
+			easy_ftp_kill(ftp_pid);
+			return 1;
+		}
 
 		/*
 		 * this separate kevent call and block-socketing ensures
@@ -3153,18 +3186,6 @@ restart_dns_err:
 		if (kevent(kq, &ke, 1, NULL, 0, NULL) == -1) {
 			(void)printf("%s ", strerror(errno));
 			(void)printf("kevent register fail,");
-			(void)printf(" line: %d\n", __LINE__);
-			easy_ftp_kill(ftp_pid);
-			return 1;
-		}
-
-		/*
-		 * receive a response from the ftp_test processes.
-		 */
-		if (read(block_socket[PARENT_SOCK], &v, sizeof(char))
-		    != sizeof(char)) {
-			(void)printf("%s ", strerror(errno));
-			(void)printf("read error,");
 			(void)printf(" line: %d\n", __LINE__);
 			easy_ftp_kill(ftp_pid);
 			return 1;
@@ -3210,6 +3231,7 @@ restart_dns_err:
 				if (verbose >= 2) {
 					(void)printf("killed\n");
 				}
+
 				/*
 				 * reap event
 				 */
@@ -3389,9 +3411,6 @@ restart_dns_err:
 				} else {
 					array[c].diff_rating = 100.0L;
 				}
-
-
-
 			}
 
 			if (
