@@ -2950,7 +2950,7 @@ struct winsize {
 				(void)printf("\n\n\n\n");
 			} else if (verbose >= 3) {
 				(void)printf("\n\n");
-			} else {
+			} else if (verbose >= 0) {
 				(void)printf("\n");
 			}
 
