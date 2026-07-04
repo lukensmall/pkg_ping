@@ -117,8 +117,9 @@ If both -n and -p are specified, it will default to the last argument specified.
 -U will only load mirrors with "USA", "Canada", and "CDN" in the label. This can be used with -u to only get
    Canada and CDN mirrors.
 
+(default verbosity) it shows how many mirrors are left processing (on a single line). It shows a '*' when it is DNS caching.
 
--v will show when it is fetching "ftplist" from one of the many hard coded mirrors, prints out the results 
+-v (verbosity) will show when it is fetching "ftplist" from one of the many hard coded mirrors, prints out the results 
    sorted in reverse order by time or if it is timed out, or a download error,
    subsorts whether it is a USA mirror, further subsorts alphabetically.
    prints a line for each mirror which you can copy and paste into a root terminal to "install" a mirror.
@@ -126,7 +127,6 @@ If both -n and -p are specified, it will default to the last argument specified.
 -vv (an additional -v) will also make it print out the information of the mirrors in real time.
 
 -vvv (an additional -v) will also show ftp call output to mirrors; which includes a progress bar.
-     The progress bar could be interesting if you are on dial-up. Is that still a thing?
 
 -vvvv (an additional -v) will also show dns lookup output if -d is not used. It will temporarily print a * with less -v's to indicate dns caching.
       Further -v arguments are ignored
@@ -135,7 +135,7 @@ If both -n and -p are specified, it will default to the last argument specified.
 
 -V will stop all output except error messages. It overrides all -v instances.
    It's useful I suppose, if run from a script or daemon as root so that it writes the result to file.
-   I won't stop you if you run ./pkg_ping -Vf .... Maybe you need to heat your house?
+   I won't stop you if you run pkg_ping -Vf .... Maybe you need to heat your house?
 
 pkg_ping will shorten the timeout period to the download time of the fastest previous mirror throughout ftp timing calls
 if no -v or if -V is used, so if you want the fastest single result, don't use -v or you could use -V, but it won't print the result to the screen.
