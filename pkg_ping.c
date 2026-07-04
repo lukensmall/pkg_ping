@@ -245,9 +245,9 @@ sub_one_print(long double diff)
 	i = snprintf(diff_string, 12, "%.9Lf", diff);
 	if (i != 11) {
 		if (i < 0) {
-			err(1, "snprintf, line: %d\n", __LINE__);
+			err(1, "snprintf, line: %d", __LINE__);
 		} else {
-			err(1, "'line': %s, snprintf, line: %d\n",
+			err(1, "'line': %s, snprintf, line: %d",
 			    diff_string, __LINE__);
 		}
 	}
@@ -1144,7 +1144,9 @@ file_d(const int write_pipe, const int secure,
 			(void)printf("\n");
 		}
 
-		/* unlink() to prevent possible symlinks by...root? */
+		/*
+		 *  unlink() to prevent possible symlinks by...root?
+		 */
 		(void)unlink("/etc/installurl");
 		pkg_write = fopen("/etc/installurl", "w");
 
@@ -1237,15 +1239,16 @@ restart(int argc, char *argv[], const int loop,
 	c = snprintf(new_args[n], len, "-l%d", loop - 1);
 	if ((c >= len) || (c < 0)) {
 		if (c < 0) {
-			err(1, "snprintf, line: %d\n", __LINE__);
+			err(1, "snprintf, line: %d", __LINE__);
 		} else {
-			err(1, "new_args[n]: %s, snprintf, line: %d\n",
+			err(1, "new_args[n]: %s, snprintf, line: %d",
 			    new_args[n], __LINE__);
 		}
 	}
 
-	/* hard-code to /usr/local/bin/pkg_ping */
-
+	/*
+	 * hard-code to /usr/local/bin/pkg_ping
+	 */
 	(void)execv("/usr/local/bin/pkg_ping", new_args);
 	err(1, "execv failed, line: %d", __LINE__);
 }
@@ -2099,7 +2102,7 @@ struct winsize {
 		write_pid = fork();
 		switch(write_pid) {
 			case -1:
-				err(1, "file_d fork, line: %d\n", __LINE__);
+				err(1, "file_d fork, line: %d", __LINE__);
 				break;
 			case 0:
 				(void)close(write_pipe[STDOUT_FILENO]);
@@ -2122,13 +2125,13 @@ struct winsize {
 
 		if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC,
 		    PF_UNSPEC, dns_cache_d_socket) == -1) {
-			err(1, "socketpair, line: %d\n", __LINE__);
+			err(1, "socketpair, line: %d", __LINE__);
 		}
 
 		dns_cache_d_pid = fork();
 		switch(dns_cache_d_pid) {
 			case -1:
-				err(1, "dns_cache_d fork, line: %d\n",
+				err(1, "dns_cache_d fork, line: %d",
 				    __LINE__);
 				break;
 			case 0:
@@ -2155,7 +2158,7 @@ struct winsize {
 	ftp_pid = fork();
 	switch(ftp_pid) {
 		case -1:
-			err(1, "first ftp, line: %d\n", __LINE__);
+			err(1, "first ftp, line: %d", __LINE__);
 			break;
 		case 0:
 			(void)close(ftp_out_pipe[STDIN_FILENO]);
@@ -2174,6 +2177,7 @@ struct winsize {
 
 	kq = kqueue1(O_CLOEXEC);
 	if (kq == -1) {
+		(void)kill(ftp_pid, SIGKILL);
 		errx(1, "kqueue1() error, line :%d", __LINE__);
 	}
 
@@ -2863,11 +2867,11 @@ struct winsize {
 
 	std_err = dup(STDERR_FILENO);
 	if (std_err == -1) {
-		err(1, "dup, line: %d\n", __LINE__);
+		err(1, "dup, line: %d", __LINE__);
 	}
 
 	if (fcntl(std_err, F_SETFD, FD_CLOEXEC) == -1) {
-		err(1, "fcntl, line: %d\n", __LINE__);
+		err(1, "fcntl, line: %d", __LINE__);
 	}
 
 	/*
@@ -3119,7 +3123,7 @@ restart_dns_err:
 		ftp_pid = fork();
 		switch(ftp_pid) {
 			case -1:
-				err(1, "ftp 2 fork, line: %d\n", __LINE__);
+				err(1, "ftp 2 fork, line: %d", __LINE__);
 				break;
 			case 0:
 				ac = array + array_length;
