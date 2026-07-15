@@ -113,7 +113,7 @@ static int entry_line = __LINE__;
                         /* GENERATED CODE BEGINS HERE */
 
 
-static const char *ftp_list[50] = {
+static const char *ftp_list[51] = {
 
           "openbsd.mirror.constant.com","plug-mirror.rcac.purdue.edu",
            "cloudflare.cdn.openbsd.org","ftp.halifax.rwth-aachen.de",
@@ -124,17 +124,17 @@ static const char *ftp_list[50] = {
        "mirror.leaseweb.com","mirror.telepoint.bg","mirrors.gigenet.com",
          "ftp.eu.openbsd.org","ftp.fr.openbsd.org","ftp.lysator.liu.se",
          "mirror.freedif.org","mirror.fsmg.org.nz","mirror.ungleich.ch",
-         "mirrors.aliyun.com","mirrors.dotsrc.org","ftp.hostserver.de",
-"mirrors.chroot.ro","mirrors.sonic.net","mirrors.ucr.ac.cr","openbsd.as250.net",
-   "mirror.group.one","mirror.litnet.lt","mirror.yandex.ru","cdn.openbsd.org",
-    "ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.ihost.md","mirror.junda.nl",
-     "mirror.mephi.ru","mirror.ox.ac.uk","mirrors.mit.edu","ftp.icm.edu.pl",
- "mirror.rise.ph","ftp.cc.uoc.gr","ftp.spline.de","ftp.nluug.nl","ftp.psnc.pl",
-                            "ftp.bit.nl","ftp.fau.de"
+         "mirrors.aliyun.com","mirrors.dotsrc.org","openbsd.ipacct.com",
+"ftp.hostserver.de","mirrors.chroot.ro","mirrors.sonic.net","mirrors.ucr.ac.cr",
+  "openbsd.as250.net","mirror.group.one","mirror.litnet.lt","mirror.yandex.ru",
+    "cdn.openbsd.org","ftp.OpenBSD.org","ftp.jaist.ac.jp","mirror.ihost.md",
+    "mirror.junda.nl","mirror.mephi.ru","mirror.ox.ac.uk","mirrors.mit.edu",
+       "ftp.icm.edu.pl","mirror.rise.ph","ftp.cc.uoc.gr","ftp.spline.de",
+             "ftp.nluug.nl","ftp.psnc.pl","ftp.bit.nl","ftp.fau.de"
 
 };
 
-static const int ftp_list_index = 50;
+static const int ftp_list_index = 51;
 
 
 
@@ -161,7 +161,7 @@ typedef struct {
                                   // can also be the string length of the MIRROR
                                   // if generating a MIRROR list
                                   
-	long double speed;        // the scraped download speed from ftp()
+	long double speed;        // the scraped download speed from ftp(1)
 	long double diff_rating;  // rating of the diff amongst other MIRRORs
 	long double speed_rating; // rating of speed amongst other MIRRORs
 	
@@ -187,9 +187,10 @@ static const struct timespec timeout_kill = { 1, 0 };
 
 static int kq = -1;
 
-static char *diff_string = NULL;
-static char        *line = NULL;
-static char         *tag = NULL;
+static char *current_time = NULL;
+static char  *diff_string = NULL;
+static char         *line = NULL;
+static char          *tag = NULL;
 
 static const size_t dns_socket_len = 1256;
 
@@ -220,6 +221,9 @@ free_array(void)
 
 	(void)free(tag);
 	tag = NULL;
+
+	(void)free(current_time);
+	current_time = NULL;
 
 }
 
@@ -409,7 +413,7 @@ label_cmp_minus_usa(const void *a, const void *b)
 
 
 		/*
-		 * exactly equal labels:
+		 * exactly equal labels (rc == bc == 0):
 		 * Checking for this condition initially
 		 * with a label strcmp() doesn't
 		 * provide useful information unless
@@ -519,6 +523,7 @@ diff_cmp_g(const void *a, const void *b)
 {
 	/*
 	 * sort those with greater diff values first
+	 * if no difference, compare http strings
 	 */
 	const int diff = (
 		    (const int) ((const MIRROR *) b)->diff
@@ -541,6 +546,7 @@ diff_cmp_g(const void *a, const void *b)
  * diff_cmp_g can be used in the place of this function, but it is
  * far more efficient to avoid the many unnecessary strcmp() for mirrors
  * which have been turned to diff == 0; to be excised from the output.
+ * if no difference and both are non-zero diff, compare http strings
  */
 static int
 diff_cmp_g2(const void *a, const void *b)
@@ -695,11 +701,11 @@ manpage(void)
 
 /*
  * I created this DNS caching daemon which when supplied a URL, it will print
- * out DNS records, but it also pre-caches any ftp() call where ftp(1) issues a
+ * out DNS records, but it also pre-caches any ftp(1) call where ftp(1) issues a
  * DNS call using the same mechanism so, fetching it precaches whatever dns
- * server you're using, so it's fetched very quickly to let the ftp call timings
- * not need to wait for DNS calls to fetch the DNS records across the internet
- * in an undetermined time; thereby eliminating the biggest problem in
+ * server you're using, so it's fetched very quickly to let the ftp(1) call
+ * timings not need to wait for DNS calls to fetch the DNS records across the
+ * internet in an undetermined time; thereby eliminating the biggest problem in
  * determining the raw responsiveness of a server to a request in a single
  * request to limit the annoying file downloads on their networks to an
  * absolute minimum.
@@ -1196,12 +1202,12 @@ file_cleanup:
  *           A new random mirror is selected in the next run.
  */
 static __attribute__((noreturn)) void
-restart(int argc, char *argv[], const int loop,
-	const int verbose, const int call_line)
+restart(int argc, char *argv[], const int loop, const int verbose,
+        const int call_line, const pid_t dns_cache_d_pid)
 {
 	int c;
 	const int len = 10;
-
+	
 	/* 
 	 * if an appended 'loop' is already the last variable: excise the value.
 	 */
@@ -1212,12 +1218,21 @@ restart(int argc, char *argv[], const int loop,
 	if (new_args == NULL) {
 		errx(1, "calloc");
 	}
+	
+	if (dns_cache_d_pid != 0) {
+		if (pledge("stdio proc exec", NULL) == -1) {
+			err(1, "pledge, line: %d", __LINE__);
+		}
+		(void)kill(dns_cache_d_pid, SIGKILL);
+		(void)waitpid(dns_cache_d_pid, NULL, 0);
+	}
+
 	if (pledge("stdio exec", NULL) == -1) {
 		err(1, "pledge, line: %d", __LINE__);
 	}
 
 	if (verbose != -1) {
-		printf("restart called from line: %d\n", call_line);
+		(void)printf("restart called from line: %d\n", call_line);
 	}
 
 	if (loop == 0) {
@@ -1431,7 +1446,7 @@ ftp_help_cleanup:
 
 	(void)close(ftp_2_ftp_helper_socket);
 	(void)close(ftp_helper_out_pipe);
-	free(line);
+	(void)free(line);
 	line = NULL;
 	_exit(ret);
 }
@@ -1654,6 +1669,292 @@ ftp_first(const int ftp_out_pipe, const int generate, const int verbose)
 	_exit(1);
 }
 
+/*
+ * perform functions defined for the -g and -G flags
+ */
+static int
+generate_function(int se)
+{
+	int     c = 0;
+	int     i = 0;
+	int     j = 0;
+	int     n = 0;
+	int first = 0;
+
+	const int se0 = se;
+
+	MIRROR *ac = NULL;
+
+	char *cut = NULL;
+
+	/*
+	 * load diff with what will be printed http lengths
+	 *          then process http for printing
+	 */
+	n = 1;
+	ac = array + se + 1;
+	while (array < ac) {
+		--ac;
+		cut = ac->http + h;
+		j = (int)strlen(cut);
+
+		if (j <= 12) {
+			ac->diff = (long double)j + 1;
+			(void)memmove(ac->http, ac->http + h - 1,
+			              (size_t)j + 1 + 1);
+			ac->http[0] = '*';
+		} else if (strcmp(cut += j -= 12, "/pub/OpenBSD")) {
+			ac->diff = (long double)j + 13;
+			(void)memmove(ac->http, ac->http + h - 1,
+			              (size_t)j + 13 + 1);
+			(ac->http)[0] = '*';
+		} else {
+			ac->diff = (long double)j;
+			*cut = '\0';
+			(void)memmove(ac->http, ac->http + h, (size_t)j + 1);
+		}
+
+		if (n) {
+
+			cut = strchr(ac->http, '/');
+
+			if (cut == NULL) {
+				cut = ac->http + (int)ac->diff;
+			}
+
+			if (((cut - ac->http) > 12) &&
+			    (
+			     !strncmp(cut - 12, ".openbsd.org", 12)
+
+					      ||
+
+			     !strncmp(cut - 12, ".OpenBSD.org", 12)
+			    )
+			   ) {
+				n = 0;
+			}
+		}
+	}
+
+
+
+	if (n) {
+		(void)printf("Couldn't find any openbsd.org mirrors.\n");
+		(void)printf("Try again with a larger timeout!\n");
+		return 1;
+	}
+
+	/*
+	 * sort by longest length first, subsort http alphabetically
+	 *           It makes it kinda look like a flower.
+	 */
+	if (
+		heapsort(array, (size_t)se + 1, sizeof(MIRROR),
+		    diff_cmp_g)
+	   ) {
+		(void)printf("sort failed, line %d\n", __LINE__);
+		return 1;
+	}
+
+	(void)printf("\n\n");
+	(void)printf("                        ");
+	(void)printf("/* GENERATED CODE BEGINS HERE */\n\n\n");
+	(void)printf("static const char *ftp_list[%d] = {\n\n",
+	    se + 1);
+
+
+	/*
+	 * n = 0; 
+	 */
+	for (c = 0; c < se; ++c) {
+
+		/*
+		 *    3 is the size of the printed: "",
+		 */
+
+		if ((((int)array[c].diff) + 3) > 80) {
+			(void)printf("\"%s\",\n", array[first].http);
+			++first;
+		} else {
+			break;
+		}
+	}
+
+	if (c == se) {
+		goto gen_skip1;
+	}
+
+	for (; c <= se; ++c) {
+
+		/*
+		 *    3 is the size of the printed: "",
+		 * if (c == se) it doesn't print the comma
+		 */
+
+		i = ((int)array[c].diff) + 3 - (c == se);
+		n += i;
+
+		/*
+		 * overflow:
+		 * mirrors printed on each line
+		 * will not exceed 80 characters
+		 */
+		if (n > 80) {
+
+			/* 
+			 * center the printed mirrors. Err to right
+			 */
+			for (j = (80+1 - (n - i)) / 2; j > 0; --j) {
+				(void)printf(" ");
+			}
+			do {
+				(void)printf("\"%s\",",
+					     array[first].http);
+				++first;
+			} while (first < c);
+			(void)printf("\n");
+			n = i;
+
+		}
+	}
+
+	/* 
+	 * center the printed mirrors. Err to right
+	 */
+	for (j = (80+1 - n) / 2; j > 0; --j) {
+		(void)printf(" ");
+	}
+	while (first < se) {
+		(void)printf("\"%s\",", array[first].http);
+		++first;
+	}
+gen_skip1:
+	(void)printf("\"%s\"\n\n", array[se].http);
+
+	(void)printf("};\n\n");
+	(void)printf("static const int ftp_list_index = %d;\n\n\n\n",
+					  se + 1);
+
+
+	/*
+	 * make non-openbsd.org mirrors: diff == 0
+	 *   and stop them from being displayed
+	 */
+	ac = array + se + 1;
+	while (array < ac) {
+		--ac;
+		cut = strchr(ac->http, '/');
+		if (cut == NULL) {
+			cut = ac->http + (int)ac->diff;
+		}
+		if (((cut - ac->http) <= 12) ||
+		    (
+		     strncmp(cut - 12, ".openbsd.org", 12)
+                                     &&
+		     strncmp(cut - 12, ".OpenBSD.org", 12)
+		    )
+		   ) {
+			ac->diff = 0;
+			--se;
+		}
+	}
+
+	/*
+	 * sort by longest length first,
+	 * if diff > 0 then
+	 * subsort http alphabetically
+	 */
+	if (
+		heapsort(array, (size_t)se0 + 1, sizeof(MIRROR),
+				diff_cmp_g2)
+	   ) {
+		(void)printf("sort failed, line %d\n", __LINE__);
+		return 1;
+	}
+
+	(void)printf("     /* Trusted OpenBSD.org subdomain ");
+	(void)printf("mirrors for generating this section */\n\n");
+	(void)printf("static const char *ftp_list_g[%d] = {\n\n", se + 1);
+
+
+	n = 0;
+	first = 0;
+
+	for (c = 0; c < se; ++c) {
+
+		/*
+		 *    3 is the size of the printed: "",
+		 */
+
+		if ((((int)array[c].diff) + 3) > 80) {
+			(void)printf("\"%s\",\n", array[first].http);
+			++first;
+		} else {
+			break;
+		}
+	}
+
+	if (c == se) {
+		goto gen_skip2;
+	}
+
+	for (; c <= se; ++c) {
+
+		/*
+		 *    3 is the size of the printed: "",
+		 * if (c == se) it doesn't print the comma
+		 */
+
+		i = ((int)array[c].diff) + 3 - (c == se);
+		n += i;
+
+		/*
+		 * overflow:
+		 * mirrors printed on each line
+		 * will not exceed 80 characters
+		 */
+		if (n > 80) {
+
+			/* 
+			 * center the printed mirrors. Err to right
+			 */
+			for (j = (80+1 - (n - i)) / 2; j > 0; --j) {
+				(void)printf(" ");
+			}
+			do {
+				(void)printf("\"%s\",",
+					     array[first].http);
+				++first;
+			} while (first < c);
+			(void)printf("\n");
+			n = i;
+		}
+	}
+
+	/* 
+	 * center the printed mirrors. Err to right
+	 */
+	for (j = (80+1 - n) / 2; j > 0; --j) {
+		(void)printf(" ");
+	}
+	while (first < se) {
+		(void)printf("\"%s\",", array[first].http);
+		++first;
+	}
+gen_skip2:
+	(void)printf("\"%s\"\n\n", array[se].http);
+
+	(void)printf("};\n\n");
+	(void)printf("static const int ftp_list_index_g = %d;\n\n\n",
+		     se + 1);
+	(void)printf("                         ");
+	(void)printf("/* GENERATED CODE ENDS HERE */\n\n\n\n");
+	(void)printf("Replace section after line: %d,", entry_line);
+	(void)printf(" but before line: %d with the", exit_line);
+	(void)printf(" code above.\n\n");
+	
+	return 0;
+}
 int
 main(int argc, char *argv[])
 {
@@ -1666,6 +1967,7 @@ main(int argc, char *argv[])
 	size_t tag_len = 0;
 	
 	int sort_ret = 0;
+	int ret = 0;
 
 	const int root_user = (int)(getuid() == 0);
 	
@@ -1703,11 +2005,11 @@ main(int argc, char *argv[])
 	pid_t         ftp_pid = 0;
 
 	int std_err = 0;
-	int       z = 0;
-	int       i = 0;
 	int       c = 0;
-	int       n = 0;
+	int       i = 0;
 	int       j = 0;
+	int       n = 0;
+	int       z = 0;
 
 	int verbose = 0;
 	int pos_max = 0;
@@ -1732,7 +2034,6 @@ main(int argc, char *argv[])
 	char *line_temp = NULL;
 	char   *release = NULL;
 
-	char *current_time = NULL;
 	char v = '\0';
 	
 
@@ -2151,7 +2452,7 @@ struct winsize {
 			err(1, "pledge, line: %d", __LINE__);
 	}
 	
-	if (pipe(ftp_out_pipe) == -1) {
+	if (pipe2(ftp_out_pipe, O_CLOEXEC) == -1) {
 		err(1, "pipe, line: %d", __LINE__);
 	}
 
@@ -2178,7 +2479,10 @@ struct winsize {
 	kq = kqueue1(O_CLOEXEC);
 	if (kq == -1) {
 		(void)kill(ftp_pid, SIGKILL);
-		errx(1, "kqueue1() error, line :%d", __LINE__);
+		(void)waitpid(ftp_pid, NULL, 0);
+		(void)printf("kqueue1() error, line :%d\n", __LINE__);
+		restart(argc, argv, loop, verbose, __LINE__,
+			dns_cache_d_pid);
 	}
 
 	S = ((long double) timeout_ftp_list.tv_sec) +
@@ -2538,9 +2842,9 @@ struct winsize {
 	if (i != 1) {
 		easy_ftp_kill(ftp_pid);
 		(void)close(z);
-		restart(argc, argv, loop, verbose, __LINE__);
+		restart(argc, argv, loop, verbose, __LINE__,
+			dns_cache_d_pid);
 	}
-
 
 
 	if (debug) {
@@ -2707,6 +3011,8 @@ struct winsize {
 				 * will likely never get here
 				 */
 				if (pos >= ((int)dns_socket_len) - 2) {
+					easy_ftp_kill(ftp_pid);
+					(void)free(array[array_length].http);
 					errx(1,
 					    "too many unladen commas, line: %d",
 					    __LINE__
@@ -2792,14 +3098,15 @@ struct winsize {
 	 * It's caused by no internet, bad dns resolution;
 	 *   Or from a faulty mirror or its bad dns info
 	 */
-	if (z || (array_length == 0)) {
+	if (WEXITSTATUS(z) || (array_length == 0)) {
 
 		if (verbose >= 0) {
 			(void)printf("There was an 'ftplist' ");
 			(void)printf("download problem.\n");
 		}
 
-		restart(argc, argv, loop, verbose, __LINE__);
+		restart(argc, argv, loop, verbose, __LINE__,
+			dns_cache_d_pid);
 	}
 	
 	if (all) {
@@ -2858,10 +3165,10 @@ struct winsize {
 		err(1, "sort failed, line %d", __LINE__);
 	}
 
-	timeout.tv_sec = (time_t) s;
+	timeout.tv_sec = (time_t) (s + 0.125L);
 	timeout.tv_nsec =
 	    (long) (
-			(s - (long double) timeout.tv_sec) *
+			((s + 0.125L) - (long double) timeout.tv_sec) *
 			1000000000.0L
 		   );
 
@@ -2888,7 +3195,7 @@ struct winsize {
 	/* 
 	 * calculations for preventing ugly line wraps in realtime output
 	 */
-	if (verbose >= 2) {
+	if (verbose >= 2 && !all) {
 
 		ac = array + array_length;
 		i = (array_length >= 100) + 10;
@@ -3084,7 +3391,8 @@ restart_dns_err:
 					} while (n);
 				}
 
-				restart(argc, argv, loop, verbose, __LINE__);
+				restart(argc, argv, loop, verbose, __LINE__,
+					dns_cache_d_pid);
 			}
 
 			if (six && (v == '0')) {
@@ -3111,7 +3419,7 @@ restart_dns_err:
 		}
 
 
-		if (socketpair(AF_UNIX, SOCK_STREAM,
+		if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC,
 		    PF_UNSPEC, block_socket) == -1) {
 			err(1, "socketpair, line %d", __LINE__);
 		}
@@ -3174,7 +3482,8 @@ restart_dns_err:
 			(void)printf("read error,");
 			(void)printf(" line: %d\n", __LINE__);
 			easy_ftp_kill(ftp_pid);
-			return 1;
+			restart(argc, argv, loop, verbose, __LINE__,
+			dns_cache_d_pid);
 		}
 
 		/*
@@ -3192,7 +3501,8 @@ restart_dns_err:
 			(void)printf("kevent register fail,");
 			(void)printf(" line: %d\n", __LINE__);
 			easy_ftp_kill(ftp_pid);
-			return 1;
+			restart(argc, argv, loop, verbose, __LINE__,
+			dns_cache_d_pid);
 		}
 		
 		/*
@@ -3212,7 +3522,7 @@ restart_dns_err:
 		}
 
 		/* 
-		 * timeout occurred before ftp() exit was received
+		 * timeout occurred before ftp(1) exit was received
 		 */
 		if (i == 0) {
 
@@ -3229,6 +3539,9 @@ restart_dns_err:
 			
 			}
 
+			/*
+			 * It didn't reap the event
+			 */
 			if (i == 0) {
 
 				(void)kill(ftp_pid, SIGKILL);
@@ -3253,7 +3566,7 @@ restart_dns_err:
 		}
 		(void)waitpid(ftp_pid, &z, 0);
 
-		if (z) {
+		if (WEXITSTATUS(z) != 0) {
 			array[c].diff = s + 1;
 			if (verbose >= 2) {
 				(void)printf("Download Error\n");
@@ -3267,16 +3580,20 @@ restart_dns_err:
 		if (!debug) {
 			if (read(z, &array[c].speed, sizeof(long double))
 			    != (ssize_t)sizeof(long double)) {
-				printf("ftp_helper_out_pipe[STDIN_FILENO]");
-				printf(" read failed. line %d\n", __LINE__);
+				(void)printf(
+				           "ftp_helper_out_pipe[STDIN_FILENO]");
+				(void)printf(
+				           " read failed. line %d\n", __LINE__);
 				(void)close(z);
-				restart(argc, argv, loop, verbose, __LINE__);
+				restart(argc, argv, loop, verbose, __LINE__,
+					dns_cache_d_pid);
 			}
 		}
 		(void)close(z);
 
 		array[c].diff =
-		    (long double) (end.tv_sec  - start.tv_sec ) +
+		    (long double) (end.tv_sec  - start.tv_sec )
+                                        +
 		    (long double) (end.tv_nsec - start.tv_nsec) / 1000000000.0L;
 		
 		if ((test_print == 0) && (array[c].diff < s)) {
@@ -3319,6 +3636,12 @@ restart_dns_err:
 	if (dns_cache) {
 		(void)close(dns_cache_d_socket[PARENT_SOCK]);
 		(void)waitpid(dns_cache_d_pid, NULL, 0);
+		
+		/*
+		 * this is used in restart() to stop attempting to kill
+		 *           dns_cache_d() upon restart()ing.
+		 */
+		dns_cache_d_pid = 0;
 	}
 
 	if (pledge("stdio exec", NULL) == -1) {
@@ -3329,7 +3652,7 @@ restart_dns_err:
 		(void)printf("\b \b");
 		(void)fflush(stdout);
 	}
-	free(line);
+	(void)free(line);
 	line = NULL;
 	(void)close(kq);
 
@@ -3452,9 +3775,6 @@ restart_dns_err:
 		int  te = -1;
 
 		int  se = -1;
-		int se0 = -1;
-
-		int first = 0;
 
 
 		MIRROR *slowest;
@@ -3501,317 +3821,24 @@ restart_dns_err:
 
 		} while (c);
 
-		se0 = se;
-
 		if (se == -1) {
 			goto no_good;
 		}
 
-		if (generate == 0) {
-			goto generate_jump;
-		}
-		
-		if (all) {
-			se = array_length - 1;
-			se0 = se;
-		}
+		if (generate) {
+	
+			if (all) {
+				se = array_length - 1;
+			}
+			
+			ret = generate_function(se);
 
-		/*
-		 * load diff with what will be printed http lengths
-		 *          then process http for printing
-		 */
-		n = 1;
-		ac = array + se + 1;
-		while (array < ac) {
-			--ac;
-			cut = ac->http += h;
-			j = (int)strlen(cut);
-
-			if (j <= 12) {
-				(ac->http -= 1)[0] = '*';
-				ac->diff = j + 1;
-			} else if (strcmp(cut += j -= 12, "/pub/OpenBSD")) {
-				(ac->http -= 1)[0] = '*';
-				ac->diff = j + 13;
-			} else {
-				*cut = '\0';
-				ac->diff = j;
+			if (debug) {
+				goto debug_display;
 			}
 
-			if (n) {
-
-				cut = strchr(ac->http, '/');
-
-				if (cut == NULL) {
-					cut = ac->http + (int)ac->diff;
-				}
-
-				if (((cut - ac->http) > 12) &&
-				    (
-				     !strncmp(cut - 12, ".openbsd.org", 12)
-
-						      ||
-
-				     !strncmp(cut - 12, ".OpenBSD.org", 12)
-				    )
-				   ) {
-					n = 0;
-				}
-			}
+			return ret;
 		}
-
-
-
-		if (n) {
-
-			(void)printf("Couldn't find any openbsd.org mirrors.");
-			(void)printf("\nTry again with a larger timeout!\n");
-
-			ac = array + se0 + 1;
-			while (array < ac) {
-				--ac;
-				if (ac->http[0] == '*') {
-					ac->http -= h - 1;
-				} else {
-					ac->http -= h;
-				}
-			}
-
-			free(current_time);
-
-			return 1;
-		}
-
-		/*
-		 * sort by longest length first, subsort http alphabetically
-		 *           It makes it kinda look like a flower.
-		 */
-		if (
-			heapsort(array, (size_t)se + 1, sizeof(MIRROR),
-			    diff_cmp_g)
-		   ) {
-			err(1, "sort failed, line %d", __LINE__);
-		}
-
-		(void)printf("\n\n");
-		(void)printf("                        ");
-		(void)printf("/* GENERATED CODE BEGINS HERE */\n\n\n");
-		(void)printf("static const char *ftp_list[%d] = {\n\n",
-		    se + 1);
-
-
-		/*
-		 * n = 0; 
-		 */
-		for (c = 0; c < se; ++c) {
-
-			/*
-			 *    3 is the size of the printed: "",
-			 */
-
-			if ((((int)array[c].diff) + 3) > 80) {
-				(void)printf("\"%s\",\n", array[first].http);
-				++first;
-			} else {
-				break;
-			}
-		}
-
-		if (c == se) {
-			goto gen_skip1;
-		}
-
-		for (; c <= se; ++c) {
-
-			/*
-			 *    3 is the size of the printed: "",
-			 * if (c == se) it doesn't print the comma
-			 */
-
-			i = ((int)array[c].diff) + 3 - (c == se);
-			n += i;
-
-			/*
-			 * overflow:
-			 * mirrors printed on each line
-			 * will not exceed 80 characters
-			 */
-			if (n > 80) {
-
-				/* 
-				 * center the printed mirrors. Err to right
-				 */
-				for (j = (80+1 - (n - i)) / 2; j > 0; --j) {
-					(void)printf(" ");
-				}
-				do {
-					(void)printf("\"%s\",",
-					             array[first].http);
-					++first;
-				} while (first < c);
-				(void)printf("\n");
-				n = i;
-
-			}
-		}
-
-		/* 
-		 * center the printed mirrors. Err to right
-		 */
-		for (j = (80+1 - n) / 2; j > 0; --j) {
-			(void)printf(" ");
-		}
-		while (first < se) {
-			(void)printf("\"%s\",", array[first].http);
-			++first;
-		}
-gen_skip1:
-		(void)printf("\"%s\"\n\n", array[se].http);
-
-		(void)printf("};\n\n");
-		(void)printf("static const int ftp_list_index = %d;\n\n\n\n",
-		                                  se + 1);
-
-
-		/*
-		 * make non-openbsd.org mirrors: diff == 0
-		 *   and stop them from being displayed
-		 */
-		ac = array + se + 1;
-		while (array < ac) {
-			--ac;
-			cut = strchr(ac->http, '/');
-			if (cut == NULL) {
-				cut = ac->http + (int)ac->diff;
-			}
-			if (((cut - ac->http) <= 12) ||
-			    (
-			     strncmp(cut - 12, ".openbsd.org", 12)
-
-					     &&
-
-			     strncmp(cut - 12, ".OpenBSD.org", 12)
-			    )
-			   ) {
-				ac->diff = 0;
-				--se;
-			}
-		}
-
-		/*
-		 * sort by longest length first,
-		 * if diff > 0 then
-		 * subsort http alphabetically
-		 */
-		if (
-			heapsort(array, (size_t)se0 + 1, sizeof(MIRROR),
-					diff_cmp_g2)
-		   ) {
-			err(1, "sort failed, line %d", __LINE__);
-		}
-
-		(void)printf("     /* Trusted OpenBSD.org subdomain ");
-		(void)printf("mirrors for generating this section */\n\n");
-		(void)printf("static const char ");
-		(void)printf("*ftp_list_g[%d] = {\n\n", se + 1);
-
-
-		n = 0;
-		first = 0;
-
-		for (c = 0; c < se; ++c) {
-
-			/*
-			 *    3 is the size of the printed: "",
-			 */
-
-			if ((((int)array[c].diff) + 3) > 80) {
-				(void)printf("\"%s\",\n", array[first].http);
-				++first;
-			} else {
-				break;
-			}
-		}
-
-		if (c == se) {
-			goto gen_skip2;
-		}
-
-		for (; c <= se; ++c) {
-
-			/*
-			 *    3 is the size of the printed: "",
-			 * if (c == se) it doesn't print the comma
-			 */
-
-			i = ((int)array[c].diff) + 3 - (c == se);
-			n += i;
-
-			/*
-			 * overflow:
-			 * mirrors printed on each line
-			 * will not exceed 80 characters
-			 */
-			if (n > 80) {
-
-				/* 
-				 * center the printed mirrors. Err to right
-				 */
-				for (j = (80+1 - (n - i)) / 2; j > 0; --j) {
-					(void)printf(" ");
-				}
-				do {
-					(void)printf("\"%s\",",
-					             array[first].http);
-					++first;
-				} while (first < c);
-				(void)printf("\n");
-				n = i;
-			}
-		}
-
-		/* 
-		 * center the printed mirrors. Err to right
-		 */
-		for (j = (80+1 - n) / 2; j > 0; --j) {
-			(void)printf(" ");
-		}
-		while (first < se) {
-			(void)printf("\"%s\",", array[first].http);
-			++first;
-		}
-gen_skip2:
-		(void)printf("\"%s\"\n\n", array[se].http);
-
-		(void)printf("};\n\n");
-		(void)printf("static const int ftp_list_index_g = %d;\n\n\n",
-		             se + 1);
-		(void)printf("                         ");
-		(void)printf("/* GENERATED CODE ENDS HERE */\n\n\n\n");
-		(void)printf("Replace section after line: %d,", entry_line);
-		(void)printf(" but before line: %d with the", exit_line);
-		(void)printf(" code above.\n\n");
-
-		ac = array + se0 + 1;
-		while (array < ac) {
-			--ac;
-			if (ac->http[0] == '*') {
-				ac->http -= h - 1;
-			} else {
-				ac->http -= h;
-			}
-		}
-
-		free(current_time);
-		current_time = NULL;
-
-		if (debug) {
-			goto debug_display;
-		}
-
-		return 0;
-
-generate_jump:
 
 
 		sort_ret = heapsort(array, (size_t)se + 1, sizeof(MIRROR),
@@ -4299,7 +4326,7 @@ generate_jump:
 				}
 			}
 		}
-		free(bbuf);
+		(void)free(bbuf);
 	}
 
 	if (array[0].diff >= s) {
@@ -4347,14 +4374,12 @@ no_good:
 			             current_time);
 		}
 
-		free(current_time);
-		free(release);
+		(void)free(release);
 
 		return 1;
 	}
 
-	free(current_time);
-	free(release);
+	(void)free(release);
 
 	if (to_file) {
 
@@ -4366,15 +4391,17 @@ no_good:
 		if (i != n) {
 			(void)printf("\nnot all of mirror sent to write_pid\n");
 			(void)close(write_pipe[STDOUT_FILENO]);
-			restart(argc, argv, loop, verbose, __LINE__);
+			restart(argc, argv, loop, verbose, __LINE__,
+			dns_cache_d_pid);
 		}
 
 		(void)close(write_pipe[STDOUT_FILENO]);
 		(void)waitpid(write_pid, &z, 0);
 
-		if (z) {
+		if (WEXITSTATUS(z) != 0) {
 			(void)printf("\nwrite_pid error.\n");
-			restart(argc, argv, loop, verbose, __LINE__);
+			restart(argc, argv, loop, verbose, __LINE__,
+			dns_cache_d_pid);
 		}
 
 	} else if ((!root_user && (verbose != -1)) || (root_user && !verbose)) {
@@ -4384,7 +4411,7 @@ no_good:
 		(void)printf("As root, type: echo ");
 		(void)printf("\"%s\" > /etc/installurl\n", array[0].http);
 	}
-
+	
 	if (debug) {
 
 debug_display:
@@ -4410,5 +4437,5 @@ debug_display:
 		}
 	}
 
-	return 0;
+	return ret;
 }
