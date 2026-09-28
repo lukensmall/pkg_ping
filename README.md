@@ -4,7 +4,7 @@
 
 I made the program eliminate environment variables.
 
-I also made the processes immediately run as the effectively unprivileged user _pkgfetch
+I also made the processes immediately run as the effectively unprivileged user _pkgfetch . It can only do this if run with super-user rights
 and if it has the chance to get to the file writing process, it regains super user power to delete/write installurl.
 Then it eliminates the possibility within the rest of the processes to change back into the root user unless there is a restart.
 Instead of hard-coding 57 as the _pkgfetch user ID, I make it look it up.
