@@ -196,7 +196,8 @@ static const size_t dns_socket_len = 1256;
 
 /* 
  * Called once with atexit. It's the only function called with atexit
- * and free_array isn't called elsewhere
+ * and free_array isn't called elsewhere but the functionality exists
+ * and it can be called again.
  */
 static void
 free_array(void)
@@ -318,7 +319,7 @@ usa_cmp(const void *a, const void *b)
  * 
  * checks to make sure these procedures are safe, are performed in main
  * It can assume all commas in the labels are followed by a space,
- * there is no leading comma, and there are no double spaces.
+ * there is no leading nor trailing comma, and there are no double spaces.
  */
 static int
 label_cmp_minus_usa(const void *a, const void *b)
@@ -700,6 +701,147 @@ manpage(void)
 }
 
 /*
+ * validate a url
+ */
+static int
+url_validate(char *url, int len, int print_error)
+{
+	int i;
+	int n;
+
+	if (len < 1) {
+		if (print_error) {
+			(void)printf("url: too short\n");
+		}
+		return 1;
+	}
+
+	if (len > 253) {
+		if (print_error) {
+			(void)printf("url: too long\n");
+		}
+		return 1;
+	}
+
+	/*
+	 * no url leading nor trailing '-'
+	 */
+	if (url[0] == '-') {
+		if (print_error) {
+			(void)printf("url: leading '-' .\n");
+		}
+		return 1;
+	}
+	if (url[len - 1] == '-') {
+		if (print_error) {
+			(void)printf("url: trailing '-' .\n");
+		}
+		return 1;
+	}
+	
+	/*
+	 * no url leading nor trailing '.'
+	 */
+	if (url[0] == '.') {
+		if (print_error) {
+			(void)printf("url: leading '.' .\n");
+		}
+		return 1;
+	}
+	if (url[len - 1] == '.') {
+		if (print_error) {
+			(void)printf("url: trailing '.' .\n");
+		}
+		return 1;
+	}
+
+	/*
+	 * no url -- in position 3-4
+	 */
+	if ( len >= 4) {
+		if (!strncmp(url + 2, "--", 2)) {
+			if (print_error) {
+				(void)printf("url: no -- in position 3-4.\n");
+			}
+			return 1;
+		}
+	}
+
+	/*
+	 * url no ..
+	 */
+	for (i = len - 2; i >= 0; --i) {
+		if ( (url[i] == '.') && (url[i + 1] == '.')) {
+			if (print_error) {
+				(void)printf("url: no \"..\".\n");
+			}
+			return 1;
+		}
+	}
+	
+	/*
+	 * white-list characters
+	 */
+	for (i = 0; i < len; ++i) {
+		const char c = url[i];
+		if (
+		   !(
+		     ((c >= 'a') && (c <= 'z'))
+			         ||
+		     ((c >= 'A') && (c <= 'Z'))
+			         ||
+		     ((c >= '0') && (c <= '9'))
+		                 ||
+		              (c == '.')
+		                 ||
+		              (c == '-')
+		                 ||
+		              (c == '_')
+		    )
+		   ) {
+			if (print_error) {
+				(void)printf("url: invalid character.\n");
+			}
+			return 1;
+		}
+	}
+
+	if (len > 63) {
+		i = len;
+		do {
+			/*
+			 * label < 64 characters long
+			 */
+			n = 0;
+			for (--i; (i >= 0) && (url[i] != '.'); --i) {
+				++n;
+				if (n > 63) {
+					if (print_error) {
+						(void)printf("url: label > 63");
+						(void)printf(" characters.\n");
+					}
+					return 1;
+				}
+			}
+		} while (i >= 63);
+	}
+		
+	/*
+	 * no all numeric tld
+	 */
+	for (i = len - 1; (i >= 0) && (url[i] != '.'); --i) {
+		if ((url[i] < '0') || (url[i] > '9')) {
+			return 0;
+		}
+	}
+	
+	if (print_error) {
+		(void)printf("url: no all numeric tld.\n");
+	}
+	return 1;
+}
+
+/*
  * I created this DNS caching daemon which when supplied a URL, it will print
  * out DNS records, but it also pre-caches any ftp(1) call where ftp(1) issues a
  * DNS call using the same mechanism so, fetching it precaches whatever dns
@@ -793,6 +935,17 @@ dns_loop:
 		(void)printf("DNS caching: %s\n", dns_line);
 	}
 
+	if (url_validate(dns_line, i, verbose >= 4)) {
+		i = (int)write(dns_socket, "i", sizeof(char));
+		if (i != sizeof(char)) {
+			if ((i == -1) && (verbose >= 4)) {
+				(void)printf("%s ", strerror(errno));
+			}
+			(void)printf("write error line: %d\n", __LINE__);
+			goto dns_exit;
+		}
+		goto dns_loop;
+	}
 
 	if (getaddrinfo(dns_line, dns_line0, &hints, &res0)) {
 
@@ -1169,6 +1322,7 @@ file_d(const int write_pipe, const int secure,
 		}
 	
 		i = (int)fwrite(file_w, 1, (size_t)received + 1, pkg_write);
+		fflush(pkg_write);
 		(void)fclose(pkg_write);
 		if (i < (int)received + 1) {
 			(void)printf("write error occurred, line: %d\n",
@@ -1213,7 +1367,7 @@ restart(int argc, char *argv[], const int loop, const int verbose,
 	 */
 	const int n
 	    = argc - (int)((argc > 1) && (!strncmp(argv[argc - 1], "-l", 2)));
-
+	
 	char **new_args = (char **)calloc((size_t)n + 1 + 1, sizeof(char *));
 	if (new_args == NULL) {
 		errx(1, "calloc");
@@ -1248,6 +1402,7 @@ restart(int argc, char *argv[], const int loop, const int verbose,
 
 	new_args[n] = (char*)calloc(len, sizeof(char));
 	if (new_args[n] == NULL) {
+		(void)free(new_args);
 		errx(1, "calloc");
 	}
 	
@@ -1464,10 +1619,9 @@ ftp_test(const int block_socket, const int ftp_helper_out_pipe,
 
 	int ftp_2_ftp_helper_socket[2] = { -1, -1 };
 
-	if (socketpair(AF_UNIX, SOCK_STREAM,
-	    PF_UNSPEC, ftp_2_ftp_helper_socket) == -1) {
-		(void)printf("socketpair, line: %d\n",
-			    __LINE__);
+	if (socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, ftp_2_ftp_helper_socket)
+	    == -1) {
+		(void)printf("socketpair, line: %d\n", __LINE__);
 		_exit(1);
 	}
 
@@ -1603,7 +1757,7 @@ ftp_first(const int ftp_out_pipe, const int generate, const int verbose)
 	
 	if (generate) {
 
-		i = (int)arc4random_uniform(ftp_list_index_g);
+		i = (ssize_t)arc4random_uniform(ftp_list_index_g);
 
 		if (ftp_list_g[i][0] == '*') {
 			i = snprintf(line, (ulong)n,
@@ -1617,7 +1771,7 @@ ftp_first(const int ftp_out_pipe, const int generate, const int verbose)
 
 	} else {
 
-		i = (int)arc4random_uniform(ftp_list_index);
+		i = (ssize_t)arc4random_uniform(ftp_list_index);
 
 		if (ftp_list[i][0] == '*') {
 			i = snprintf(line, (ulong)n,
@@ -1707,7 +1861,7 @@ generate_function(int se)
 			ac->diff = (long double)j + 13;
 			(void)memmove(ac->http, ac->http + h - 1,
 			              (size_t)j + 13 + 1);
-			(ac->http)[0] = '*';
+			ac->http[0] = '*';
 		} else {
 			ac->diff = (long double)j;
 			*cut = '\0';
@@ -1756,8 +1910,7 @@ generate_function(int se)
 		return 1;
 	}
 
-	(void)printf("\n\n");
-	(void)printf("                        ");
+	(void)printf("\n\n                        ");
 	(void)printf("/* GENERATED CODE BEGINS HERE */\n\n\n");
 	(void)printf("static const char *ftp_list[%d] = {\n\n",
 	    se + 1);
@@ -1804,24 +1957,22 @@ generate_function(int se)
 			/* 
 			 * center the printed mirrors. Err to right
 			 */
-			for (j = (80+1 - (n - i)) / 2; j > 0; --j) {
+			for (j = (81 + i - n) / 2; j > 0; --j) {
 				(void)printf(" ");
 			}
 			do {
-				(void)printf("\"%s\",",
-					     array[first].http);
+				(void)printf("\"%s\",", array[first].http);
 				++first;
 			} while (first < c);
 			(void)printf("\n");
 			n = i;
-
 		}
 	}
 
 	/* 
 	 * center the printed mirrors. Err to right
 	 */
-	for (j = (80+1 - n) / 2; j > 0; --j) {
+	for (j = (81 - n) / 2; j > 0; --j) {
 		(void)printf(" ");
 	}
 	while (first < se) {
@@ -1918,12 +2069,11 @@ gen_skip1:
 			/* 
 			 * center the printed mirrors. Err to right
 			 */
-			for (j = (80+1 - (n - i)) / 2; j > 0; --j) {
+			for (j = (81 + i - n) / 2; j > 0; --j) {
 				(void)printf(" ");
 			}
 			do {
-				(void)printf("\"%s\",",
-					     array[first].http);
+				(void)printf("\"%s\",", array[first].http);
 				++first;
 			} while (first < c);
 			(void)printf("\n");
@@ -1934,7 +2084,7 @@ gen_skip1:
 	/* 
 	 * center the printed mirrors. Err to right
 	 */
-	for (j = (80+1 - n) / 2; j > 0; --j) {
+	for (j = (81 - n) / 2; j > 0; --j) {
 		(void)printf(" ");
 	}
 	while (first < se) {
@@ -1959,7 +2109,15 @@ int
 main(int argc, char *argv[])
 {
 
+/*
+ * this program is tightly integrated with OpenBSD
+ * it not only uses pledge() and unveil(),
+ * it also calls OpenBSD's ftp(1)
+ * and it spawns a process to scrape its specific output
+ * to operate. 
+ */
 #ifndef __OpenBSD__
+	#error program is integrated with the OpenBSD implementation of ftp(1)
 	#error Only run on OpenBSD
 #endif
 
@@ -2086,12 +2244,29 @@ struct winsize {
 		err(1, "almost_zero == 0, line: %d", __LINE__);
 	}
 
+	if (argc < 1) {
+		errx(1, "argc cannot be less than 1!");
+	}
+
+	if (argc >= 30) {
+		i = (int)(!strncmp(argv[argc - 1], "-l", 2));
+		if ((argc - i) >= 30) {
+			errx(1, "keep argument count under 30");
+		}
+	}
+
+	for(c = 1; c < argc; ++c) {
+		if (strnlen(argv[c], 35) == 35) {
+			errx(1, "keep argument lengths under 35");
+		}
+	}
+
 	if (root_user) {
 		
 		struct passwd *pw = NULL;
 		
 		i = pledge(
-		          "stdio exec proc dns cpath wpath id unveil tty getpw",
+		          "stdio exec proc dns id cpath wpath unveil tty getpw",
 		          NULL
 			  );
 		if (i == -1) {
@@ -2121,7 +2296,7 @@ struct winsize {
 		explicit_bzero(&pw, sizeof(struct passwd *));
 	}
 	
-	i = pledge("stdio exec proc dns cpath wpath id unveil tty", NULL);
+	i = pledge("stdio exec proc dns id cpath wpath unveil tty", NULL);
 	if (i == -1) {
 		err(1, "pledge, line: %d", __LINE__);
 	}
@@ -2132,7 +2307,7 @@ struct winsize {
 	}
 
 
-	if (pledge("stdio exec proc dns cpath wpath id unveil", NULL) == -1) {
+	if (pledge("stdio exec proc dns id cpath wpath unveil", NULL) == -1) {
 		err(1, "pledge, line: %d", __LINE__);
 	}
 	
@@ -2159,7 +2334,7 @@ struct winsize {
 			err(1, "unveil end1, line: %d", __LINE__);
 		}
 
-		i = pledge("stdio exec proc dns cpath wpath id", NULL);
+		i = pledge("stdio exec proc dns id cpath wpath", NULL);
 		if (i == -1) {
 			err(1, "pledge, line: %d", __LINE__);
 		}
@@ -2168,7 +2343,7 @@ struct winsize {
 			err(1, "unveil end2 line: %d", __LINE__);
 		}
 
-		if (pledge("stdio exec proc dns id ", NULL) == -1) {
+		if (pledge("stdio exec proc dns id", NULL) == -1) {
 			err(1, "pledge, line: %d", __LINE__);
 		}
 	}
@@ -2177,24 +2352,6 @@ struct winsize {
 	if (diff_string == NULL) {
 		errx(1, "calloc");
 	}
-
-	if (argc < 1) {
-		errx(1, "argc cannot be less than 1!");
-	}
-
-	if (argc >= 30) {
-		i = (int)(!strncmp(argv[argc - 1], "-l", 2));
-		if ((argc - i) >= 30) {
-			errx(1, "keep argument count under 30");
-		}
-	}
-
-	for(c = 1; c < argc; ++c) {
-		if (strnlen(argv[c], 35) == 35) {
-			errx(1, "keep argument lengths under 35");
-		}
-	}
-
 
 	for(;;) {
 		c = getopt(argc, argv, "6abDdfGghl:nOprSs:uUVv");
@@ -2449,7 +2606,7 @@ struct winsize {
 	}
 
 	if (pledge("stdio exec proc", NULL) == -1) {
-			err(1, "pledge, line: %d", __LINE__);
+		err(1, "pledge, line: %d", __LINE__);
 	}
 	
 	if (pipe2(ftp_out_pipe, O_CLOEXEC) == -1) {
@@ -2643,14 +2800,14 @@ struct winsize {
 		}
 
 		if (next && !strcmp(name.release, "9.9")) {
+			i = 0;
 			release = strdup("10.0");
-			i = 0;
 		} else if (previous && !strcmp(name.release, "10.0")) {
-			release = strdup("9.9");
 			i = 0;
+			release = strdup("9.9");
 		} else {
-			release = strdup(name.release);
 			i = 1;
+			release = strdup(name.release);
 		}
 
 		if (release == NULL) {
@@ -2858,7 +3015,7 @@ struct winsize {
 			(void)fflush(stdout);
 		}
 
-		if ((pos) >= ((int)(dns_socket_len - 2))) {
+		if (pos >= ((int)(dns_socket_len - 2))) {
 			line[pos] = '\0';
 			(void)printf("'line': %s\n", line);
 			(void)printf("pos got too big! line: %d\n", __LINE__);
@@ -2925,9 +3082,15 @@ struct winsize {
 
 
 		/*
-		 * wipes out spaces at the end of the label
+		 * wipes out spaces or commas at the end of the label
 		 */
-		while ((pos > 0) && (line[pos - 1] == ' ')) {
+		while ((pos > 0) && 
+		       (
+			(line[pos - 1] == ' ')
+				  ||
+			(line[pos - 1] == ',')
+		       )
+		      ) {
 			--pos;
 		}
 
@@ -2961,7 +3124,7 @@ struct winsize {
 			continue;
 		}
 
-		if ((usa == 0) && strstr(line, "USA")) {
+		if ((usa == 0) && (strstr(line, "USA") != NULL)) {
 			(void)free(array[array_length].http);
 			num = 0;
 			pos = 0;
@@ -3098,7 +3261,15 @@ struct winsize {
 	 * It's caused by no internet, bad dns resolution;
 	 *   Or from a faulty mirror or its bad dns info
 	 */
-	if (WEXITSTATUS(z) || (array_length == 0)) {
+	if (
+	    (
+	     WIFEXITED(z)
+		  &&
+	     WEXITSTATUS(z)
+	    )
+		  ||
+	    (array_length == 0)
+	   ) {
 
 		if (verbose >= 0) {
 			(void)printf("There was an 'ftplist' ");
@@ -3120,7 +3291,7 @@ struct winsize {
 
 	pos_max += tag_len;
 
-	if (pos_max > (int)sizeof(dns_socket_len /* length of line */)) {
+	if (pos_max > (int)dns_socket_len) {
 		(void)free(line);
 		line = (char*)calloc((size_t)pos_max, sizeof(char));
 		if (line == NULL) {
@@ -3320,6 +3491,14 @@ struct winsize {
 
 		n = (int)(cut - host);
 
+		if (url_validate(host, n, verbose >= 4)) {
+			if (verbose >= 2) {
+				(void)printf("DNS url invalid.\n");
+			}
+			array[c].diff = s + 5.0L;
+			continue;
+		}
+
 		if (dns_cache) {
 			
 			/* 
@@ -3327,12 +3506,13 @@ struct winsize {
 			 */
 			const struct timespec timeout_d = { 120, 0 };
 
-
 			i = (int)write(dns_cache_d_socket[PARENT_SOCK],
-			                      host, (size_t)n);
+					      host, (size_t)n);
 			if (i != n) {
 				goto restart_dns_err;
 			}
+
+
 
 			if ((verbose >= 0) && (verbose <= 3)) {
 				(void)printf("*");
@@ -3346,7 +3526,8 @@ struct winsize {
 			 * the program again if DNS daemon is stuck
 			 */
 			EV_SET(&ke, dns_cache_d_socket[PARENT_SOCK],
-			    EVFILT_READ, EV_ADD | EV_ONESHOT, 0, 0, NULL);
+			    EVFILT_READ, EV_ADD | EV_ONESHOT,
+			    0, 0, NULL);
 			i = kevent(kq, &ke, 1, &ke, 1, &timeout_d);
 
 			if ((verbose >= 0) && (verbose <= 3)) {
@@ -3372,8 +3553,8 @@ struct winsize {
 			i = (int)read(
 				      dns_cache_d_socket[PARENT_SOCK],
 				      &v,
-			              sizeof(char)
-			             );
+				      sizeof(char)
+				     );
 
 			if (i != sizeof(char)) {
 
@@ -3381,7 +3562,8 @@ restart_dns_err:
 
 				if (verbose >= 2) {
 					(void)printf("dns_cache ");
-					(void)printf("process issues\n\n");
+					(void)printf("process ");
+					(void)printf("issues\n\n");
 				}
 				else if (verbose >= 0) {
 					n = (int)array_length - c;
@@ -3391,7 +3573,8 @@ restart_dns_err:
 					} while (n);
 				}
 
-				restart(argc, argv, loop, verbose, __LINE__,
+				restart(argc, argv, loop, verbose,
+					__LINE__,
 					dns_cache_d_pid);
 			}
 
@@ -3400,20 +3583,26 @@ restart_dns_err:
 					(void)printf("IPv6 DNS record ");
 					(void)printf("not found.\n");
 				}
-				array[c].diff = s + 2;
+				array[c].diff = s + 2.0L;
 				continue;
 			} else if (v == 'f') {
 				if (verbose >= 2) {
 					(void)printf("DNS record not found.\n");
 				}
-				array[c].diff = s + 3;
+				array[c].diff = s + 3.0L;
 				continue;
 			} else if (v == 'u') {
 				if (verbose >= 2) {
 					(void)printf("BLOCKED ");
 					(void)printf("subdomain!\n");
 				}
-				array[c].diff = s + 4;
+				array[c].diff = s + 4.0L;
+				continue;
+			} else if (v == 'i') {
+				if (verbose >= 2) {
+					(void)printf("DNS url invalid.\n");
+				}
+				array[c].diff = s + 5.0L;
 				continue;
 			}
 		}
@@ -3567,7 +3756,7 @@ restart_dns_err:
 		(void)waitpid(ftp_pid, &z, 0);
 
 		if (WEXITSTATUS(z) != 0) {
-			array[c].diff = s + 1;
+			array[c].diff = s + 1.0L;
 			if (verbose >= 2) {
 				(void)printf("Download Error\n");
 			}
@@ -3777,7 +3966,7 @@ restart_dns_err:
 		int  se = -1;
 
 
-		MIRROR *slowest;
+		MIRROR *slowest = NULL;
 		
 		int diff_topper = 0;
 		
@@ -4007,9 +4196,6 @@ restart_dns_err:
 		}
 
 
-
-
-
 		c = (int)array_length;
 		ac = array + c;
 
@@ -4092,7 +4278,7 @@ restart_dns_err:
 
 				n = speed_shift - j;
 
-				while(n-- > 0) {
+				for (; n > 0; --n) {
 					(void)printf(" ");
 				}
 
@@ -4105,10 +4291,7 @@ restart_dns_err:
 				}
 
 
-
-				i = 2 + (array_length >= 100);
-
-				i += 3 + pos_maxl;
+				i = 2 + (array_length >= 100) + 3 + pos_maxl;
 
 				for (; i > 0; --i) {
 					(void)printf(" ");
@@ -4205,14 +4388,7 @@ restart_dns_err:
 
 				(void)printf("\n");
 
-				if (array_length >= 100) {
-					i = 3;
-				}
-				else {
-					i = 2;
-				}
-
-				i += 3 + pos_maxl;
+				i = 2 + (array_length >= 100) + 3 + pos_maxl;
 
 				for (; i > 0; --i) {
 					(void)printf(" ");
@@ -4302,14 +4478,16 @@ restart_dns_err:
 	/*
 	 * If assigned this value.... If -Wfloat-equal warnings, ignore it.
 	 */
-			if (ac->diff == (s + 1)) {
+			if (ac->diff == (s + 1.0L)) {
 				(void)printf("Download Error");
-			} else if (ac->diff == (s + 2)) {
-				(void)printf("IPv6 DNS record not found");
-			} else if (ac->diff == (s + 3)) {
-				(void)printf("DNS record not found");
-			} else {
+			} else if (ac->diff == (s + 2.0L)) {
+				(void)printf("IPv6 DNS record not found.");
+			} else if (ac->diff == (s + 3.0L)) {
+				(void)printf("DNS record not found.");
+			} else if (ac->diff == (s + 4.0L)) {
 				(void)printf("BLOCKED subdomain!");
+			} else {
+				(void)printf("DNS url invalid.");
 			}
 
 
