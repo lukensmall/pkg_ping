@@ -102,7 +102,7 @@ extern char *malloc_options = "CFGJJU";
 extern char **environ = NULL;
 
 /*
- * I figured that I'd clean up some of the magic numbers.
+ * I figured that I'd clean up socketpair magic numbers.
  */
 #define PARENT_SOCK 0
 #define  CHILD_SOCK 1
@@ -723,6 +723,53 @@ url_validate(char *url, int len, int print_error)
 		return 1;
 	}
 
+	if (len > 63) {
+		i = len;
+		do {
+			/*
+			 * label < 64 characters long
+			 */
+			n = 0;
+			for (--i; (i >= 0) && (url[i] != '.'); --i) {
+				++n;
+				if (n > 63) {
+					if (print_error) {
+						(void)printf("url: label > 63");
+						(void)printf(" characters.\n");
+					}
+					return 1;
+				}
+			}
+		} while (i >= 63);
+	}
+	
+	/*
+	 * white-list characters
+	 */
+	for (i = 0; i < len; ++i) {
+		const char c = url[i];
+		if (
+		   !(
+		     ((c >= 'a') && (c <= 'z'))
+			         ||
+		     ((c >= 'A') && (c <= 'Z'))
+			         ||
+		     ((c >= '0') && (c <= '9'))
+		                 ||
+		              (c == '.')
+		                 ||
+		              (c == '-')
+		                 ||
+		              (c == '_')
+		    )
+		   ) {
+			if (print_error) {
+				(void)printf("url: invalid character.\n");
+			}
+			return 1;
+		}
+	}
+
 	/*
 	 * no url leading nor trailing '-'
 	 */
@@ -756,6 +803,30 @@ url_validate(char *url, int len, int print_error)
 	}
 
 	/*
+	 * no .. nor leading nor trailing '-' on each label (between each '.')
+	 */
+	for (i = len - 2; i >= 0; --i) {
+		if ((url[i] == '.') && (url[i + 1] == '.')) {
+			if (print_error) {
+				(void)printf("url: no \"..\".\n");
+			}
+			return 1;
+		}
+		if ((url[i] == '.') && (url[i + 1] == '-')) {
+			if (print_error) {
+				(void)printf("url: no \".-\".\n");
+			}
+			return 1;
+		}
+		if ((url[i] == '-') && (url[i + 1] == '.')) {
+			if (print_error) {
+				(void)printf("url: no \"-.\".\n");
+			}
+			return 1;
+		}
+	}
+
+	/*
 	 * no url -- in position 3-4
 	 */
 	if ( len >= 4) {
@@ -765,65 +836,6 @@ url_validate(char *url, int len, int print_error)
 			}
 			return 1;
 		}
-	}
-
-	/*
-	 * url no ..
-	 */
-	for (i = len - 2; i >= 0; --i) {
-		if ( (url[i] == '.') && (url[i + 1] == '.')) {
-			if (print_error) {
-				(void)printf("url: no \"..\".\n");
-			}
-			return 1;
-		}
-	}
-	
-	/*
-	 * white-list characters
-	 */
-	for (i = 0; i < len; ++i) {
-		const char c = url[i];
-		if (
-		   !(
-		     ((c >= 'a') && (c <= 'z'))
-			         ||
-		     ((c >= 'A') && (c <= 'Z'))
-			         ||
-		     ((c >= '0') && (c <= '9'))
-		                 ||
-		              (c == '.')
-		                 ||
-		              (c == '-')
-		                 ||
-		              (c == '_')
-		    )
-		   ) {
-			if (print_error) {
-				(void)printf("url: invalid character.\n");
-			}
-			return 1;
-		}
-	}
-
-	if (len > 63) {
-		i = len;
-		do {
-			/*
-			 * label < 64 characters long
-			 */
-			n = 0;
-			for (--i; (i >= 0) && (url[i] != '.'); --i) {
-				++n;
-				if (n > 63) {
-					if (print_error) {
-						(void)printf("url: label > 63");
-						(void)printf(" characters.\n");
-					}
-					return 1;
-				}
-			}
-		} while (i >= 63);
 	}
 		
 	/*
@@ -857,8 +869,8 @@ dns_cache_d(const int dns_socket, const int secure,
 	       const int six, const int verbose)
 {
 	int i = 0;
-	int g = 0;
 	int c = 0;
+	int g = 0;
 	struct addrinfo *res0 = NULL;
 	struct addrinfo *res  = NULL;
 	int ret = 1;
@@ -1054,10 +1066,11 @@ dns_loop:
 			}
 
 			(void)printf("       %hhu.%hhu.%hhu.%hhu\n",
-			    (uint8_t) sui4,
-			    (uint8_t)(sui4 >>  8),
-			    (uint8_t)(sui4 >> 16),
-			    (uint8_t)(sui4 >> 24));
+			    (uint8_t)( sui4        & (uint32_t)0xff),
+			    (uint8_t)((sui4 >>  8) & (uint32_t)0xff),
+			    (uint8_t)((sui4 >> 16) & (uint32_t)0xff),
+			    (uint8_t) (sui4 >> 24)
+			);
 			continue;
 		}
 
@@ -1217,22 +1230,21 @@ file_d(const int write_pipe, const int secure,
 	const size_t    received_max = 1 + max_file_length - 2;
 	ssize_t             received = 0;
 
-	/*
-	 * It needs to be root to operate on the root-owned /etc/installurl
-	 */
-	if (seteuid(0) == -1) {
-		(void)printf("%s ", strerror(errno));
-		(void)printf("seteuid root, line: %d\n", __LINE__);
-		_exit(1);
-	}
-	
-	if (debug) {
-		if (pledge("stdio", NULL) == -1) {
+	if (!debug) {
+		/*
+		 * It needs to be root to operate on the root-owned /etc/installurl
+		 */
+		if (seteuid(0) == -1) {
+			(void)printf("%s ", strerror(errno));
+			(void)printf("seteuid root, line: %d\n", __LINE__);
+			_exit(1);
+		}
+		if (pledge("stdio cpath wpath", NULL) == -1) {
 			(void)printf("%s ", strerror(errno));
 			(void)printf("pledge, line: %d\n", __LINE__);
 			_exit(1);;
 		}
-	} else if (pledge("stdio cpath wpath", NULL) == -1) {
+	} else if (pledge("stdio", NULL) == -1) {
 		(void)printf("%s ", strerror(errno));
 		(void)printf("pledge, line: %d\n", __LINE__);
 		_exit(1);
@@ -1243,7 +1255,7 @@ file_d(const int write_pipe, const int secure,
 		_exit(1);
 	}
 
-	file_w = (char*)malloc(max_file_length);
+	file_w = (char*)malloc(max_file_length + 1 + 1);
 	if (file_w == NULL) {
 		(void)printf("malloc\n");
 		_exit(1);
@@ -1363,7 +1375,7 @@ restart(int argc, char *argv[], const int loop, const int verbose,
 	const int len = 10;
 	
 	/* 
-	 * if an appended 'loop' is already the last variable: excise the value.
+	 * if an appended 'loop' is already the last variable: excise the char*.
 	 */
 	const int n
 	    = argc - (int)((argc > 1) && (!strncmp(argv[argc - 1], "-l", 2)));
@@ -1467,7 +1479,10 @@ ftp_test_help(const int ftp_helper_out_pipe, const int ftp_2_ftp_helper_socket,
 	int ret = 1;
 	int num = 0;
 	int pos = 0;
-	int   n = 200;
+	int   c = 0;
+	int   j = 0;
+	
+	int   line_len = 200;
 	
 	ssize_t i = 0;
 
@@ -1483,7 +1498,7 @@ ftp_test_help(const int ftp_helper_out_pipe, const int ftp_2_ftp_helper_socket,
 	}
 
 	(void)free(line);
-	line = (char*)calloc((size_t)n, sizeof(char));
+	line = (char*)calloc((size_t)line_len, sizeof(char));
 	if (line == NULL) {
 		(void)printf("calloc\n");
 		_exit(1);
@@ -1503,7 +1518,7 @@ ftp_test_help(const int ftp_helper_out_pipe, const int ftp_2_ftp_helper_socket,
 	 */
 	while (read(ftp_2_ftp_helper_socket, &v, sizeof(char))
 	    == sizeof(char)) {
-		if (pos >= (n - 2)) {
+		if (pos >= (line_len - 2)) {
 			line[pos] = '\0';
 			(void)printf("'line': %s\n", line);
 			(void)printf("pos got too big! line: %d\n", __LINE__);
@@ -1551,6 +1566,27 @@ ftp_test_help(const int ftp_helper_out_pipe, const int ftp_2_ftp_helper_socket,
 		}
 
 		*g = '\0';
+
+		/*
+		 * let's force my own validation on top of strtold()
+		 */
+		do {
+			if ((line[c] >= '0') && (line[c] <= '9')) {
+				++c;
+				continue;
+			}
+			++j;
+			if ((c > 0) && (line[c] == '.') && (j == 1)) {
+				++c;
+				continue;
+			}
+
+			(void)printf("ftp(1) should not have non-numeric ");
+			(void)printf("characters beyond a single '.' ");
+			(void)printf("before the KB/s or MB/s argument.\n");
+			goto ftp_help_cleanup;
+
+		} while (line + c < g);
 
 		errno = 0;
 		t = strtold(line, &endptr);
@@ -2275,7 +2311,7 @@ struct winsize {
 		
 		pw = getpwnam("_pkgfetch");
 		if (pw == NULL) {
-			err(1, "getpwnam _pkg_fetch failed, line %d", __LINE__);
+			err(1, "getpwnam _pkgfetch failed, line %d", __LINE__);
 		}
 	
 		/*
@@ -2301,11 +2337,9 @@ struct winsize {
 		err(1, "pledge, line: %d", __LINE__);
 	}
 
-
 	if (ioctl(0, TIOCGWINSZ, &w) == -1) {
 		err(1, "ioctl, line: %d", __LINE__);
 	}
-
 
 	if (pledge("stdio exec proc dns id cpath wpath unveil", NULL) == -1) {
 		err(1, "pledge, line: %d", __LINE__);
