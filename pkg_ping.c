@@ -51,17 +51,24 @@
  *  As root:
 
 cc pkg_ping.c -march=native -mtune=native -flto -static -O3 \
--Wno-extern-initializer -o /usr/local/bin/pkg_ping
+-Wno-extern-initializer -pipe -o /usr/local/bin/pkg_ping
+
+ * 	You won't see ANY appreciable performance gain between the
+ * 	getaddrinfo(3) and ftp(1) calls which fetch data over the network.
+ * 	Everything else happens in likely less than half a second
+ * 	after the first ftp call starts to return its results; as shown
+ *	using both the -D and -d flags.
+ * 
+ * 	You WILL see an orders of magnitude gain in program size a 2500%
+ * 	difference on my machine. 1.3 MB vs. 52 KB using:
+
+cc pkg_ping.c -Os -s -march=native -mtune=native \
+-Wno-extern-initializer -pipe -o /usr/local/bin/pkg_ping
 
  *	run with: /usr/local/bin/pkg_ping
  *
  *	if there are no other pkg_ping files in your execution path:
  *	you can run with: pkg_ping
- *
- * 	You won't see ANY appreciable performance gain between the
- * 	getaddrinfo(3) and ftp(1) calls which fetch data over the network.
- * 	Everything else happens in likely less than third of a second
- * 	after the first ftp call starts to return its results.
  *
  * 	program designed to be viewed with tabs which are 8 characters wide
  */
@@ -707,7 +714,6 @@ static int
 url_validate(char *url, int len, int print_error)
 {
 	int i;
-	int n;
 
 	if (len < 1) {
 		if (print_error) {
@@ -729,7 +735,7 @@ url_validate(char *url, int len, int print_error)
 			/*
 			 * label < 64 characters long
 			 */
-			n = 0;
+			int n = 0;
 			for (--i; (i >= 0) && (url[i] != '.'); --i) {
 				++n;
 				if (n > 63) {
@@ -752,11 +758,11 @@ url_validate(char *url, int len, int print_error)
 		   !(
 		     ((c >= 'a') && (c <= 'z'))
 			         ||
-		     ((c >= 'A') && (c <= 'Z'))
-			         ||
-		     ((c >= '0') && (c <= '9'))
-		                 ||
 		              (c == '.')
+			         ||
+		     ((c >= 'A') && (c <= 'Z'))
+		                 ||
+		     ((c >= '0') && (c <= '9'))
 		                 ||
 		              (c == '-')
 		                 ||
@@ -1586,7 +1592,7 @@ ftp_test_help(const int ftp_helper_out_pipe, const int ftp_2_ftp_helper_socket,
 			(void)printf("before the KB/s or MB/s argument.\n");
 			goto ftp_help_cleanup;
 
-		} while (line + c < g);
+		} while ((line + c) < g);
 
 		errno = 0;
 		t = strtold(line, &endptr);
@@ -1871,11 +1877,36 @@ generate_function(int se)
 	int     n = 0;
 	int first = 0;
 
-	const int se0 = se;
+	int se0 = se;
 
 	MIRROR *ac = NULL;
 
 	char *cut = NULL;
+	
+	/*
+	 * url_validate() all array entries in case it didn't occur before.
+	 */
+	c = se + 1;
+	while (c) {
+		char *cut2;
+		--c;
+		cut = array[c].http + h;
+		cut2 = strchr(cut, '/');
+		if (!cut2) {
+			continue;
+		}
+		if (url_validate(cut, (int)(cut2 - cut), 1)) {
+			if (c != se) {
+				MIRROR temp;
+				memcpy(&temp,      &array[se], sizeof(MIRROR));
+				memcpy(&array[se], &array[c],  sizeof(MIRROR));
+				memcpy(&array[c],  &temp,      sizeof(MIRROR));
+			}
+			--se;
+		}
+	}
+		
+	se0 = se;
 
 	/*
 	 * load diff with what will be printed http lengths
@@ -3167,11 +3198,13 @@ struct winsize {
 		
 		if ((USA == 1) &&
 		
-		    (
-		      (strstr(line, "USA"   ) == NULL) &&
-		      (strstr(line, "CDN"   ) == NULL) &&
-		      (strstr(line, "Canada") == NULL)
-		    )
+		   ! (
+		      (strstr(line, "USA"   ) != NULL)
+		                     ||
+		      (strstr(line, "CDN"   ) != NULL)
+		                     ||
+		      (strstr(line, "Canada") != NULL)
+		     )
 		    
 		) {
 			(void)free(array[array_length].http);
@@ -4263,6 +4296,8 @@ restart_dns_err:
 
 				if ((ac->diff < 1) && (ac->diff >= 0)) {
 					switch (diff_topper) {
+					case 0:
+						break;
 					case 1:
 						(void)printf(" ");
 						break;
