@@ -47,8 +47,6 @@
  *	cc pkg_ping.c -Wno-extern-initializer -o /usr/local/bin/pkg_ping
  *
  * 	If you want bleeding edge performance, you can try:
- *
- *  As root:
 
 cc pkg_ping.c -march=native -mtune=native -flto -static -O3 \
 -Wno-extern-initializer -pipe -o /usr/local/bin/pkg_ping
@@ -59,10 +57,11 @@ cc pkg_ping.c -march=native -mtune=native -flto -static -O3 \
  * 	after the first ftp call starts to return its results; as shown
  *	using both the -D and -d flags.
  * 
- * 	You WILL see an orders of magnitude gain in program size a 2500%
- * 	difference on my machine. 1.3 MB vs. 52 KB using:
+ * 	You WILL see an orders of magnitude gain in program size,
+ *	a 1930% - 2346% difference on my machine:
+ *	1,297,816 bytes vs. 67,240 bytes (simple compile) or 55,320 bytes using:
 
-cc pkg_ping.c -Os -s -march=native -mtune=native \
+cc pkg_ping.c -march=native -mtune=native -Oz \
 -Wno-extern-initializer -pipe -o /usr/local/bin/pkg_ping
 
  *	run with: /usr/local/bin/pkg_ping
@@ -235,26 +234,22 @@ free_array(void)
 
 }
 
-static long double almost_zero = 0.0L;
-
 /*
  * print long double which is <1 and >0, without the leading '0'
- * eg. 0.25 is printed: .25
+ * eg. 0.250000000 is printed: .25
  * it doesn't get here unless diff <1 and >= 0
  */
-static void
-sub_one_print(long double diff)
+static int
+sub_one_print(const long double diff, const int added_on)
 {
 	int i = 0;
-	if ((diff < almost_zero) && (diff >= 0.0L)) {
-		(void)printf("0");
-		return;
-	}
+	int n = 0;
+	
 	if ((diff >= 1.0L) || (diff < 0.0L)) {
-		errx(1, "Shouldn't ever get here line: %d", __LINE__);
+		errx(1, "\nShouldn't ever get here. line: %d", __LINE__);
 	}
 
-	i = snprintf(diff_string, 12, "%.9Lf", diff);
+	i = snprintf(diff_string, 11 + 1, "%.9Lf", diff);
 	if (i != 11) {
 		if (i < 0) {
 			err(1, "snprintf, line: %d", __LINE__);
@@ -263,13 +258,40 @@ sub_one_print(long double diff)
 			    diff_string, __LINE__);
 		}
 	}
-	(void)printf("%s", 1 + diff_string);
+	
+	if (diff_string[0] == '1') {
+		(void)memcpy(diff_string, "0.999999999", 11 + 1);
+	}
+	
+	(void)memmove(diff_string, diff_string + 1, 10 + 1);
+	
+	i = 10;
+	for (n = i - 1; diff_string[n] == '0'; --n) {
+		i = n;
+	}
+
+	/* 
+	 * if they are all zeroes after '.' then remove '.'
+	 */
+	if (diff_string[n] == '.') {
+		if (added_on) {
+			return 10;
+		}
+		memcpy(diff_string, "0", 1 + 1);
+		i = 1;
+	} else if (i < 10) {
+		diff_string[i] = '\0';
+	}
+		
+	(void)printf("%s", diff_string);
+	
+	return (10 - i);
 }
 
 /*
  * comparison between two MIRRORs. 
  * Prioritize MIRRORs which are likely closer to the USA,
- * otherwise...don't care.
+ * otherwise...don't care. (return 0)
  */
 static int
 usa_cmp(const void *a, const void *b)
@@ -711,7 +733,7 @@ manpage(void)
  * validate a url
  */
 static int
-url_validate(char *url, int len, int print_error)
+url_validate(const char *url, const int len, const int print_error)
 {
 	int i;
 
@@ -761,12 +783,12 @@ url_validate(char *url, int len, int print_error)
 		              (c == '.')
 			         ||
 		     ((c >= 'A') && (c <= 'Z'))
-		                 ||
+			         ||
 		     ((c >= '0') && (c <= '9'))
-		                 ||
-		              (c == '-')
-		                 ||
-		              (c == '_')
+			         ||
+			      (c == '-')
+			         ||
+			      (c == '_')
 		    )
 		   ) {
 			if (print_error) {
@@ -812,19 +834,19 @@ url_validate(char *url, int len, int print_error)
 	 * no .. nor leading nor trailing '-' on each label (between each '.')
 	 */
 	for (i = len - 2; i >= 0; --i) {
-		if ((url[i] == '.') && (url[i + 1] == '.')) {
+		if (!strncmp(url + i, "..", 2)) {
 			if (print_error) {
 				(void)printf("url: no \"..\".\n");
 			}
 			return 1;
 		}
-		if ((url[i] == '.') && (url[i + 1] == '-')) {
+		if (!strncmp(url + i, ".-", 2)) {
 			if (print_error) {
 				(void)printf("url: no \".-\".\n");
 			}
 			return 1;
 		}
-		if ((url[i] == '-') && (url[i + 1] == '.')) {
+		if (!strncmp(url + i, "-.", 2)) {
 			if (print_error) {
 				(void)printf("url: no \"-.\".\n");
 			}
@@ -1877,7 +1899,7 @@ generate_function(int se)
 	int     n = 0;
 	int first = 0;
 
-	int se0 = se;
+	int se0;
 
 	MIRROR *ac = NULL;
 
@@ -1892,15 +1914,15 @@ generate_function(int se)
 		--c;
 		cut = array[c].http + h;
 		cut2 = strchr(cut, '/');
-		if (!cut2) {
-			continue;
+		if (cut2 == NULL) {
+			cut2 = cut + strlen(cut);
 		}
 		if (url_validate(cut, (int)(cut2 - cut), 1)) {
 			if (c != se) {
 				MIRROR temp;
-				memcpy(&temp,      &array[se], sizeof(MIRROR));
-				memcpy(&array[se], &array[c],  sizeof(MIRROR));
-				memcpy(&array[c],  &temp,      sizeof(MIRROR));
+				memcpy(&temp,      array + se, sizeof(MIRROR));
+				memcpy(array + se, array + c,  sizeof(MIRROR));
+				memcpy(array + c,  &temp,      sizeof(MIRROR));
 			}
 			--se;
 		}
@@ -1924,7 +1946,7 @@ generate_function(int se)
 			(void)memmove(ac->http, ac->http + h - 1,
 			              (size_t)j + 1 + 1);
 			ac->http[0] = '*';
-		} else if (strcmp(cut += j -= 12, "/pub/OpenBSD")) {
+		} else if (strcmp(cut += (j -= 12), "/pub/OpenBSD")) {
 			ac->diff = (long double)j + 13;
 			(void)memmove(ac->http, ac->http + h - 1,
 			              (size_t)j + 13 + 1);
@@ -2305,12 +2327,6 @@ struct winsize {
 	char *host = NULL;
 	char  *cut = NULL;
 
-	errno = 0;
-	almost_zero = strtold(".000000001", NULL);
-	if (errno) {
-		err(1, "almost_zero == 0, line: %d", __LINE__);
-	}
-
 	if (argc < 1) {
 		errx(1, "argc cannot be less than 1!");
 	}
@@ -2487,8 +2503,8 @@ struct winsize {
 			override = 1;
 			break;
 		case 'p':
-			next = 0;
 			previous = 1;
+			next = 0;
 			break;
 		case 'r':
 			average = 0;
@@ -2584,8 +2600,7 @@ struct winsize {
 			if (verbose < 2) {
 				verbose = 2;
 			}
-		}
-		else if (verbose < 1) {
+		} else if (verbose < 1) {
 			verbose = 1;
 		}
 		
@@ -3070,7 +3085,7 @@ struct winsize {
 
 
 	if (debug) {
-		(void)clock_gettime(CLOCK_REALTIME, &startD);
+		(void)clock_gettime(CLOCK_MONOTONIC, &startD);
 	}
 
 	while (read(z, &v, sizeof(char)) == sizeof(char)) {
@@ -3149,13 +3164,7 @@ struct winsize {
 		/*
 		 * wipes out spaces or commas at the end of the label
 		 */
-		while ((pos > 0) && 
-		       (
-			(line[pos - 1] == ' ')
-				  ||
-			(line[pos - 1] == ',')
-		       )
-		      ) {
+		while ((pos > 0) && strchr(" ,", line[pos - 1])) {
 			--pos;
 		}
 
@@ -3330,8 +3339,8 @@ struct winsize {
 	 */
 	if (
 	    (
-	     WIFEXITED(z)
-		  &&
+	     !WIFEXITED(z)
+		  ||
 	     WEXITSTATUS(z)
 	    )
 		  ||
@@ -3491,11 +3500,11 @@ struct winsize {
 		cut = strchr(host, '/');
 
 		if (verbose >= 2) {
-			if ( (verbose >= 4) && (dns_cache != 0) ) {
+			if ( (verbose >= 4) && (dns_cache) ) {
 				(void)printf("\n\n\n\n");
 			} else if (verbose >= 3) {
 				(void)printf("\n\n");
-			} else if (verbose >= 0) {
+			} else {
 				(void)printf("\n");
 			}
 
@@ -3766,9 +3775,9 @@ restart_dns_err:
 		 */
 		(void)close(block_socket[PARENT_SOCK]);
 
-		(void)clock_gettime(CLOCK_REALTIME, &start);
+		(void)clock_gettime(CLOCK_MONOTONIC, &start);
 		i = kevent(kq, NULL, 0, &ke, 1, &timeout);
-		(void)clock_gettime(CLOCK_REALTIME, &end);
+		(void)clock_gettime(CLOCK_MONOTONIC, &end);
 
 		if (i == -1) {
 			(void)printf("%s ", strerror(errno));
@@ -3822,7 +3831,7 @@ restart_dns_err:
 		}
 		(void)waitpid(ftp_pid, &z, 0);
 
-		if (WEXITSTATUS(z) != 0) {
+		if (!WIFEXITED(z) || WEXITSTATUS(z)) {
 			array[c].diff = s + 1.0L;
 			if (verbose >= 2) {
 				(void)printf("Download Error\n");
@@ -3862,16 +3871,26 @@ restart_dns_err:
 		if (verbose >= 2) {
 			if (array[c].diff >= s) {
 				array[c].diff = s;
-				(void)printf("Timeout\n");
+				(void)printf("Timeout");
 			} else if (
-				   (array[c].diff < 1) &&
-			           (array[c].diff >= 0)
+				   (array[c].diff <  1.0L)
+					      &&
+			           (array[c].diff >= 0.0L)
 			          ) {
-				sub_one_print(array[c].diff);
-				(void)printf("\n");
+					  
+				(void)sub_one_print(array[c].diff, 0);
+				
+			} else if (array[c].diff >= 0.0L) {
+				(void)printf("%d", (int)array[c].diff);
+				t = array[c].diff - (int)array[c].diff;
+				(void)sub_one_print(t, 1);
 			} else {
-				(void)printf("%.9Lf\n", array[c].diff);
+				(void)printf("\n");
+				restart(argc, argv, loop, verbose,
+				    __LINE__, dns_cache_d_pid);
 			}
+			(void)printf("\n");
+			
 		} else if ((average != 2) && !bandwidth && (verbose <= 0)
 		    && (array[c].diff < S)) {
 			S = array[c].diff;
@@ -4311,28 +4330,32 @@ restart_dns_err:
 						(void)printf("    ");
 						break;
 					}
-					sub_one_print(ac->diff);
+					n = sub_one_print(ac->diff, 0);
 				} else {
+					n = (int)ac->diff;
+
 					switch (diff_topper) {
 					case 1:
-						(void)printf("%1.9Lf",
-							     ac->diff);
+						(void)printf("%1d", n);
 						break;
 					case 2:
-						(void)printf("%2.9Lf",
-						             ac->diff);
+						(void)printf("%2d", n);
 						break;
 					case 3:
-						(void)printf("%3.9Lf",
-							     ac->diff);
+						(void)printf("%3d", n);
 						break;
 					default:
-						(void)printf("%4.9Lf",
-							     ac->diff);
+						(void)printf("%4d", n);
 						break;
 					}
+					t = ac->diff - (long double)n;
+					n = sub_one_print(t, 1);
 				}
-				(void)printf(" seconds : ");
+				(void)printf(" seconds");
+				for (; n > 0; --n) {
+					(void)printf(" ");
+				}
+				(void)printf(" : ");
 
 				t = (long double)ac->speed;
 
@@ -4645,7 +4668,7 @@ no_good:
 		(void)close(write_pipe[STDOUT_FILENO]);
 		(void)waitpid(write_pid, &z, 0);
 
-		if (WEXITSTATUS(z) != 0) {
+		if (!WIFEXITED(z) || WEXITSTATUS(z)) {
 			(void)printf("\nwrite_pid error.\n");
 			restart(argc, argv, loop, verbose, __LINE__,
 			dns_cache_d_pid);
@@ -4663,7 +4686,7 @@ no_good:
 
 debug_display:
 
-		(void)clock_gettime(CLOCK_REALTIME, &endD);
+		(void)clock_gettime(CLOCK_MONOTONIC, &endD);
 
 
 		if (verbose != -1) {
@@ -4677,11 +4700,15 @@ debug_display:
 				  1000000000.0L;
 
 		if (  (S < 1.0L) && (S >= 0.0L)  ) {
-			sub_one_print(S);
-			(void)printf("\n");
+			(void)sub_one_print(S, 0);
+		} else if (S >= 0.0L) {
+			(void)printf("%d", (int)S);
+			(void)sub_one_print(S - (int)S, 1);
 		} else {
-			(void)printf("%.9Lf\n", S);
+			restart(argc, argv, loop, verbose,
+			__LINE__, dns_cache_d_pid);
 		}
+		(void)printf(" seconds\n");
 	}
 
 	return ret;
